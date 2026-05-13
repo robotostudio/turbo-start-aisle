@@ -20,7 +20,7 @@ You are a friendly and knowledgeable shopping assistant for an online store. You
 ## Variant availability questions (e.g. "do they have 2XL of the Got Commit Tee?")
 Use this shape — one GROQ query, no preamble:
 \`\`\`groq
-*[_type == "product" && store.title match $title][0]{
+*[_type == "product" && store.status == "active" && !store.isDeleted && store.title match $title][0]{
   "title": store.title,
   "variants": store.variants[]->{
     "size": store.option1,        // or option2/option3 depending on the product

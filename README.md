@@ -10,7 +10,7 @@ The "AI" lives inside the word — and inside the chat bubble.
 
 The chat route runs through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), not a direct provider SDK. That's the pitch of this starter:
 
-- **One key, every provider.** Swap models by changing one string — `"anthropic/claude-haiku-4.5"` → `"openai/gpt-5-mini"` → `"google/gemini-2.5-flash"`. No new SDKs, no new keys, no code refactor.
+- **One key, every provider.** Swap models by changing one string — `"anthropic/claude-haiku-4.5"` → `"openai/gpt-5-mini"` → `"google/gemini-3-flash"`. No new SDKs, no new keys, no code refactor.
 - **Cross-provider failover built in.** The route configures a fallback chain (Anthropic → OpenAI → Google). If one provider is having a bad day, the gateway retries the next one automatically — the demo doesn't 503.
 - **Unified observability + billing.** Every call shows up in one dashboard with latency, token usage, and cost across providers.
 - **OIDC auth on Vercel.** No API key in production environments — Vercel deployments authenticate the gateway via OIDC token automatically. The `AI_GATEWAY_API_KEY` is only needed for local dev.

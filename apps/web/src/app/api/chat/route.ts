@@ -44,10 +44,11 @@ function jsonError(status: number, message: string) {
 
 export async function POST(req: Request) {
   // Auth gate: locally we need AI_GATEWAY_API_KEY. On Vercel, the gateway
-  // uses OIDC tokens automatically, so the key is optional — presence of the
-  // VERCEL env var is the signal that OIDC will handle auth.
+  // uses OIDC tokens automatically, so the key is optional — presence of
+  // VERCEL_OIDC_TOKEN (not just VERCEL) is the real signal that OIDC has
+  // actually issued a token for this request.
   const hasGatewayAuth =
-    Boolean(env.AI_GATEWAY_API_KEY) || Boolean(process.env.VERCEL);
+    Boolean(env.AI_GATEWAY_API_KEY) || Boolean(process.env.VERCEL_OIDC_TOKEN);
   if (!hasGatewayAuth || !env.SANITY_CONTEXT_MCP_URL) {
     return jsonError(
       503,
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
           // the gateway retries each fallback in order. Three providers means
           // the chat survives any single-provider outage.
           // https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway
-          models: ["openai/gpt-5-mini", "google/gemini-2.5-flash"],
+          models: ["openai/gpt-5-mini", "google/gemini-3-flash"],
         },
       },
       system: buildSystemPrompt({ userContext: userContext ?? null }),
