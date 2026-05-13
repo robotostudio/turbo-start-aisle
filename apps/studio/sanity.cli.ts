@@ -58,7 +58,6 @@ export default defineCliConfig({
   },
   studioHost,
   deployment: {
-    appId: "bay7v3kzs18sueei4t7jvf5w",
     autoUpdates: false,
   },
   vite: {
