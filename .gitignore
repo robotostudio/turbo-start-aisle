@@ -44,3 +44,6 @@ npm-debug.log*
 
 # Reference clones used for porting (not part of the project)
 .research/
+
+# Next.js auto-generated (regenerated on every build)
+next-env.d.ts
