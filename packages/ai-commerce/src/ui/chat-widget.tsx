@@ -54,13 +54,19 @@ function iconStyle(visible: boolean): CSSProperties {
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
 
+  // ChatPanel stays mounted across open/close so its message history and
+  // input draft survive — conditional rendering would tear down useChat and
+  // wipe everything every toggle. Visibility is CSS-only.
+  const panelVisibilityStyle: CSSProperties = {
+    ...panelStyle,
+    display: isOpen ? "block" : "none",
+  };
+
   return (
     <>
-      {isOpen ? (
-        <div data-agent-chat-hidden style={panelStyle}>
-          <ChatPanel onClose={() => setIsOpen(false)} />
-        </div>
-      ) : null}
+      <div data-agent-chat-hidden style={panelVisibilityStyle}>
+        <ChatPanel onClose={() => setIsOpen(false)} />
+      </div>
 
       <button
         type="button"

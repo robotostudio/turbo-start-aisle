@@ -13,9 +13,8 @@ interface MessageListProps {
 function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div
+      <output
         className="flex max-w-[85%] items-center gap-1 rounded-md bg-muted px-3 py-3 text-sm text-foreground"
-        aria-live="polite"
         aria-label="Assistant is typing"
       >
         <span
@@ -30,7 +29,7 @@ function TypingIndicator() {
           className="inline-block h-2 w-2 animate-bounce rounded-full bg-foreground/60"
           style={{ animationDelay: "300ms" }}
         />
-      </div>
+      </output>
     </div>
   );
 }
