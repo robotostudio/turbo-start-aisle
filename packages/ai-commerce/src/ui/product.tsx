@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { client } from "@workspace/sanity/client";
 import Link from "next/link";
 
+import { useCurrencyCode } from "../context/currency-context";
+
 interface ProductProps {
   id: string;
   isInline?: boolean;
@@ -47,13 +49,28 @@ const PRODUCT_QUERY = /* groq */ `
   }
 `;
 
-function formatPrice(min: number | null, max: number | null): string {
+function formatPrice(
+  min: number | null,
+  max: number | null,
+  currencyCode: string
+): string {
   if (min == null) return "";
-  if (max == null || min === max) return `$${min.toFixed(2)}`;
-  return `$${min.toFixed(2)}–$${max.toFixed(2)}`;
+  const fmt = (n: number) => {
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currencyCode,
+      }).format(n);
+    } catch {
+      return `${currencyCode} ${n.toFixed(2)}`;
+    }
+  };
+  if (max == null || min === max) return fmt(min);
+  return `${fmt(min)}–${fmt(max)}`;
 }
 
 export function Product({ id, isInline }: ProductProps) {
+  const currencyCode = useCurrencyCode();
   const { data: product, isLoading } = useQuery({
     queryKey: ["ai-commerce", "product", id],
     queryFn: () => client.fetch<ProductData | null>(PRODUCT_QUERY, { id }),
@@ -70,7 +87,31 @@ export function Product({ id, isInline }: ProductProps) {
     );
   }
 
-  if (!product) return null;
+  // The model can emit a `::document{id="…"}` with a hallucinated _id (no
+  // matching Sanity doc). Silently rendering null hides that failure — the
+  // user just sees a gap. Render an explicit placeholder so the breakage is
+  // visible and the user can call it out.
+  if (!product) {
+    if (isInline) {
+      return (
+        <span
+          className="text-muted-foreground italic"
+          title={`Missing product ${id}`}
+        >
+          [unavailable product]
+        </span>
+      );
+    }
+    return (
+      <div className="flex items-center gap-3 rounded-md border border-dashed border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+        <div className="h-12 w-12 shrink-0 rounded bg-muted" />
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium">Product not found</span>
+          <span className="text-[10px] opacity-70">id: {id}</span>
+        </div>
+      </div>
+    );
+  }
 
   if (isInline) {
     return (
@@ -89,10 +130,10 @@ export function Product({ id, isInline }: ProductProps) {
     product.variants[0]?.available === true;
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-border bg-card p-2">
+    <div className="group flex items-center gap-3 rounded-md border border-border bg-card p-2 transition-colors hover:border-primary/40 hover:bg-accent">
       <Link
         href={`/products/${product.slug}`}
-        className="flex items-center gap-3 transition-colors hover:bg-muted/40"
+        className="flex flex-1 items-center gap-3"
       >
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded bg-muted">
           {product.imageUrl ? (
@@ -105,25 +146,23 @@ export function Product({ id, isInline }: ProductProps) {
             />
           ) : null}
         </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-foreground">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-sm font-medium text-foreground">
             {product.title}
           </span>
           <span className="text-xs text-muted-foreground">
-            {formatPrice(product.minPrice, product.maxPrice)}
+            {formatPrice(product.minPrice, product.maxPrice, currencyCode)}
           </span>
+          {!purchasable ? (
+            <span className="shrink-0 text-xs text-primary transition-colors group-hover:text-primary/70">
+              View options →
+            </span>
+          ) : null}
         </div>
       </Link>
       {purchasable && product.variants[0] ? (
         <AddToCartButton variantGid={product.variants[0].gid} />
-      ) : (
-        <Link
-          href={`/products/${product.slug}`}
-          className="text-xs text-primary underline-offset-4 hover:underline"
-        >
-          View options →
-        </Link>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -138,7 +177,7 @@ function AddToCartButton({ variantGid }: { variantGid: string }) {
         window.dispatchEvent(
           new CustomEvent("ai-commerce:add-to-cart", {
             detail: { variantGid, quantity: 1 },
-          }),
+          })
         );
       }}
     >

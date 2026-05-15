@@ -36,24 +36,42 @@ export function capturePageContext() {
 
   turndown.addRule("removeNoise", {
     filter: (node: HTMLElement) =>
-      ["SCRIPT", "STYLE", "SVG", "VIDEO", "AUDIO", "IFRAME", "NOSCRIPT"].includes(
-        node.nodeName,
-      ),
+      [
+        "SCRIPT",
+        "STYLE",
+        "SVG",
+        "VIDEO",
+        "AUDIO",
+        "IFRAME",
+        "NOSCRIPT",
+      ].includes(node.nodeName),
     replacement: () => "",
   });
 
   const main = document.querySelector("main") || document.body;
   const clone = main.cloneNode(true) as Element;
-  for (const el of clone.querySelectorAll(
-    `[${AGENT_CHAT_HIDDEN_ATTRIBUTE}]`,
-  )) {
+  for (const el of clone.querySelectorAll(`[${AGENT_CHAT_HIDDEN_ATTRIBUTE}]`)) {
     el.remove();
   }
+
+  // Cap markdown so the model isn't drowned in noise on long pages. The
+  // explicit marker makes truncation visible — without it, the model can
+  // confidently claim "the page doesn't mention X" when X sat just below the
+  // cutoff. The system prompt's page_context section tells the model how to
+  // react when it sees this marker.
+  const PAGE_CONTEXT_LIMIT = 4000;
+  const full = turndown.turndown(clone.innerHTML);
+  const truncated = full.length > PAGE_CONTEXT_LIMIT;
+  const content = truncated
+    ? `${full.slice(0, PAGE_CONTEXT_LIMIT)}\n\n[truncated: page content was ${full.length} chars; only the first ${PAGE_CONTEXT_LIMIT} are shown above]`
+    : full;
 
   return {
     url: window.location.href,
     title: document.title,
-    content: turndown.turndown(clone.innerHTML).slice(0, 4000),
+    content,
+    truncated,
+    fullLength: full.length,
   };
 }
 
@@ -74,7 +92,7 @@ export async function captureScreenshot(): Promise<string> {
   if (canvas.width > MAX_DIMENSION || canvas.height > MAX_DIMENSION) {
     const scale = Math.min(
       MAX_DIMENSION / canvas.width,
-      MAX_DIMENSION / canvas.height,
+      MAX_DIMENSION / canvas.height
     );
     const resizedCanvas = document.createElement("canvas");
     resizedCanvas.width = Math.floor(canvas.width * scale);

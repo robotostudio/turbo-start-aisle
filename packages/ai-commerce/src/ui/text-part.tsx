@@ -53,7 +53,10 @@ export function TextPart({ text, isUser }: TextPartProps) {
           : "prose prose-sm max-w-none text-foreground"
       }
     >
-      <ReactMarkdown remarkPlugins={[remarkAgentDirectives]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkAgentDirectives]}
+        components={components}
+      >
         {text}
       </ReactMarkdown>
     </div>

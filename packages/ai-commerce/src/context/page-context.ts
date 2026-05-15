@@ -19,7 +19,7 @@ export function useSetPageContext() {
         ...ctx,
       }));
     },
-    [qc],
+    [qc]
   );
 }
 

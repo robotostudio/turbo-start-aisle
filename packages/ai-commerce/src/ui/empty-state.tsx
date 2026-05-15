@@ -37,8 +37,7 @@ const FALLBACK = {
 export function EmptyState({ onSuggestion }: EmptyStateProps) {
   const { data } = useQuery({
     queryKey: ["ai-commerce", "ai-assistant-settings"],
-    queryFn: () =>
-      client.fetch<AiAssistantSettings | null>(SETTINGS_QUERY),
+    queryFn: () => client.fetch<AiAssistantSettings | null>(SETTINGS_QUERY),
     staleTime: 5 * 60 * 1000,
   });
 

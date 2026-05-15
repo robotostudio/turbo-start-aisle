@@ -51,7 +51,7 @@ const collectionHandleSchema = z
 
 export const productFiltersSchema = z.object({
   collection: collectionHandleSchema.describe(
-    "Shopify collection handle to navigate to (required)",
+    "Shopify collection handle to navigate to (required)"
   ),
   available: z
     .boolean()
@@ -75,7 +75,7 @@ export const productFiltersSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Shopify ProductCollectionSortKeys: BEST_SELLING, PRICE, CREATED, TITLE, etc.",
+      "Shopify ProductCollectionSortKeys: BEST_SELLING, PRICE, CREATED, TITLE, etc."
     ),
   reverse: z.boolean().optional(),
 });

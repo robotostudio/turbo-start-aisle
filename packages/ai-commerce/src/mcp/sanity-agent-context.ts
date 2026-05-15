@@ -11,7 +11,7 @@ export interface SanityAgentContextConfig {
  * (and on error paths) to release resources.
  */
 export async function createSanityAgentContextClient(
-  config: SanityAgentContextConfig,
+  config: SanityAgentContextConfig
 ) {
   return createMCPClient({
     transport: {

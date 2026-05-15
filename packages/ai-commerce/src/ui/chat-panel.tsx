@@ -22,6 +22,7 @@ import { MessageList } from "./message-list";
 
 interface ChatPanelProps {
   onClose: () => void;
+  currencyCode: string;
 }
 
 /** Build a turbo-start-shopify collection URL with filter.* keys from the AI's input. */
@@ -71,89 +72,90 @@ function buildCollectionUrl(input: ProductFiltersInput): {
   };
 }
 
-export function ChatPanel({ onClose }: ChatPanelProps) {
+export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
   const router = useRouter();
   const pendingScreenshotRef = useRef<string | null>(null);
 
-  const { messages, sendMessage, status, addToolOutput } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: () => ({ userContext: captureUserContext() }),
-    }),
-    sendAutomaticallyWhen: ({ messages }: { messages: UIMessage[] }) =>
-      pendingScreenshotRef.current === null &&
-      messages.length > 0 &&
-      messages[messages.length - 1]?.role === "user",
-    onToolCall: async ({ toolCall }) => {
-      switch (toolCall.toolName) {
-        case CLIENT_TOOLS.PAGE_CONTEXT: {
-          try {
-            const ctx = capturePageContext();
-            addToolOutput({
-              tool: CLIENT_TOOLS.PAGE_CONTEXT,
-              toolCallId: toolCall.toolCallId,
-              output: JSON.stringify(ctx),
-            });
-          } catch (err) {
-            addToolOutput({
-              tool: CLIENT_TOOLS.PAGE_CONTEXT,
-              toolCallId: toolCall.toolCallId,
-              output: `Failed to capture page context: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            });
+  const { messages, sendMessage, status, addToolOutput, error, regenerate } =
+    useChat({
+      transport: new DefaultChatTransport({
+        api: "/api/chat",
+        body: () => ({ userContext: captureUserContext(), currencyCode }),
+      }),
+      sendAutomaticallyWhen: ({ messages }: { messages: UIMessage[] }) =>
+        pendingScreenshotRef.current === null &&
+        messages.length > 0 &&
+        messages[messages.length - 1]?.role === "user",
+      onToolCall: async ({ toolCall }) => {
+        switch (toolCall.toolName) {
+          case CLIENT_TOOLS.PAGE_CONTEXT: {
+            try {
+              const ctx = capturePageContext();
+              addToolOutput({
+                tool: CLIENT_TOOLS.PAGE_CONTEXT,
+                toolCallId: toolCall.toolCallId,
+                output: JSON.stringify(ctx),
+              });
+            } catch (err) {
+              addToolOutput({
+                tool: CLIENT_TOOLS.PAGE_CONTEXT,
+                toolCallId: toolCall.toolCallId,
+                output: `Failed to capture page context: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              });
+            }
+            return;
           }
-          return;
-        }
 
-        case CLIENT_TOOLS.SCREENSHOT: {
-          try {
-            const file = await captureScreenshot();
-            pendingScreenshotRef.current = file;
-            addToolOutput({
-              tool: CLIENT_TOOLS.SCREENSHOT,
-              toolCallId: toolCall.toolCallId,
-              output: "Screenshot captured (sent as follow-up message).",
-            });
-          } catch (err) {
-            addToolOutput({
-              tool: CLIENT_TOOLS.SCREENSHOT,
-              toolCallId: toolCall.toolCallId,
-              output: `Failed to capture screenshot: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            });
+          case CLIENT_TOOLS.SCREENSHOT: {
+            try {
+              const file = await captureScreenshot();
+              pendingScreenshotRef.current = file;
+              addToolOutput({
+                tool: CLIENT_TOOLS.SCREENSHOT,
+                toolCallId: toolCall.toolCallId,
+                output: "Screenshot captured (sent as follow-up message).",
+              });
+            } catch (err) {
+              addToolOutput({
+                tool: CLIENT_TOOLS.SCREENSHOT,
+                toolCallId: toolCall.toolCallId,
+                output: `Failed to capture screenshot: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              });
+            }
+            return;
           }
-          return;
-        }
 
-        case CLIENT_TOOLS.SET_FILTERS: {
-          const result = productFiltersSchema.safeParse(toolCall.input);
-          if (!result.success) {
+          case CLIENT_TOOLS.SET_FILTERS: {
+            const result = productFiltersSchema.safeParse(toolCall.input);
+            if (!result.success) {
+              addToolOutput({
+                tool: CLIENT_TOOLS.SET_FILTERS,
+                toolCallId: toolCall.toolCallId,
+                output: `Invalid filter input: ${result.error.message}`,
+              });
+              return;
+            }
+            const { href, applied } = buildCollectionUrl(result.data);
+            router.push(href, { scroll: false });
             addToolOutput({
               tool: CLIENT_TOOLS.SET_FILTERS,
               toolCallId: toolCall.toolCallId,
-              output: `Invalid filter input: ${result.error.message}`,
+              output: `Applied filters (${
+                applied.join(", ") || "none"
+              }). Navigated to ${href}.`,
             });
             return;
           }
-          const { href, applied } = buildCollectionUrl(result.data);
-          router.push(href, { scroll: false });
-          addToolOutput({
-            tool: CLIENT_TOOLS.SET_FILTERS,
-            toolCallId: toolCall.toolCallId,
-            output: `Applied filters (${
-              applied.join(", ") || "none"
-            }). Navigated to ${href}.`,
-          });
-          return;
-        }
 
-        default:
-          return;
-      }
-    },
-  });
+          default:
+            return;
+        }
+      },
+    });
 
   // After a screenshot tool result lands and the stream is ready,
   // send the queued screenshot as a follow-up file message.
@@ -179,7 +181,7 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
     (text: string) => {
       sendMessage({ text });
     },
-    [sendMessage],
+    [sendMessage]
   );
 
   const isStreaming = status === "streaming" || status === "submitted";
@@ -203,7 +205,12 @@ export function ChatPanel({ onClose }: ChatPanelProps) {
       {messages.length === 0 ? (
         <EmptyState onSuggestion={handleSend} />
       ) : (
-        <MessageList messages={messages} isStreaming={isStreaming} />
+        <MessageList
+          messages={messages}
+          isStreaming={isStreaming}
+          error={error ?? null}
+          onRetry={() => regenerate()}
+        />
       )}
       <MessageInput onSend={handleSend} disabled={isStreaming} />
     </div>

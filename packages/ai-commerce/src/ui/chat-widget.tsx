@@ -1,9 +1,16 @@
 "use client";
 
 import { MessageCircleIcon, XIcon } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 
+import { CurrencyProvider } from "../context/currency-context";
 import { ChatPanel } from "./chat-panel";
+
+interface ChatWidgetProps {
+  /** Storefront display currency (ISO 4217). Defaults to "GBP" to match the
+   *  fallback in apps/web's ProductCard. Override for stores in other currencies. */
+  currencyCode?: string;
+}
 
 const panelStyle: CSSProperties = {
   position: "fixed",
@@ -51,7 +58,7 @@ function iconStyle(visible: boolean): CSSProperties {
   };
 }
 
-export function ChatWidget() {
+export function ChatWidget({ currencyCode = "GBP" }: ChatWidgetProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
 
   // ChatPanel stays mounted across open/close so its message history and
@@ -63,9 +70,12 @@ export function ChatWidget() {
   };
 
   return (
-    <>
+    <CurrencyProvider value={currencyCode}>
       <div data-agent-chat-hidden style={panelVisibilityStyle}>
-        <ChatPanel onClose={() => setIsOpen(false)} />
+        <ChatPanel
+          onClose={() => setIsOpen(false)}
+          currencyCode={currencyCode}
+        />
       </div>
 
       <button
@@ -80,6 +90,6 @@ export function ChatWidget() {
           <XIcon style={iconStyle(isOpen)} />
         </span>
       </button>
-    </>
+    </CurrencyProvider>
   );
 }
