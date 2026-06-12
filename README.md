@@ -157,7 +157,7 @@ The entire commerce foundation of this project is [`robotostudio/turbo-start-sho
 - The Shopify Storefront API client, cart server actions, cart UI, collection filtering, and checkout handoff.
 - The deployment story (Vercel + Sanity-hosted Studio).
 
-Aisle simply layered an AI assistant on top. **Huge thanks to the Roboto Studio team** for releasing such a complete, well-documented starter — and for keeping it MIT-licensed so projects like this one can build on it.
+Aisle simply layered an AI assistant on top. **Huge thanks to the [Roboto Studio](https://robotostudio.com) team** for releasing such a complete, well-documented starter — and for keeping it MIT-licensed so projects like this one can build on it.
 
 ## Foundation
 
