@@ -41,7 +41,7 @@
     "@sanity/vision": "^5.7.0",
     "@workspace/logger": "workspace:*",
     "dotenv": "^17.2.3",
-    "friendlier-words": "^1.1.3",
+    "friendlier-words": "^1.2.0",
     "lodash.get": "^4.4.2",
     "lucide-react": "catalog:",
     "pluralize-esm": "^9.0.2",
