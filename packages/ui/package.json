@@ -27,7 +27,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/postcss": "^4.3.0",
     "@turbo/gen": "^2.7.5",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
