@@ -1,47 +1,14 @@
-import { storefrontQuery } from "@/lib/shopify/client";
-import type { MoneyV2, ShopifyImage } from "@/lib/shopify/types";
+import { Button } from "@workspace/ui/components/button";
+import Link from "next/link";
 
+import { storefrontQuery } from "@/lib/shopify/client";
+import { collectionProductToCardProps } from "@/lib/shopify/product-card";
+import { RELATED_PRODUCTS_QUERY } from "@/lib/shopify/queries";
+import type { CardSourceProduct } from "@/lib/shopify/types";
 import { ProductCard } from "./product-card";
 
-const RELATED_PRODUCTS_QUERY = /* graphql */ `
-  query RelatedProducts($productId: ID!) {
-    productRecommendations(productId: $productId) {
-      id
-      handle
-      title
-      vendor
-      featuredImage {
-        url
-        altText
-        width
-        height
-      }
-      priceRange {
-        minVariantPrice {
-          amount
-          currencyCode
-        }
-        maxVariantPrice {
-          amount
-          currencyCode
-        }
-      }
-    }
-  }
-`;
-
 type RelatedProductsResponse = {
-  productRecommendations: Array<{
-    id: string;
-    handle: string;
-    title: string;
-    vendor: string;
-    featuredImage: ShopifyImage | null;
-    priceRange: {
-      minVariantPrice: MoneyV2;
-      maxVariantPrice: MoneyV2;
-    };
-  }>;
+  productRecommendations: CardSourceProduct[];
 };
 
 type RelatedProductsProps = {
@@ -62,26 +29,23 @@ export async function RelatedProducts({ productId }: RelatedProductsProps) {
 
   return (
     <section className="mt-16">
-      <h2 className="mb-6 font-medium font-(family-name:--font-geist-pixel-square) text-3xl">
-        Related Products
-      </h2>
-      <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <h2 className="font-medium text-2xl tracking-tight md:text-3xl">
+          Related Products
+        </h2>
+        <Button
+          asChild
+          className="shrink-0 font-normal tracking-[0.24px]"
+          size="sm"
+        >
+          <Link href="/collections">Shop All</Link>
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-x-1 gap-y-6 md:grid-cols-4">
         {products.map((product) => (
           <ProductCard
-            currencyCode={product.priceRange.minVariantPrice.currencyCode}
-            imageUrl={product.featuredImage?.url ?? null}
             key={product.id}
-            priceRange={{
-              minVariantPrice: Number(
-                product.priceRange.minVariantPrice.amount
-              ),
-              maxVariantPrice: Number(
-                product.priceRange.maxVariantPrice.amount
-              ),
-            }}
-            slug={product.handle}
-            title={product.title}
-            vendor={product.vendor}
+            {...collectionProductToCardProps(product)}
           />
         ))}
       </div>

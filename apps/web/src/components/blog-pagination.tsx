@@ -1,12 +1,5 @@
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@workspace/ui/components/pagination";
+import { cn } from "@workspace/ui/lib/utils";
+import Link from "next/link";
 import { useCallback } from "react";
 
 export type PaginationProps = {
@@ -14,6 +7,7 @@ export type PaginationProps = {
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
+  /** Base path, optionally including a query string (e.g. `/blog?category=seo`). */
   basePath?: string;
 };
 
@@ -65,7 +59,6 @@ export function BlogPagination({
   currentPage,
   totalPages,
   hasNextPage,
-  hasPreviousPage,
   basePath = "/blog",
   className,
 }: BlogPaginationProps) {
@@ -73,58 +66,61 @@ export function BlogPagination({
 
   const getPageUrl = useCallback(
     (page: number): string => {
-      if (page === 1) {
-        return basePath;
+      const [path = "/blog", query = ""] = basePath.split("?");
+      const params = new URLSearchParams(query);
+      if (page <= 1) {
+        params.delete("page");
+      } else {
+        params.set("page", String(page));
       }
-      return `${basePath}?page=${page}`;
+      const nextQuery = params.toString();
+      return nextQuery ? `${path}?${nextQuery}` : path;
     },
     [basePath]
   );
 
   return (
-    <div className={className}>
-      <Pagination>
-        <PaginationContent>
-          {hasPreviousPage && (
-            <PaginationItem>
-              <PaginationPrevious
-                aria-label={`Go to page ${currentPage - 1}`}
-                href={getPageUrl(currentPage - 1)}
-                size="default"
-              />
-            </PaginationItem>
-          )}
+    <nav
+      aria-label="Blog pagination"
+      className={cn("flex items-center gap-5 font-mono text-base", className)}
+    >
+      {paginationItems.map((item, index) =>
+        item === "ellipsis" ? (
+          <span
+            className="text-muted-foreground"
+            key={`ellipsis-${index.toString()}`}
+          >
+            …
+          </span>
+        ) : item === currentPage ? (
+          <span
+            aria-current="page"
+            className="flex items-center justify-center border-[0.75px] border-foreground px-2 pt-0.5 pb-1 text-foreground"
+            key={item}
+          >
+            {item}
+          </span>
+        ) : (
+          <Link
+            aria-label={`Go to page ${item}`}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+            href={getPageUrl(item)}
+            key={item}
+          >
+            {item}
+          </Link>
+        )
+      )}
 
-          {paginationItems.map((item, index) => (
-            <PaginationItem
-              key={item === "ellipsis" ? `ellipsis-${index}` : item}
-            >
-              {item === "ellipsis" ? (
-                <PaginationEllipsis />
-              ) : (
-                <PaginationLink
-                  aria-label={`Go to page ${item}`}
-                  href={getPageUrl(item)}
-                  isActive={item === currentPage}
-                  size="icon"
-                >
-                  {item}
-                </PaginationLink>
-              )}
-            </PaginationItem>
-          ))}
-
-          {hasNextPage && (
-            <PaginationItem>
-              <PaginationNext
-                aria-label={`Go to page ${currentPage + 1}`}
-                href={getPageUrl(currentPage + 1)}
-                size="default"
-              />
-            </PaginationItem>
-          )}
-        </PaginationContent>
-      </Pagination>
-    </div>
+      {hasNextPage && (
+        <Link
+          aria-label={`Go to page ${currentPage + 1}`}
+          className="font-sans text-muted-foreground transition-colors hover:text-foreground"
+          href={getPageUrl(currentPage + 1)}
+        >
+          Next
+        </Link>
+      )}
+    </nav>
   );
 }

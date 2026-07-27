@@ -1,20 +1,18 @@
 import "@workspace/ui/globals.css";
 
-import { ChatWidget } from "@workspace/ai-commerce";
 import { SanityLive } from "@workspace/sanity/live";
+import { Toaster } from "@workspace/ui/components/sonner";
 import { GeistMono } from "geist/font/mono";
-import { GeistPixelSquare } from "geist/font/pixel";
 import { GeistSans } from "geist/font/sans";
 import { draftMode } from "next/headers";
 import { VisualEditing } from "next-sanity/visual-editing";
 import { Suspense } from "react";
 import { preconnect, prefetchDNS } from "react-dom";
 
-import { AiCartBridge } from "@/components/ai-cart-bridge";
+import { CartToasts } from "@/components/cart/cart-toasts";
 import { FooterServer, FooterSkeleton } from "@/components/footer";
 import { CombinedJsonLd } from "@/components/json-ld";
 import { Navbar } from "@/components/navbar";
-import { PageContextTracker } from "@/components/page-context-tracker";
 import { PreviewBar } from "@/components/preview-bar";
 import { PromoBanner } from "@/components/promo-banner";
 import { Providers } from "@/components/providers";
@@ -22,12 +20,13 @@ import { getNavigationData } from "@/lib/navigation";
 
 const fontSans = GeistSans;
 const fontMono = GeistMono;
-const fontPixel = GeistPixelSquare;
 
 export default async function RootLayout({
   children,
+  modal,
 }: Readonly<{
   children: React.ReactNode;
+  modal: React.ReactNode;
 }>) {
   preconnect("https://cdn.sanity.io");
   prefetchDNS("https://cdn.sanity.io");
@@ -35,7 +34,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${fontSans.variable} ${fontMono.variable} ${fontPixel.variable} font-sans antialiased`}
+        className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}
       >
         <Providers>
           <div className="flex min-h-screen flex-col">
@@ -49,6 +48,9 @@ export default async function RootLayout({
               <FooterServer />
             </Suspense>
           </div>
+          {modal}
+          <CartToasts />
+          <Toaster position="bottom-right" richColors />
           <SanityLive />
           <CombinedJsonLd includeOrganization includeWebsite />
           {(await draftMode()).isEnabled && (
@@ -57,10 +59,6 @@ export default async function RootLayout({
               <VisualEditing />
             </>
           )}
-          {/* AI Commerce */}
-          <PageContextTracker />
-          <AiCartBridge />
-          <ChatWidget />
         </Providers>
       </body>
     </html>

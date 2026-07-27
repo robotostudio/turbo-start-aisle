@@ -53,7 +53,7 @@ export function CollectionsSortSelector() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2 rounded-none border px-4 py-2 text-sm hover:bg-accent">
+      <DropdownMenuTrigger className="flex shrink-0 items-center gap-1 whitespace-nowrap text-base text-foreground tracking-wide">
         Sort by
         <ChevronDown className="size-4" />
       </DropdownMenuTrigger>

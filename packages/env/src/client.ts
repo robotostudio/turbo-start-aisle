@@ -37,13 +37,11 @@ const env = createEnv({
 
     NEXT_PUBLIC_SANITY_PROJECT_ID: z.string().min(1),
     NEXT_PUBLIC_SANITY_DATASET: z.string().min(1),
-    NEXT_PUBLIC_SANITY_API_VERSION: z
-      .string()
-      .regex(
-        /^(1|\d{4}-\d{2}-\d{2})$/,
-        "Use a date string in YYYY-MM-DD format, or '1' for the legacy version",
-      ),
+    NEXT_PUBLIC_SANITY_API_VERSION: z.string().min(1),
     NEXT_PUBLIC_SANITY_STUDIO_URL: z.url().min(1),
+
+    /** ISO 4217 currency code used to format prices (e.g. in OG images). */
+    NEXT_PUBLIC_STORE_CURRENCY: z.string().default("GBP"),
   },
 
   experimental__runtimeEnv: {
@@ -58,6 +56,7 @@ const env = createEnv({
     NEXT_PUBLIC_SANITY_STUDIO_URL: process.env.NEXT_PUBLIC_SANITY_STUDIO_URL,
     NEXT_PUBLIC_SANITY_PROJECT_ID: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
     NEXT_PUBLIC_SANITY_DATASET: process.env.NEXT_PUBLIC_SANITY_DATASET,
+    NEXT_PUBLIC_STORE_CURRENCY: process.env.NEXT_PUBLIC_STORE_CURRENCY,
   },
 });
 

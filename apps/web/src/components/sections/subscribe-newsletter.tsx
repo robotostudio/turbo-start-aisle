@@ -40,7 +40,7 @@ export function SubscribeNewsletter({
 }: SubscribeNewsletterProps) {
   return (
     <section
-      className="relative container mx-auto px-4 md:px-6 overflow-hidden lg:aspect-2/1 flex justify-center items-center bg-zinc-100 dark:bg-zinc-900"
+      className="relative px-4 py-12 md:px-8 md:py-20 overflow-hidden lg:aspect-2/1 flex justify-center items-center bg-zinc-100 dark:bg-zinc-900"
       id="subscribe"
     >
       {/* Image: absolute, right half only */}
@@ -56,18 +56,18 @@ export function SubscribeNewsletter({
       )}
 
       {/* Grid for layout spacing */}
-      <div className="container mx-auto grid min-h-125 grid-cols-1 md:grid-cols-3 lg:grid-cols-2">
+      <div className="grid min-h-125 grid-cols-1 md:grid-cols-3 lg:grid-cols-2">
         {/* Left: Content */}
         <div className="relative z-10 md:col-span-2 lg:col-span-1 flex flex-col justify-center px-8 py-16 md:py-10 lg:px-16">
           <p className="mb-6 text-sm uppercase tracking-widest text-foreground/50">
             Newsletter
           </p>
-          <h2 className="mb-6 font-normal font-(family-name:--font-geist-pixel-square) text-3xl text-foreground md:text-5xl">
+          <h2 className="mb-6 font-normal text-3xl text-foreground md:text-5xl">
             {title}
           </h2>
           {subTitle && (
             <RichText
-              className="mb-8 text-sm  md:text-base"
+              className="mb-8 text-sm md:text-base"
               richText={subTitle}
             />
           )}

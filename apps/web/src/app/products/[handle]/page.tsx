@@ -4,28 +4,66 @@ import {
   queryProductByHandle,
   queryProductPaths,
 } from "@workspace/sanity/query";
-import sanitizeHtml from "sanitize-html";
 import { notFound } from "next/navigation";
+import sanitizeHtml from "sanitize-html";
 
-import { AddToCart } from "@/components/product/add-to-cart";
+import { BreadcrumbJsonLd } from "@/components/json-ld";
 import { PriceDisplay } from "@/components/product/price-display";
-import { ProductBody } from "@/components/product/product-body";
+import {
+  type AccordionSection,
+  ProductAccordion,
+} from "@/components/product/product-accordion";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductJsonLd } from "@/components/product/product-json-ld";
+import { ProductPurchase } from "@/components/product/product-purchase";
 import { RelatedProducts } from "@/components/product/related-products";
 import { VariantSelector } from "@/components/product/variant-selector";
 import { SavedItemButton } from "@/components/saved-items/saved-item-button";
+import { buildLineMetadata } from "@/lib/cart/metadata";
 import { getSEOMetadata } from "@/lib/seo";
 import { storefrontQuery } from "@/lib/shopify/client";
+import { keyMetafields } from "@/lib/shopify/metafields";
 import { PRODUCT_QUERY } from "@/lib/shopify/queries";
 import {
   LOW_STOCK_THRESHOLD,
   type ProductQueryResponse,
-  type ShopifyImage,
   type ShopifyProduct,
   type ShopifyVariant,
 } from "@/lib/shopify/types";
 import { findVariantByOptions } from "@/lib/shopify/variant-utils";
+import { getBaseUrl } from "@/utils";
+
+/** Builds the PDP accordion from the Shopify description + `custom.*` metafields. */
+function buildAccordionSections(product: ShopifyProduct): AccordionSection[] {
+  const metafields = keyMetafields(product.metafields);
+  const sections: AccordionSection[] = [];
+
+  if (product.descriptionHtml) {
+    sections.push({
+      id: "description",
+      title: "Description",
+      content: sanitizeHtml(product.descriptionHtml),
+      isHtml: true,
+    });
+  }
+
+  const metafieldSections: { id: string; title: string; value?: string }[] = [
+    { id: "details", title: "Details", value: metafields.details },
+    { id: "fit", title: "Fit & Sizing", value: metafields.fit_sizing },
+    {
+      id: "materials",
+      title: "Materials & Composition",
+      value: metafields.materials,
+    },
+    { id: "shipping", title: "Shipping & Returns", value: metafields.shipping },
+  ];
+
+  for (const { id, title, value } of metafieldSections) {
+    if (value) sections.push({ id, title, content: value });
+  }
+
+  return sections;
+}
 
 type PageProps = {
   params: Promise<{ handle: string }>;
@@ -57,42 +95,6 @@ export async function generateMetadata({ params }: PageProps) {
   });
 }
 
-function ProductImage({
-  images,
-  selectedVariantImageUrl,
-}: {
-  images: ShopifyImage[];
-  selectedVariantImageUrl: string | undefined;
-}) {
-  if (images.length > 0) {
-    return (
-      <ProductGallery
-        images={images}
-        selectedVariantImageUrl={selectedVariantImageUrl}
-      />
-    );
-  }
-
-  return (
-    <div className="flex aspect-3/4 items-center justify-center bg-muted text-muted-foreground">
-      No image available
-    </div>
-  );
-}
-
-function ProductPrice({
-  selectedVariant,
-}: {
-  selectedVariant: ShopifyVariant;
-}) {
-  return (
-    <PriceDisplay
-      compareAtPrice={selectedVariant.compareAtPrice}
-      price={selectedVariant.price}
-    />
-  );
-}
-
 function StockIndicator({
   quantityAvailable,
   availableForSale,
@@ -105,31 +107,24 @@ function StockIndicator({
 
   if (quantityAvailable <= LOW_STOCK_THRESHOLD) {
     return (
-      <p className="text-sm font-medium text-amber-600">
+      <p className="font-medium text-amber-600 text-sm">
         Only {quantityAvailable} left in stock
       </p>
     );
   }
 
-  return <p className="text-sm text-muted-foreground">In stock</p>;
+  return <p className="text-muted-foreground text-sm">In stock</p>;
 }
 
-function ProductActions({
-  shopifyProduct,
-  handle,
-  variants,
+function ProductPrice({
+  selectedVariant,
 }: {
-  shopifyProduct: ShopifyProduct;
-  handle: string;
-  variants: ShopifyVariant[];
+  selectedVariant: ShopifyVariant;
 }) {
-  if (variants.length === 0) return null;
-
   return (
-    <VariantSelector
-      handle={handle}
-      options={shopifyProduct.options}
-      variants={variants}
+    <PriceDisplay
+      compareAtPrice={selectedVariant.compareAtPrice}
+      price={selectedVariant.price}
     />
   );
 }
@@ -179,88 +174,98 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
 
   const title = shopifyProduct.title;
   const vendor = shopifyProduct.vendor;
-  const descriptionHtml = shopifyProduct.descriptionHtml;
+  const category = shopifyProduct.productType;
+
+  const lineMetadata = buildLineMetadata({
+    productTitle: title,
+    productHandle: handle,
+    variantTitle: selectedVariant.title,
+    price: selectedVariant.price,
+    selectedOptions: selectedVariant.selectedOptions,
+    image: selectedVariant.image ?? images[0] ?? null,
+  });
+
+  // Accordion content: Shopify description + `custom.*` metafields.
+  const accordionSections = buildAccordionSections(shopifyProduct);
+
+  const baseUrl = getBaseUrl();
 
   return (
     <>
       <ProductJsonLd handle={handle} product={shopifyProduct} />
-      <div className="mx-auto container px-4 py-8 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-          <ProductImage
-            images={images}
-            selectedVariantImageUrl={selectedVariant?.image?.url}
-          />
-
-          <div className="flex flex-col gap-6 md:gap-8">
-            {/* Vendor + Title */}
-            <div className="flex flex-col gap-6 md:gap-8">
-              {vendor && (
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">
-                  {vendor}
-                </p>
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: baseUrl },
+          { name: "Collections", url: `${baseUrl}/collections` },
+          { name: title },
+        ]}
+      />
+      <div className="site-container py-8">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,600px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,760px)]">
+          {/* Info column — sticky on desktop, uniform 32px rhythm */}
+          <div className="flex flex-col gap-8 self-start lg:sticky lg:top-24">
+            {/* Season / brand eyebrow + save */}
+            <div className="flex items-start justify-between gap-4">
+              {vendor ? (
+                <p className="text-muted-foreground text-sm">{vendor}</p>
+              ) : (
+                <span />
               )}
-              <h1 className="mt-2 text-4xl font-(family-name:--font-geist-pixel-square) font-light tracking-tight lg:text-5xl">
-                {title}
-              </h1>
-            </div>
-
-            {/* Sale badge + Price */}
-            <ProductPrice selectedVariant={selectedVariant} />
-
-            <StockIndicator
-              availableForSale={selectedVariant.availableForSale}
-              quantityAvailable={selectedVariant.quantityAvailable}
-            />
-
-            <div className="border-t border-border" />
-
-            {/* Variant selectors */}
-            <ProductActions
-              handle={handle}
-              shopifyProduct={shopifyProduct}
-              variants={variants}
-            />
-
-            {/* Add to Cart + Save */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <AddToCart
-                  availableForSale={selectedVariant.availableForSale}
-                  key={selectedVariant.id}
-                  optionsSelected={allOptionsSelected}
-                  variantId={selectedVariant.id}
-                />
-              </div>
               <SavedItemButton
-                className="flex size-12 shrink-0 items-center justify-center rounded-none border border-border transition-colors hover:bg-accent"
+                className="text-muted-foreground transition-colors hover:text-foreground"
                 handle={handle}
               />
             </div>
 
-            <div className="border-t border-border" />
+            {/* Category + title + price */}
+            <div className="flex flex-col gap-2">
+              {category && (
+                <p className="text-muted-foreground text-sm">{category}</p>
+              )}
+              <h1 className="font-medium text-2xl tracking-tight lg:text-3xl">
+                {title}
+              </h1>
+              <ProductPrice selectedVariant={selectedVariant} />
+            </div>
 
-            {/* Description from Shopify */}
-            {descriptionHtml && (
-              <div className="space-y-2">
-                <div
-                  className="prose prose-sm dark:prose-invert text-muted-foreground leading-relaxed"
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeHtml(descriptionHtml),
-                  }}
-                />
-              </div>
+            {/* Variant selectors */}
+            {variants.length > 0 && (
+              <VariantSelector
+                handle={handle}
+                options={shopifyProduct.options}
+                variants={variants}
+              />
             )}
 
-            {/* Details from Sanity */}
-            {sanityProduct.body && (
-              <div className="space-y-2">
-                <h2 className="font-medium text-sm uppercase tracking-wide">
-                  Details
-                </h2>
-                <ProductBody body={sanityProduct.body} />
-              </div>
+            {/* Add to cart + stock */}
+            <div className="flex flex-col gap-2">
+              <ProductPurchase
+                availableForSale={selectedVariant.availableForSale}
+                metadata={lineMetadata}
+                optionsSelected={allOptionsSelected}
+                quantityAvailable={selectedVariant.quantityAvailable}
+                variantId={selectedVariant.id}
+              />
+              <StockIndicator
+                availableForSale={selectedVariant.availableForSale}
+                quantityAvailable={selectedVariant.quantityAvailable}
+              />
+            </div>
+
+            {/* Accordion — Description + metafields */}
+            {accordionSections.length > 0 && (
+              <ProductAccordion
+                defaultOpenId="description"
+                sections={accordionSections}
+              />
             )}
           </div>
+
+          {/* Gallery — vertical thumbnail rail + scrolling image column */}
+          <ProductGallery
+            images={images}
+            selectedVariantImageUrl={selectedVariant?.image?.url}
+          />
         </div>
 
         <RelatedProducts productId={shopifyProduct.id} />

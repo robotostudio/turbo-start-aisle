@@ -7,11 +7,8 @@
   "scripts": {
     "dev": "sanity dev",
     "start": "sanity start",
-    "clean": "rm -rf dist schema.json",
     "build": "sanity build",
     "deploy": "sanity deploy",
-    "predeploy": "pnpm run clean",
-    "schema:deploy": "pnpm run clean && sanity schema extract --enforce-required-fields && sanity schema deploy",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "format:check": "biome format .",
@@ -19,8 +16,8 @@
     "extract": "sanity schema extract --enforce-required-fields",
     "check-types": "tsc --noEmit",
     "type": "sanity schema extract --enforce-required-fields && sanity typegen generate",
-    "seed:ai-assistant": "sanity exec scripts/seed-ai-assistant.ts --with-user-token",
     "seed:shopify": "tsx scripts/seed-shopify/index.ts",
+    "migrate:handoff": "tsx scripts/migrate-handoff/index.ts",
     "verify:shopify": "tsx scripts/verify-shopify.ts",
     "postinstall": "sanity exec scripts/cli-alert-for-data.ts"
   },
@@ -28,7 +25,6 @@
     "sanity"
   ],
   "dependencies": {
-    "@sanity/agent-context": "^0.1.0",
     "@sanity/asset-utils": "^1.3.0",
     "@sanity/assist": "^5.0.4",
     "@sanity/client": "catalog:",

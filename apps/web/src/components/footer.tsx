@@ -1,4 +1,3 @@
-import { SANITY_BASE_URL } from "@workspace/sanity/image";
 import { sanityFetch } from "@workspace/sanity/live";
 import {
   queryFooterData,
@@ -10,12 +9,15 @@ import type {
 } from "@workspace/sanity/types";
 import Link from "next/link";
 
-import { Logo } from "./logo";
-import { ModeToggle } from "./mode-toggle";
+import { NewsletterForm } from "./footer/newsletter-form";
+// import { ModeToggle } from "./mode-toggle";
 import {
   FacebookIcon,
   InstagramIcon,
   LinkedinIcon,
+  RobotoWordmark,
+  ShopifyIcon,
+  VercelIcon,
   XIcon,
   YoutubeIcon,
 } from "./social-icons";
@@ -54,36 +56,16 @@ function SocialLinks({ data }: SocialLinksProps) {
 
   const socialLinks = [
     { url: twitter, Icon: XIcon, label: "Follow us on Twitter" },
-    {
-      url: facebook,
-      Icon: FacebookIcon,
-      label: "Follow us on Facebook",
-    },
-    {
-      url: linkedin,
-      Icon: LinkedinIcon,
-      label: "Follow us on LinkedIn",
-    },
-    {
-      url: instagram,
-      Icon: InstagramIcon,
-      label: "Follow us on Instagram",
-    },
-
-    {
-      url: youtube,
-      Icon: YoutubeIcon,
-      label: "Subscribe to our YouTube channel",
-    },
+    { url: facebook, Icon: FacebookIcon, label: "Follow us on Facebook" },
+    { url: linkedin, Icon: LinkedinIcon, label: "Follow us on LinkedIn" },
+    { url: instagram, Icon: InstagramIcon, label: "Follow us on Instagram" },
+    { url: youtube, Icon: YoutubeIcon, label: "Subscribe to our YouTube" },
   ].filter((link) => link.url);
 
   return (
-    <ul className="flex items-center space-x-6 text-muted-foreground">
+    <ul className="flex items-center gap-3 text-muted-foreground">
       {socialLinks.map(({ url, Icon, label }, index) => (
-        <li
-          className="font-medium hover:text-primary"
-          key={`social-link-${url}-${index.toString()}`}
-        >
+        <li key={`social-link-${url}-${index.toString()}`}>
           <Link
             aria-label={label}
             href={url ?? "#"}
@@ -91,7 +73,7 @@ function SocialLinks({ data }: SocialLinksProps) {
             rel="noopener noreferrer"
             target="_blank"
           >
-            <Icon className="size-4 fill-muted-foreground hover:fill-primary/80 dark:fill-zinc-400 dark:hover:fill-primary" />
+            <Icon className="size-[18px] fill-muted-foreground transition-colors hover:fill-foreground" />
             <span className="sr-only">{label}</span>
           </Link>
         </li>
@@ -100,144 +82,127 @@ function SocialLinks({ data }: SocialLinksProps) {
   );
 }
 
+function FooterColumns({ columns }: Pick<FooterProps["data"], "columns">) {
+  if (!(Array.isArray(columns) && columns.length > 0)) {
+    return null;
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-8 sm:flex sm:gap-14">
+      {columns.map((column, index) => (
+        <div key={`column-${column?._key}-${index}`}>
+          <h3 className="mb-2 text-muted-foreground text-sm">
+            {column?.title}
+          </h3>
+          {column?.links && column.links.length > 0 && (
+            <ul className="space-y-1">
+              {column.links.map((link, columnIndex) => (
+                <li key={`${link?._key}-${columnIndex}-column-${column?._key}`}>
+                  <Link
+                    className="text-foreground text-sm hover:underline"
+                    href={link.href ?? "#"}
+                    rel={link.openInNewTab ? "noopener noreferrer" : undefined}
+                    target={link.openInNewTab ? "_blank" : undefined}
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HostingCredits() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-foreground text-sm">
+      <a
+        aria-label="Roboto Studio"
+        href="https://robotostudio.com/"
+        rel="noopener noreferrer"
+        target="_blank"
+        className="flex items-center gap-1 hover:opacity-80"
+      >
+        Built by
+        <RobotoWordmark className="h-2.5 w-auto" />
+      </a>
+      <span className="h-4 w-px bg-border" />
+      <a
+        className="flex items-center gap-1 hover:opacity-80"
+        href="https://vercel.com"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Hosted on
+        <VercelIcon className="h-3.5 w-auto" />
+      </a>
+      <span className="h-4 w-px bg-border" />
+      <a
+        className="flex items-center gap-1 hover:opacity-80"
+        href="https://shopify.com"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Powered by
+        <ShopifyIcon className="h-5.5 w-auto" />
+      </a>
+    </div>
+  );
+}
+
 export function FooterSkeleton() {
   return (
-    <footer className="mt-16 py-8">
-      <section className="container mx-auto px-4 md:px-6">
-        <div className="h-125 lg:h-auto">
-          <div className="flex flex-col items-center justify-between gap-10 text-center lg:flex-row lg:text-left">
-            <div className="flex w-full max-w-96 shrink flex-col items-center justify-between gap-6 lg:items-start">
-              <div>
-                <span className="flex items-center justify-center gap-4 lg:justify-start">
-                  <div className="h-10 w-20 animate-pulse rounded bg-muted" />
-                </span>
-                <div className="mt-6 h-16 w-full animate-pulse rounded bg-muted" />
-              </div>
-              <div className="flex items-center space-x-6">
-                {[1, 2, 3, 4, 5].map((i) => (
+    <footer className="mt-20 border-t py-9">
+      <div className="site-container">
+        <div className="flex flex-col justify-between gap-10 lg:flex-row">
+          <div className="h-32 w-full max-w-84 animate-pulse rounded bg-muted" />
+          <div className="grid grid-cols-2 gap-8 sm:flex sm:gap-14">
+            {[1, 2, 3, 4].map((col) => (
+              <div className="space-y-3" key={col}>
+                <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+                {[1, 2, 3].map((item) => (
                   <div
-                    className="h-6 w-6 animate-pulse rounded bg-muted"
-                    key={i}
+                    className="h-4 w-20 animate-pulse rounded bg-muted"
+                    key={item}
                   />
                 ))}
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-6 lg:gap-20">
-              {[1, 2, 3].map((col) => (
-                <div key={col}>
-                  <div className="mb-6 h-6 w-24 animate-pulse rounded bg-muted" />
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4].map((item) => (
-                      <div
-                        className="h-4 w-full animate-pulse rounded bg-muted"
-                        key={item}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="mt-20 flex flex-col justify-between gap-4 border-t pt-8 text-center lg:flex-row lg:items-center lg:text-left">
-            <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-            <div className="flex justify-center gap-4 lg:justify-start">
-              <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-            </div>
+            ))}
           </div>
         </div>
-      </section>
+      </div>
     </footer>
   );
 }
 
 function Footer({ data, settingsData }: FooterProps) {
-  const { subtitle, columns, backgroundImage } = data;
+  const { columns } = data;
   const { siteTitle, socialLinks } = settingsData;
   const year = new Date().getFullYear();
 
-  const bgImageUrl = backgroundImage?.id
-    ? `${SANITY_BASE_URL}${backgroundImage.id.replace("image-", "").replace(/-([^-]+)$/, ".$1")}?w=640&q=75&auto=format`
-    : null;
-
   return (
-    <footer className="relative mt-20 overflow-hidden bg-zinc-100 py-8 dark:bg-zinc-900">
-      {bgImageUrl && (
-        <div
-          className="pointer-events-none absolute -bottom-1 inset-x-0 mx-auto h-80 w-80 bg-contain bg-bottom bg-no-repeat invert dark:invert-0 dark:mix-blend-screen"
-          style={{ backgroundImage: `url(${bgImageUrl})` }}
-        />
-      )}
-      <section className="container relative mx-auto">
-        <div className="h-125 lg:h-auto">
-          <div className="mx-auto flex  flex-col items-center justify-between gap-10 px-4 text-center  md:px-6  xl:px-0 lg:flex-row lg:text-left">
-            <div className="flex w-full max-w-96 shrink flex-col items-center justify-between gap-6 md:gap-8 lg:items-start">
-              <span className="flex items-center justify-center gap-4 lg:justify-start">
-                <Logo text={siteTitle} />
-              </span>
-              {subtitle && (
-                <p className=" font-(family-name:--font-geist-pixel-square) text-muted-foreground text-md dark:text-zinc-400">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-            {Array.isArray(columns) && columns?.length > 0 && (
-              <div className="grid grid-cols-3 gap-6  lg:gap-20">
-                {columns.map((column, index) => (
-                  <div key={`column-${column?._key}-${index}`}>
-                    <h3 className="mb-4 text-muted-foreground tracking-wide uppercase text-md dark:text-zinc-400 font-(family-name:--font-geist-pixel-square) ">
-                      {column?.title}
-                    </h3>
-                    {column?.links && column?.links?.length > 0 && (
-                      <ul className="space-y-4  text-md">
-                        {column?.links?.map((link, columnIndex) => (
-                          <li
-                            className="font-medium hover:text-primary"
-                            key={`${link?._key}-${columnIndex}-column-${column?._key}`}
-                          >
-                            <Link
-                              href={link.href ?? "#"}
-                              rel={
-                                link.openInNewTab
-                                  ? "noopener noreferrer"
-                                  : undefined
-                              }
-                              target={link.openInNewTab ? "_blank" : undefined}
-                            >
-                              {link.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+    <footer className="mt-20 bg-background">
+      <div className="site-container">
+        <div className="flex flex-col justify-between gap-10 py-9 lg:flex-row">
+          <div className="flex flex-col gap-6">
+            <NewsletterForm />
+            {socialLinks && <SocialLinks data={socialLinks} />}
           </div>
-          <div className="mt-20 md:mt-30 pt-8">
-            <div className="mx-auto flex  flex-col justify-between gap-4 px-4 text-center font-normal text-muted-foreground text-sm   md:px-6  xl:px-0  lg:flex-row lg:items-center lg:text-left">
-              <p className="text-sm">
-                © {year} {siteTitle}. All rights reserved.
-              </p>
-              <div className="flex flex-row gap-3 items-center justify-center md:gap-6">
-                {socialLinks && <SocialLinks data={socialLinks} />}
-
-                <ModeToggle />
-              </div>
-
-              {/* <ul className="flex justify-center gap-4 lg:justify-start">
-                <li className="hover:text-primary">
-                  <Link href="/terms">Terms and Conditions</Link>
-                </li>
-                <li className="hover:text-primary">
-                  <Link href="/privacy">Privacy Policy</Link>
-                </li>
-              </ul> */}
-            </div>
+          <FooterColumns columns={columns} />
+        </div>
+        <div className="flex flex-col items-start justify-between gap-4 py-4 sm:flex-row sm:items-center">
+          <p className="text-foreground text-sm">
+            © {year} {siteTitle}. All rights reserved.
+          </p>
+          <div className="flex items-center gap-4">
+            <HostingCredits />
+            {/* <ModeToggle /> */}
           </div>
         </div>
-      </section>
+      </div>
     </footer>
   );
 }

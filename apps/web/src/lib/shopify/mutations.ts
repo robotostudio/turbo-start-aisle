@@ -66,6 +66,19 @@ const CART_FRAGMENT = /* graphql */ `
   }
 `;
 
+const CART_MUTATION_RESULT_FRAGMENT = /* graphql */ `
+  userErrors {
+    field
+    message
+    code
+  }
+  warnings {
+    code
+    message
+    target
+  }
+`;
+
 export const CART_CREATE_MUTATION = /* graphql */ `
   ${CART_FRAGMENT}
   mutation CartCreate($lines: [CartLineInput!]!) {
@@ -73,6 +86,7 @@ export const CART_CREATE_MUTATION = /* graphql */ `
       cart {
         ...CartFields
       }
+      ${CART_MUTATION_RESULT_FRAGMENT}
     }
   }
 `;
@@ -93,6 +107,7 @@ export const CART_LINES_ADD_MUTATION = /* graphql */ `
       cart {
         ...CartFields
       }
+      ${CART_MUTATION_RESULT_FRAGMENT}
     }
   }
 `;
@@ -104,6 +119,7 @@ export const CART_LINES_UPDATE_MUTATION = /* graphql */ `
       cart {
         ...CartFields
       }
+      ${CART_MUTATION_RESULT_FRAGMENT}
     }
   }
 `;
@@ -115,6 +131,7 @@ export const CART_LINES_REMOVE_MUTATION = /* graphql */ `
       cart {
         ...CartFields
       }
+      ${CART_MUTATION_RESULT_FRAGMENT}
     }
   }
 `;

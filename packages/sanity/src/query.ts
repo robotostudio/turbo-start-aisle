@@ -32,7 +32,10 @@ const customLinkFragment = /* groq */ `
   ...customLink{
     openInNewTab,
     "href": select(
-      type == "internal" => internal->slug.current,
+      type == "internal" => coalesce(
+        internal->slug.current,
+        "/collections/" + internal->store.slug.current
+      ),
       type == "external" => external,
       type == "email" => "mailto:" + email,
       type == "product" => "/products/" + product->store.slug.current,
@@ -90,6 +93,7 @@ const blogCardFragment = /* groq */ `
   orderRank,
   ${imageFragment},
   publishedAt,
+  "category": category->{ _id, title, "slug": slug.current },
   ${blogAuthorFragment}
 `;
 
@@ -138,7 +142,10 @@ const imageLinkCardsBlock = /* groq */ `
       ...,
       "openInNewTab": url.openInNewTab,
       "href": select(
-        url.type == "internal" => url.internal->slug.current,
+        url.type == "internal" => coalesce(
+          url.internal->slug.current,
+          "/collections/" + url.internal->store.slug.current
+        ),
         url.type == "external" => url.external,
         url.type == "email" => "mailto:" + url.email,
         url.type == "product" => "/products/" + url.product->store.slug.current,
@@ -175,12 +182,26 @@ const faqAccordionBlock = /* groq */ `
       ...,
       "openInNewTab": url.openInNewTab,
       "href": select(
-        url.type == "internal" => url.internal->slug.current,
+        url.type == "internal" => coalesce(
+          url.internal->slug.current,
+          "/collections/" + url.internal->store.slug.current
+        ),
         url.type == "external" => url.external,
         url.type == "email" => "mailto:" + url.email,
         url.type == "product" => "/products/" + url.product->store.slug.current,
         url.href
       )
+    }
+  }
+`;
+
+const faqCategoriesBlock = /* groq */ `
+  _type == "faqCategories" => {
+    ...,
+    categories[]{
+      _key,
+      title,
+      ${faqFragment}
     }
   }
 `;
@@ -224,16 +245,54 @@ const featureCardsIconBlock = /* groq */ `
   }
 `;
 
+const editorialTwoUpBlock = /* groq */ `
+  _type == "editorialTwoUp" => {
+    ...,
+    "items": array::compact(items[]{
+      ...,
+      swatchColor,
+      "collectionTitle": collection->store.title,
+      "collectionImage": collection->store.imageUrl,
+      "collectionHref": select(
+        defined(collection) => "/collections/" + collection->store.slug.current,
+        null
+      ),
+    })
+  }
+`;
+
+const layersShowcaseBlock = /* groq */ `
+  _type == "layersShowcase" => {
+    ...,
+    heading,
+    description,
+    "productHandle": product->store.slug.current,
+    "productTitle": product->store.title,
+  }
+`;
+
+const featuredProductsBlock = /* groq */ `
+  _type == "featuredProducts" => {
+    ...,
+    heading,
+    "productHandles": array::compact(products[]->store.slug.current)
+  }
+`;
+
 const pageBuilderFragment = /* groq */ `
   pageBuilder[]{
     ...,
     _type,
     ${collectionBannerBlock},
     ${ctaBlock},
+    ${editorialTwoUpBlock},
     ${exploreCategoriesBlock},
     ${heroBlock},
     ${faqAccordionBlock},
+    ${faqCategoriesBlock},
     ${featureCardsIconBlock},
+    ${featuredProductsBlock},
+    ${layersShowcaseBlock},
     ${subscribeNewsletterBlock},
     ${imageLinkCardsBlock}
   }
@@ -288,7 +347,7 @@ export const queryBlogIndexPageData = defineQuery(`
 `);
 
 export const queryBlogIndexPageBlogs = defineQuery(`
-  *[_type == "blog" && (seoHideFromLists != true)] | order(orderRank asc) [$start...$end]{
+  *[_type == "blog" && (seoHideFromLists != true) && ($category == "" || category->slug.current == $category)] | order(orderRank asc) [$start...$end]{
     ${blogCardFragment}
   }
 `);
@@ -300,12 +359,21 @@ export const queryAllBlogDataForSearch = defineQuery(`
 `);
 
 export const queryBlogIndexPageBlogsCount = defineQuery(`
-  count(*[_type == "blog" && (seoHideFromLists != true)])
+  count(*[_type == "blog" && (seoHideFromLists != true) && ($category == "" || category->slug.current == $category)])
+`);
+
+export const queryBlogCategories = defineQuery(`
+  *[_type == "category"] | order(orderRank asc){
+    _id,
+    title,
+    "slug": slug.current
+  }
 `);
 export const queryBlogSlugPageData = defineQuery(`
   *[_type == "blog" && slug.current == $slug][0]{
     ...,
     "slug": slug.current,
+    "category": category->{ _id, title, "slug": slug.current },
     ${blogAuthorFragment},
     ${imageFragment},
     ${richTextFragment},
@@ -330,10 +398,11 @@ const ogFieldsFragment = /* groq */ `
     defined(seoDescription) => seoDescription,
     description
   ),
-  "image": image.asset->url + "?w=566&h=566&dpr=2&fit=max",
+  "image": image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
   "dominantColor": image.asset->metadata.palette.dominant.background,
-  "seoImage": seoImage.asset->url + "?w=1200&h=630&dpr=2&fit=max", 
+  "seoImage": seoImage.asset->url + "?w=1200&h=630&dpr=2&fit=max",
   "logo": *[_type == "settings"][0].logo.asset->url + "?w=80&h=40&dpr=3&fit=max&q=100",
+  "siteTitle": *[_type == "settings"][0].siteTitle,
   "date": coalesce(date, _createdAt)
 `;
 
@@ -374,12 +443,16 @@ export const queryProductOGData = defineQuery(`
       store.descriptionHtml
     ),
     "image": select(
-      defined(seo.image.asset) => seo.image.asset->url + "?w=566&h=566&dpr=2&fit=max",
+      defined(seo.image.asset) => seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
       defined(store.previewImageUrl) => store.previewImageUrl
     ),
+    "price": store.priceRange.minVariantPrice,
+    "colors": store.options[]{ name, values },
+    "variants": store.variants[]->store{ price, compareAtPrice },
     "dominantColor": seo.image.asset->metadata.palette.dominant.background,
     "seoImage": seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=max",
     "logo": *[_type == "settings"][0].logo.asset->url + "?w=80&h=40&dpr=3&fit=max&q=100",
+    "siteTitle": *[_type == "settings"][0].siteTitle,
     "date": coalesce(store.createdAt, _createdAt)
   }
 `);
@@ -397,8 +470,8 @@ export const queryCollectionOGData = defineQuery(`
       store.descriptionHtml
     ),
     "image": select(
-      defined(seo.image.asset) => seo.image.asset->url + "?w=566&h=566&dpr=2&fit=max",
-      defined(hero.image.asset) => hero.image.asset->url + "?w=566&h=566&dpr=2&fit=max",
+      defined(seo.image.asset) => seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
+      defined(hero.image.asset) => hero.image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
       defined(store.imageUrl) => store.imageUrl
     ),
     "dominantColor": coalesce(
@@ -407,6 +480,7 @@ export const queryCollectionOGData = defineQuery(`
     ),
     "seoImage": seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=max",
     "logo": *[_type == "settings"][0].logo.asset->url + "?w=80&h=40&dpr=3&fit=max&q=100",
+    "siteTitle": *[_type == "settings"][0].siteTitle,
     "date": coalesce(store.createdAt, _createdAt)
   }
 `);
@@ -418,7 +492,10 @@ export const queryPromoBannerData = defineQuery(`
     text,
     "openInNewTab": link.openInNewTab,
     "href": select(
-      link.type == "internal" => link.internal->slug.current,
+      link.type == "internal" => coalesce(
+        link.internal->slug.current,
+        "/collections/" + link.internal->store.slug.current
+      ),
       link.type == "external" => link.external,
       link.type == "email" => "mailto:" + link.email,
       link.type == "product" => "/products/" + link.product->store.slug.current,
@@ -442,7 +519,10 @@ export const queryFooterData = defineQuery(`
         name,
         "openInNewTab": url.openInNewTab,
         "href": select(
-          url.type == "internal" => url.internal->slug.current,
+          url.type == "internal" => coalesce(
+            url.internal->slug.current,
+            "/collections/" + url.internal->store.slug.current
+          ),
           url.type == "external" => url.external,
           url.type == "email" => "mailto:" + url.email,
           url.type == "product" => "/products/" + url.product->store.slug.current,
@@ -468,7 +548,10 @@ export const queryNavbarData = defineQuery(`
           description,
           "openInNewTab": url.openInNewTab,
           "href": select(
-            url.type == "internal" => url.internal->slug.current,
+            url.type == "internal" => coalesce(
+              url.internal->slug.current,
+              "/collections/" + url.internal->store.slug.current
+            ),
             url.type == "external" => url.external,
             url.type == "email" => "mailto:" + url.email,
             url.type == "product" => "/products/" + url.product->store.slug.current,
@@ -482,7 +565,10 @@ export const queryNavbarData = defineQuery(`
         description,
         "openInNewTab": url.openInNewTab,
         "href": select(
-          url.type == "internal" => url.internal->slug.current,
+          url.type == "internal" => coalesce(
+            url.internal->slug.current,
+            "/collections/" + url.internal->store.slug.current
+          ),
           url.type == "external" => url.external,
           url.type == "email" => "mailto:" + url.email,
           url.type == "product" => "/products/" + url.product->store.slug.current,
@@ -556,6 +642,14 @@ export const querySettingsData = defineQuery(`
 
 export const queryRedirects = defineQuery(`
   *[_type == "redirect" && status == "active" && defined(source.current) && defined(destination.current)]{
+    "source":source.current,
+    "destination":destination.current,
+    "permanent" : permanent == "true"
+  }
+`);
+
+export const queryRedirectBySource = defineQuery(`
+  *[_type == "redirect" && status == "active" && source.current == $source && defined(destination.current)][0]{
     "source":source.current,
     "destination":destination.current,
     "permanent" : permanent == "true"
@@ -730,13 +824,5 @@ export const queryAllCollections = defineQuery(`
     "imageUrl": store.imageUrl,
     "description": store.descriptionHtml,
     seo
-  }
-`);
-
-export const queryAiAssistantSettings = defineQuery(`
-  *[_type == "aiAssistantSettings" && _id == "aiAssistantSettings"][0]{
-    welcomeHeading,
-    welcomeSubtitle,
-    suggestions
   }
 `);

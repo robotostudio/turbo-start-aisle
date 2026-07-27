@@ -14,12 +14,38 @@ export const pageBuilder = defineType({
   of: pagebuilderBlockTypes.map((block) => defineArrayMember(block)),
   options: {
     insertMenu: {
+      // Category filter tabs shown above the block picker. A block may belong
+      // to more than one group; blocks in no group still appear under "All".
+      groups: [
+        {
+          name: "heroBanners",
+          title: "Hero & Banners",
+          of: ["hero", "collectionBanner"],
+        },
+        {
+          name: "content",
+          title: "Content",
+          of: ["cta", "editorialTwoUp", "featureCardsIcon"],
+        },
+        {
+          name: "cards",
+          title: "Cards & Categories",
+          of: ["imageLinkCards", "exploreCategories"],
+        },
+        { name: "faq", title: "FAQ", of: ["faqAccordion", "faqCategories"] },
+        {
+          name: "commerce",
+          title: "Commerce",
+          of: ["featuredProducts", "layersShowcase", "subscribeNewsletter"],
+        },
+      ],
       views: [
         {
           name: "grid",
           previewImageUrl: (schemaTypeName) =>
             `/static/thumbnails/${schemaTypeName}.webp`,
         },
+        { name: "list" },
       ],
     },
   },

@@ -1,235 +1,257 @@
 "use client";
 
-import useEmblaCarousel from "embla-carousel-react";
-import { ZoomIn } from "lucide-react";
-import Image from "next/image";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
-
 import { cn } from "@workspace/ui/lib/utils";
+import { ZoomIn } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ShopifyImage } from "@/lib/shopify/types";
+import { ProductLightbox } from "./product-lightbox";
+import { ShopifyImage as ShopifyImageEl } from "./shopify-image";
 
 type ProductGalleryProps = {
   images: ShopifyImage[];
   selectedVariantImageUrl?: string;
 };
 
-const MIN_ZOOM = 200;
-const MAX_ZOOM = 400;
+/**
+ * Desktop gallery: a vertical sticky thumbnail rail + a stacked, page-scrolling
+ * image column. The active thumbnail follows scroll via IntersectionObserver;
+ * clicking a thumb (or changing the variant) scrolls to the matching image.
+ */
+type GalleryViewProps = ProductGalleryProps & {
+  onOpenLightbox: (index: number) => void;
+  registerSource: (index: number, el: HTMLButtonElement | null) => void;
+};
 
-function ZoomLayer({
-  image,
-  isZoomed,
-  zoomRef,
-  containerRef,
-}: {
-  image: ShopifyImage;
-  isZoomed: boolean;
-  zoomRef: React.RefObject<HTMLDivElement | null>;
-  containerRef: React.RefObject<HTMLButtonElement | null>;
-}) {
-  const containerWidth = containerRef.current?.offsetWidth ?? 0;
-  const nativeWidth = image.width ?? 0;
-
-  // Scale zoom based on how much larger the source is than the container
-  const ratio = containerWidth > 0 ? nativeWidth / containerWidth : 2;
-  const zoomPct = Math.min(
-    MAX_ZOOM,
-    Math.max(MIN_ZOOM, Math.round(ratio * 100))
-  );
-
-  return (
-    <div
-      ref={zoomRef}
-      className={cn(
-        "absolute inset-0 aspect-3/4 transition-opacity duration-200",
-        isZoomed ? "opacity-100" : "pointer-events-none opacity-0"
-      )}
-      style={{
-        backgroundImage: `url(${image.url})`,
-        backgroundSize: `${zoomPct}%`,
-        backgroundPosition: "50% 50%",
-        backgroundRepeat: "no-repeat",
-      }}
-    />
-  );
-}
-
-export function ProductGallery({
+function GalleryDesktop({
   images,
   selectedVariantImageUrl,
-}: ProductGalleryProps) {
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
-  const isUserClick = useRef(false);
-
-  // Zoom state
-  const [isZoomed, setIsZoomed] = useState(false);
-  const zoomContainerRef = useRef<HTMLButtonElement>(null);
-  const zoomLayerRef = useRef<HTMLDivElement>(null);
-  const rafId = useRef(0);
-
-  const scrollTo = useCallback(
-    (index: number) => {
-      isUserClick.current = true;
-      emblaApi?.scrollTo(index);
-      setSelectedIndex(index);
-      setIsZoomed(false);
-    },
-    [emblaApi]
-  );
-
-  useEffect(() => {
-    if (!emblaApi) return;
-
-    const onSelect = () => {
-      setSelectedIndex(emblaApi.selectedScrollSnap());
-      setIsZoomed(false);
-    };
-
-    emblaApi.on("select", onSelect);
-    return () => {
-      emblaApi.off("select", onSelect);
-    };
-  }, [emblaApi]);
-
-  // Scroll to variant image when variant changes
+  onOpenLightbox,
+  registerSource,
+}: GalleryViewProps) {
+  const [active, setActive] = useState(0);
+  const imageRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const prevVariantUrl = useRef(selectedVariantImageUrl);
+
   useEffect(() => {
-    if (!selectedVariantImageUrl || !emblaApi) return;
-    if (
-      selectedVariantImageUrl === prevVariantUrl.current &&
-      isUserClick.current
-    ) {
-      isUserClick.current = false;
-      return;
-    }
-    prevVariantUrl.current = selectedVariantImageUrl;
-    isUserClick.current = false;
-
-    const matchIndex = images.findIndex(
-      (img) => img.url === selectedVariantImageUrl
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const index = Number(
+              (entry.target as HTMLElement).dataset.index ?? 0
+            );
+            setActive(index);
+          }
+        }
+      },
+      { rootMargin: "-45% 0px -45% 0px", threshold: 0 }
     );
-    if (matchIndex !== -1 && matchIndex !== selectedIndex) {
-      emblaApi.scrollTo(matchIndex);
-      setSelectedIndex(matchIndex);
-    }
-  }, [selectedVariantImageUrl, images, emblaApi, selectedIndex]);
 
-  const handleZoomMove = (e: ReactMouseEvent<HTMLButtonElement>) => {
-    if (!zoomContainerRef.current) return;
-    const clientX = e.clientX;
-    const clientY = e.clientY;
-    cancelAnimationFrame(rafId.current);
-    rafId.current = requestAnimationFrame(() => {
-      const container = zoomContainerRef.current;
-      const layer = zoomLayerRef.current;
-      if (!container || !layer) return;
-      const rect = container.getBoundingClientRect();
-      const x = ((clientX - rect.left) / rect.width) * 100;
-      const y = ((clientY - rect.top) / rect.height) * 100;
-      layer.style.backgroundPosition = `${x}% ${y}%`;
+    for (const el of imageRefs.current) {
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToIndex = (index: number) => {
+    imageRefs.current[index]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
     });
   };
 
-  const currentImage = images[selectedIndex];
+  // Scroll to the variant's image when the selected variant changes.
+  useEffect(() => {
+    if (!selectedVariantImageUrl) return;
+    if (selectedVariantImageUrl === prevVariantUrl.current) return;
+    prevVariantUrl.current = selectedVariantImageUrl;
 
-  if (images.length === 0) {
-    return <div className="aspect-3/4 w-full bg-muted" />;
-  }
+    const index = images.findIndex(
+      (img) => img.url === selectedVariantImageUrl
+    );
+    if (index >= 0) {
+      imageRefs.current[index]?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [selectedVariantImageUrl, images]);
 
   return (
-    <div className="space-y-3">
-      {/* Main image with pan-zoom */}
-      <button
-        ref={zoomContainerRef}
-        type="button"
-        aria-label={isZoomed ? "Close zoom" : "Zoom into product image"}
-        className={cn(
-          "group relative block w-full overflow-hidden text-left",
-          isZoomed ? "cursor-crosshair" : "cursor-zoom-in"
-        )}
-        onClick={() => setIsZoomed((z) => !z)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape" && isZoomed) setIsZoomed(false);
-        }}
-        onMouseLeave={() => setIsZoomed(false)}
-        onMouseMove={handleZoomMove}
-      >
-        {/* Zoom hint icon */}
-        <div
-          className={cn(
-            "absolute top-3 right-3 z-10 bg-black/50 p-2 text-white transition-opacity duration-200",
-            isZoomed ? "opacity-0" : "opacity-0 group-hover:opacity-100"
-          )}
-        >
-          <ZoomIn className="size-4" />
-        </div>
-
-        {/* Carousel layer — visible when not zoomed */}
-        <div
-          className={cn(
-            "transition-opacity duration-200",
-            isZoomed ? "opacity-0" : "opacity-100"
-          )}
-          ref={emblaRef}
-        >
-          <div className="flex">
-            {images.map((image, index) => (
-              <div className="min-w-0 shrink-0 basis-full" key={image.url}>
-                <div className="relative aspect-3/4">
-                  <Image
-                    alt={image.altText ?? "Product image"}
-                    className="object-cover"
-                    fill
-                    priority={index === 0}
-                    sizes="(min-width: 1024px) 50vw, 100vw"
-                    src={image.url}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Zoomed layer — shows on click/hover, follows cursor */}
-        {currentImage && (
-          <ZoomLayer
-            image={currentImage}
-            isZoomed={isZoomed}
-            zoomRef={zoomLayerRef}
-            containerRef={zoomContainerRef}
-          />
-        )}
-      </button>
-
-      {/* Thumbnails */}
+    <div className="hidden lg:flex lg:gap-1">
       {images.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pt-4">
+        <div className="sticky top-24 flex h-fit flex-col gap-1 self-start">
           {images.map((image, index) => (
             <button
               className={cn(
-                "shrink-0 border-b pb-1 transition-colors",
-                index === selectedIndex
+                "w-[54px] shrink-0 border transition-colors",
+                active === index
                   ? "border-foreground"
                   : "border-transparent hover:border-muted-foreground/40"
               )}
               key={image.url}
-              onClick={() => scrollTo(index)}
+              onClick={() => scrollToIndex(index)}
               type="button"
             >
-              <div className="relative size-20 overflow-hidden">
-                <Image
+              <div className="card-surface relative aspect-3/4 w-full overflow-hidden">
+                <ShopifyImageEl
                   alt={image.altText ?? `Thumbnail ${index + 1}`}
                   className="object-cover"
                   fill
-                  sizes="80px"
+                  sizes="54px"
+                  src={image.url}
+                />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex-1 space-y-4">
+        {images.map((image, index) => (
+          <button
+            className="group card-surface relative block aspect-3/4 w-full cursor-zoom-in overflow-hidden scroll-mt-24"
+            data-index={index}
+            key={image.url}
+            onClick={() => onOpenLightbox(index)}
+            ref={(el) => {
+              imageRefs.current[index] = el;
+              registerSource(index, el);
+            }}
+            type="button"
+          >
+            <ShopifyImageEl
+              alt={image.altText ?? "Product image"}
+              className="object-cover"
+              fill
+              priority={index === 0}
+              sizes="(min-width: 1024px) 55vw, 100vw"
+              src={image.url}
+            />
+            <span className="absolute top-3 right-3 bg-black/50 p-2 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <ZoomIn className="size-4" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Mobile gallery: a horizontal CSS scroll-snap carousel with a
+ * justify-center-safe thumbnail row (centers when few, left-aligns when
+ * overflowing — no JS overflow detection).
+ */
+function GalleryMobile({
+  images,
+  selectedVariantImageUrl,
+  onOpenLightbox,
+  registerSource,
+}: GalleryViewProps) {
+  const [active, setActive] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const prevVariantUrl = useRef(selectedVariantImageUrl);
+
+  useEffect(() => {
+    const root = scrollerRef.current;
+    if (!root) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const index = Number(
+              (entry.target as HTMLElement).dataset.index ?? 0
+            );
+            setActive(index);
+          }
+        }
+      },
+      { root, threshold: 0.6 }
+    );
+
+    for (const el of slideRefs.current) {
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToIndex = (index: number) => {
+    slideRefs.current[index]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  };
+
+  useEffect(() => {
+    if (!selectedVariantImageUrl) return;
+    if (selectedVariantImageUrl === prevVariantUrl.current) return;
+    prevVariantUrl.current = selectedVariantImageUrl;
+
+    const index = images.findIndex(
+      (img) => img.url === selectedVariantImageUrl
+    );
+    if (index >= 0) {
+      slideRefs.current[index]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [selectedVariantImageUrl, images]);
+
+  return (
+    <div className="lg:hidden">
+      <div
+        className="flex snap-x snap-mandatory overflow-x-auto"
+        ref={scrollerRef}
+      >
+        {images.map((image, index) => (
+          <button
+            className="card-surface relative aspect-3/4 w-full shrink-0 basis-full snap-center overflow-hidden"
+            data-index={index}
+            key={image.url}
+            onClick={() => onOpenLightbox(index)}
+            ref={(el) => {
+              slideRefs.current[index] = el;
+              registerSource(index, el);
+            }}
+            type="button"
+          >
+            <ShopifyImageEl
+              alt={image.altText ?? "Product image"}
+              className="object-cover"
+              fill
+              priority={index === 0}
+              sizes="100vw"
+              src={image.url}
+            />
+          </button>
+        ))}
+      </div>
+
+      {images.length > 1 && (
+        <div className="mt-3 flex justify-center-safe gap-2 overflow-x-auto">
+          {images.map((image, index) => (
+            <button
+              className={cn(
+                "shrink-0 border-b pb-1 transition-colors",
+                active === index ? "border-foreground" : "border-transparent"
+              )}
+              key={image.url}
+              onClick={() => scrollToIndex(index)}
+              type="button"
+            >
+              <div className="card-surface relative h-16 w-12 overflow-hidden">
+                <ShopifyImageEl
+                  alt={image.altText ?? `Thumbnail ${index + 1}`}
+                  className="object-cover"
+                  fill
+                  sizes="48px"
                   src={image.url}
                 />
               </div>
@@ -238,5 +260,83 @@ export function ProductGallery({
         </div>
       )}
     </div>
+  );
+}
+
+export function ProductGallery({
+  images,
+  selectedVariantImageUrl,
+}: ProductGalleryProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  // Source rect captured at click time — reliable, unlike resolving it later.
+  const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
+
+  // On-page image elements per `${view}:${index}`, so the lightbox can zoom
+  // out of / back into whichever view is currently visible.
+  const sourceEls = useRef(new Map<string, HTMLButtonElement>());
+  const setSource =
+    (view: "d" | "m") => (index: number, el: HTMLButtonElement | null) => {
+      const key = `${view}:${index}`;
+      if (el) sourceEls.current.set(key, el);
+      else sourceEls.current.delete(key);
+    };
+  const getSourceRect = (index: number): DOMRect | null => {
+    for (const view of ["d", "m"] as const) {
+      const el = sourceEls.current.get(`${view}:${index}`);
+      if (el && el.offsetParent !== null) return el.getBoundingClientRect();
+    }
+    return null;
+  };
+
+  // The optimized URL the visible on-page `next/image` already downloaded, so
+  // the lightbox can reuse that cached resource instead of fetching the raw
+  // Shopify master on open. `null` when no view has it loaded (falls back to
+  // the raw URL in the lightbox).
+  const getSourceSrc = (index: number): string | null => {
+    for (const view of ["d", "m"] as const) {
+      const el = sourceEls.current.get(`${view}:${index}`);
+      if (el && el.offsetParent !== null) {
+        return el.querySelector("img")?.currentSrc || null;
+      }
+    }
+    return null;
+  };
+
+  if (images.length === 0) {
+    return <div className="card-surface aspect-3/4 w-full" />;
+  }
+
+  const openLightbox = (index: number) => {
+    setSourceRect(getSourceRect(index));
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  return (
+    <>
+      <GalleryDesktop
+        images={images}
+        onOpenLightbox={openLightbox}
+        registerSource={setSource("d")}
+        selectedVariantImageUrl={selectedVariantImageUrl}
+      />
+      <GalleryMobile
+        images={images}
+        onOpenLightbox={openLightbox}
+        registerSource={setSource("m")}
+        selectedVariantImageUrl={selectedVariantImageUrl}
+      />
+      <ProductLightbox
+        getSourceRect={getSourceRect}
+        getSourceSrc={getSourceSrc}
+        images={images}
+        index={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+        onOpenChange={setLightboxOpen}
+        open={lightboxOpen}
+        sourceRect={sourceRect}
+      />
+    </>
   );
 }

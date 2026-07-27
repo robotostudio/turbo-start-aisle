@@ -44,3 +44,6 @@ npm-debug.log*
 
 # Reference clones used for porting (not part of the project)
 .research/
+
+# Playwright MCP console logs
+.playwright-mcp/

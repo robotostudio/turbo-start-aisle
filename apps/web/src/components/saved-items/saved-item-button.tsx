@@ -1,9 +1,8 @@
 "use client";
 
-import { Heart } from "lucide-react";
-
 import { cn } from "@workspace/ui/lib/utils";
 
+import { BookmarkIcon } from "../icons";
 import { useSavedItems } from "./saved-items-context";
 
 type SavedItemButtonProps = {
@@ -20,7 +19,7 @@ export function SavedItemButton({ handle, className }: SavedItemButtonProps) {
       aria-label={isSaved ? "Remove from saved items" : "Save for later"}
       aria-pressed={isSaved}
       className={cn(
-        "group/heart flex size-9 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-all hover:bg-background hover:scale-110 active:scale-95",
+        "flex size-8 items-center justify-center text-foreground transition-transform hover:scale-110 active:scale-95",
         className
       )}
       data-saved={isSaved}
@@ -31,12 +30,10 @@ export function SavedItemButton({ handle, className }: SavedItemButtonProps) {
       }}
       type="button"
     >
-      <Heart
+      <BookmarkIcon
         className={cn(
-          "size-4 transition-colors",
-          isSaved
-            ? "fill-red-500 text-red-500"
-            : "fill-transparent text-foreground group-hover/heart:text-red-500"
+          "size-[18px] transition-colors",
+          isSaved ? "fill-foreground text-foreground" : "fill-transparent"
         )}
       />
     </button>

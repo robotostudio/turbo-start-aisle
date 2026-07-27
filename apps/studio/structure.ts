@@ -1,7 +1,6 @@
 import { orderableDocumentListDeskItem } from "@sanity/orderable-document-list";
 import {
   BookMarked,
-  Bot,
   CogIcon,
   FileText,
   HomeIcon,
@@ -12,6 +11,7 @@ import {
   PanelTop,
   Settings2,
   ShoppingBag,
+  TagIcon,
   TrendingUpDown,
   User,
 } from "lucide-react";
@@ -71,6 +71,13 @@ export const structure = (
                 icon: FileText,
                 title: "Blog Posts",
               }),
+              orderableDocumentListDeskItem({
+                type: "category",
+                S,
+                context,
+                icon: TagIcon,
+                title: "Blog Categories",
+              }),
             ])
         ),
       list(S, "faq", "FAQs", MessageCircle),
@@ -104,25 +111,6 @@ export const structure = (
                 ),
               list(S, "productVariant", "Product Variants", FileText),
               list(S, "colorTheme", "Color Themes", Settings2),
-            ])
-        ),
-      S.divider(),
-
-      // AI
-      S.listItem()
-        .title("AI Assistant")
-        .icon(Bot)
-        .child(
-          S.list()
-            .title("AI Assistant")
-            .items([
-              singleton(
-                S,
-                "aiAssistantSettings",
-                "Welcome & Suggestions",
-                Bot,
-              ),
-              list(S, "sanity.agentContext", "Agent Context", Bot),
             ])
         ),
       S.divider(),

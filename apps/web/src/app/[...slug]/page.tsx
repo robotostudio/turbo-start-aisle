@@ -4,8 +4,10 @@ import { sanityFetch } from "@workspace/sanity/live";
 import { querySlugPageData, querySlugPagePaths } from "@workspace/sanity/query";
 import { notFound } from "next/navigation";
 
+import { BreadcrumbJsonLd } from "@/components/json-ld";
 import { PageBuilder } from "@/components/pagebuilder";
 import { getSEOMetadata } from "@/lib/seo";
+import { capitalize, getBaseUrl } from "@/utils";
 
 const logger = new Logger("PageSlug");
 
@@ -86,14 +88,36 @@ export default async function SlugPage({
 
   const { title, pageBuilder, _id, _type } = pageData ?? {};
 
+  const baseUrl = getBaseUrl();
+  // Home → one crumb per URL segment; the last (current) page uses the page
+  // title and omits its url per schema.org guidance.
+  const breadcrumbItems = [
+    { name: "Home", url: baseUrl },
+    ...slug.map((segment, index) => {
+      const isLast = index === slug.length - 1;
+      const name = isLast
+        ? (title ?? capitalize(segment.replace(/-/g, " ")))
+        : capitalize(segment.replace(/-/g, " "));
+      return isLast
+        ? { name }
+        : { name, url: `${baseUrl}/${slug.slice(0, index + 1).join("/")}` };
+    }),
+  ];
+
+  const breadcrumb = <BreadcrumbJsonLd items={breadcrumbItems} />;
+
   return !Array.isArray(pageBuilder) || pageBuilder?.length === 0 ? (
     <div className="flex min-h-[50vh] flex-col items-center justify-center p-4 text-center">
+      {breadcrumb}
       <h1 className="mb-4 font-semibold text-2xl capitalize">{title}</h1>
       <p className="mb-6 text-muted-foreground">
         This page has no content blocks yet.
       </p>
     </div>
   ) : (
-    <PageBuilder id={_id} pageBuilder={pageBuilder} type={_type} />
+    <>
+      {breadcrumb}
+      <PageBuilder id={_id} pageBuilder={pageBuilder} type={_type} />
+    </>
   );
 }

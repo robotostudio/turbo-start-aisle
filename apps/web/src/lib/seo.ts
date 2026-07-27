@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { toMarkdownHref } from "@/lib/markdown/shared";
 import type { Maybe } from "@/types";
 import { capitalize, getBaseUrl } from "@/utils";
 
@@ -31,22 +32,10 @@ type OgImageParams = {
 
 // Default site configuration
 const siteConfig: SiteConfig = {
-  title: "Turbo Start Aisle",
-  description:
-    "AI shopping assistant for headless Shopify — built on Sanity + Next.js with a chat widget that surfaces products, controls filters, and renders inline product cards.",
-  twitterHandle: "@akintola4",
-  keywords: [
-    "aisle",
-    "turbo-start-aisle",
-    "shopify",
-    "sanity",
-    "ai",
-    "ai shopping assistant",
-    "headless commerce",
-    "next.js",
-    "gemini",
-    "vercel ai sdk",
-  ],
+  title: "Roboto Studio Demo",
+  description: "Roboto Studio Demo",
+  twitterHandle: "@studioroboto",
+  keywords: ["roboto", "studio", "demo", "sanity", "next", "react", "template"],
 };
 
 function generateOgImageUrl(params: OgImageParams = {}): string {
@@ -149,6 +138,11 @@ export function getSEOMetadata(page: PageSeoData = {}): Metadata {
     },
     alternates: {
       canonical: pageUrl,
+      // Advertise the Markdown representation served via content negotiation
+      // (also reachable by appending `.md` or sending `Accept: text/markdown`).
+      types: {
+        "text/markdown": `${baseUrl}${toMarkdownHref(slug)}`,
+      },
     },
     openGraph: {
       type: pageType ?? "website",

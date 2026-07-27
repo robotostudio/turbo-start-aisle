@@ -81,15 +81,6 @@ function ErrorState({ query }: { query: string }) {
   );
 }
 
-const LOADING_SKELETONS = [
-  "skeleton-1",
-  "skeleton-2",
-  "skeleton-3",
-  "skeleton-4",
-  "skeleton-5",
-  "skeleton-6",
-] as const;
-
 function LoadingState() {
   return (
     <div className="space-y-6">
@@ -97,18 +88,7 @@ function LoadingState() {
         <div className="mb-2 h-6 w-48 animate-pulse rounded bg-muted" />
         <div className="h-4 w-32 animate-pulse rounded bg-muted" />
       </div>
-      <div className="grid grid-cols-1 gap-8">
-        {LOADING_SKELETONS.map((id) => (
-          <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-2" key={id}>
-            <div className="aspect-video animate-pulse bg-muted" />
-            <div className="flex flex-col justify-center space-y-3">
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-6 w-full animate-pulse rounded bg-muted" />
-              <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-            </div>
-          </div>
-        ))}
-      </div>
+      <BlogList blogs={[]} isLoading />
     </div>
   );
 }

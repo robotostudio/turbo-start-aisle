@@ -7,10 +7,14 @@ import type {
 import { stegaClean } from "next-sanity";
 import type {
   Answer,
-  Article,
+  BlogPosting,
+  BreadcrumbList,
+  CollectionPage,
   ContactPoint,
   FAQPage,
   ImageObject,
+  ItemList,
+  ListItem,
   Organization,
   Person,
   Question,
@@ -63,12 +67,21 @@ function extractPlainTextFromRichText(
     .trim();
 }
 
-// Utility function to safely render JSON-LD
+// Utility function to safely render JSON-LD.
+// Uses dangerouslySetInnerHTML (not JSX text children) so the JSON is emitted
+// verbatim — rendering as text children makes React entity-escape `&`/`<`/`>`,
+// and those entities are NOT decoded inside <script>, producing invalid JSON-LD
+// that Google silently drops. The `.replace(/</g, "\\u003c")` guards against a
+// value containing `</script>` breaking out of the tag (XSS).
 export function JsonLdScript<T>({ data, id }: { data: T; id: string }) {
   return (
-    <script id={id} type="application/ld+json">
-      {JSON.stringify(data, null, 0)}
-    </script>
+    <script
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
+      id={id}
+      type="application/ld+json"
+    />
   );
 }
 
@@ -94,7 +107,7 @@ export function FaqJsonLd({ faqs }: FaqJsonLdProps) {
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: validFaqs.map(
-      (faq): Question => ({
+      (faq: FlexibleFaq): Question => ({
         "@type": "Question",
         name: faq.title,
         acceptedAnswer: {
@@ -142,9 +155,9 @@ export function ArticleJsonLd({
   const articleUrl = `${baseUrl}${article.slug}`;
   const imageUrl = buildSafeImageUrl(article.image);
 
-  const articleJsonLd: WithContext<Article> = {
+  const articleJsonLd: WithContext<BlogPosting> = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "BlogPosting",
     headline: article.title,
     description: article.description || undefined,
     image: imageUrl ? [imageUrl] : undefined,
@@ -254,9 +267,98 @@ export function WebSiteJsonLd({ settings }: WebSiteJsonLdProps) {
       "@type": "Organization",
       name: settings.siteTitle,
     } as Organization,
+    // Enables the sitelinks search box in Google results. The site search
+    // endpoint is /search?q= (see app/search/page.tsx).
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${baseUrl}/search?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+      // schema.org SearchAction requires `query-input` referencing the
+      // {search_term_string} placeholder; typed loosely as schema-dts models
+      // this action variant without the query-input property.
+    } as WebSite["potentialAction"],
   };
 
   return <JsonLdScript data={websiteJsonLd} id="website-json-ld" />;
+}
+
+// Breadcrumb JSON-LD Component — renders a BreadcrumbList so Google shows the
+// page hierarchy in search results. Callers pass human-readable names; the last
+// (current) item omits its `url` per schema.org guidance.
+type BreadcrumbItem = { name: string; url?: string };
+
+export function BreadcrumbJsonLd({
+  items,
+  id = "breadcrumb-json-ld",
+}: {
+  items: BreadcrumbItem[];
+  id?: string;
+}) {
+  if (!items.length) {
+    return null;
+  }
+
+  const breadcrumbJsonLd: WithContext<BreadcrumbList> = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map(
+      (crumb, index): ListItem => ({
+        "@type": "ListItem",
+        position: index + 1,
+        // stegaClean strips Sanity visual-editing markers (zero-width chars)
+        // from CMS-sourced names; no-op on plain strings (e.g. Shopify titles).
+        name: stegaClean(crumb.name),
+        ...(crumb.url ? { item: crumb.url } : {}),
+      })
+    ),
+  };
+
+  return <JsonLdScript data={breadcrumbJsonLd} id={id} />;
+}
+
+// Collection JSON-LD Component — a CollectionPage wrapping an ItemList of the
+// products (or nested collections) shown on the page.
+type CollectionJsonLdProps = {
+  name: string;
+  description?: string | null;
+  url?: string;
+  items: BreadcrumbItem[];
+  id?: string;
+};
+
+export function CollectionJsonLd({
+  name,
+  description,
+  url,
+  items,
+  id = "collection-json-ld",
+}: CollectionJsonLdProps) {
+  // stegaClean strips Sanity visual-editing markers from CMS-sourced strings;
+  // no-op on plain strings (e.g. Shopify product titles).
+  const collectionJsonLd: WithContext<CollectionPage> = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: stegaClean(name),
+    description: description ? stegaClean(description) : undefined,
+    url: url || undefined,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: items.length,
+      itemListElement: items.map(
+        (entry, index): ListItem => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: stegaClean(entry.name),
+          ...(entry.url ? { url: entry.url } : {}),
+        })
+      ),
+    } as ItemList,
+  };
+
+  return <JsonLdScript data={collectionJsonLd} id={id} />;
 }
 
 // Combined JSON-LD Component for pages with multiple structured data

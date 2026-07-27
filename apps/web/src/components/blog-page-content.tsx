@@ -1,31 +1,37 @@
 "use client";
 
-import type { QueryBlogIndexPageDataResult } from "@workspace/sanity/types";
+import type {
+  QueryBlogCategoriesResult,
+  QueryBlogIndexPageDataResult,
+} from "@workspace/sanity/types";
 
-import { BlogHeader } from "@/components/blog-card";
+import { BlogHeader, FeaturedBlogCard } from "@/components/blog-card";
+import { BlogFilterSidebar } from "@/components/blog-filter-sidebar";
+import { BlogList } from "@/components/blog-list";
 import { BlogPagination } from "@/components/blog-pagination";
 import { BlogSearchResults } from "@/components/blog-search-results";
-import { BlogSection } from "@/components/blog-section";
 import { PageBuilder } from "@/components/pagebuilder";
 import { useBlogSearch } from "@/hooks/use-blog-search";
 import type { Blog } from "@/types";
 import type { PaginationMetadata } from "@/utils";
-import { SearchInput } from "./blog-search";
 
 type BlogPageContentProps = {
   indexPageData: NonNullable<QueryBlogIndexPageDataResult>;
   blogs: Blog[];
+  categories: QueryBlogCategoriesResult;
+  activeCategory: string;
   paginationMetadata: PaginationMetadata;
 };
 
 export function BlogPageContent({
   indexPageData,
   blogs,
+  categories,
+  activeCategory,
   paginationMetadata,
 }: BlogPageContentProps) {
   const {
     title,
-    description,
     pageBuilder = [],
     _id,
     _type,
@@ -44,6 +50,7 @@ export function BlogPageContent({
     displayFeaturedBlogs &&
     validFeaturedBlogsCount > 0 &&
     paginationMetadata.currentPage === 1 &&
+    !activeCategory &&
     !hasQuery;
 
   const featuredBlogs = shouldDisplayFeaturedBlogs
@@ -54,46 +61,59 @@ export function BlogPageContent({
     ? blogs.slice(validFeaturedBlogsCount)
     : blogs;
 
+  const basePath = activeCategory
+    ? `/blog?category=${activeCategory}`
+    : "/blog";
+
   return (
     <main className="bg-background">
-      <div className="container mx-auto my-16 px-4 md:px-6">
-        <BlogHeader description={description} title={title} />
+      <div className="site-container my-16 flex flex-col gap-12">
+        <BlogHeader title={title} />
 
-        <SearchInput
-          className="mt-8 mb-12"
-          onChange={setSearchQuery}
-          onClear={() => setSearchQuery("")}
-          placeholder="Search blogs..."
-          value={searchQuery}
-        />
+        {featuredBlogs.length > 0 && (
+          <section className="flex flex-col gap-8">
+            <h2 className="sr-only">Featured Posts</h2>
+            {featuredBlogs.map((blog) => (
+              <FeaturedBlogCard blog={blog} key={blog._id} />
+            ))}
+          </section>
+        )}
 
-        {hasQuery ? (
-          <BlogSearchResults
-            error={error}
-            hasQuery={hasQuery}
-            isSearching={isSearching}
-            results={results}
+        <div className="flex flex-col gap-8 lg:flex-row lg:gap-16">
+          <BlogFilterSidebar
+            activeCategory={activeCategory}
+            categories={categories}
+            onSearchChange={setSearchQuery}
+            onSearchClear={() => setSearchQuery("")}
             searchQuery={searchQuery}
           />
-        ) : (
-          <>
-            <BlogSection
-              blogs={featuredBlogs}
-              isFeatured
-              title="Featured Posts"
-            />
-            <BlogSection blogs={remainingBlogs} title="All Posts" />
-            {paginationMetadata?.totalPages > 1 && (
-              <BlogPagination
-                className="mt-12 flex justify-center"
-                currentPage={paginationMetadata.currentPage}
-                hasNextPage={paginationMetadata.hasNextPage}
-                hasPreviousPage={paginationMetadata.hasPreviousPage}
-                totalPages={paginationMetadata.totalPages}
+
+          <div className="min-w-0 flex-1">
+            {hasQuery ? (
+              <BlogSearchResults
+                error={error}
+                hasQuery={hasQuery}
+                isSearching={isSearching}
+                results={results}
+                searchQuery={searchQuery}
               />
+            ) : (
+              <div className="flex flex-col gap-12">
+                <BlogList blogs={remainingBlogs} />
+                {paginationMetadata?.totalPages > 1 && (
+                  <BlogPagination
+                    basePath={basePath}
+                    className="flex justify-center"
+                    currentPage={paginationMetadata.currentPage}
+                    hasNextPage={paginationMetadata.hasNextPage}
+                    hasPreviousPage={paginationMetadata.hasPreviousPage}
+                    totalPages={paginationMetadata.totalPages}
+                  />
+                )}
+              </div>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
 
       {pageBuilder && pageBuilder.length > 0 && (

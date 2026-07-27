@@ -1,14 +1,14 @@
 "use client";
 
-import { Button } from "@workspace/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import { ArrowUpDown, X } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@workspace/ui/lib/utils";
+import { Check, ChevronDown } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
 const SORT_OPTIONS = [
@@ -31,71 +31,50 @@ export function SortSelector({
   currentReverse,
 }: SortSelectorProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const isDefault =
-    currentSort === "COLLECTION_DEFAULT" && currentReverse === false;
-
-  const currentLabel =
-    SORT_OPTIONS.find(
-      (o) => o.sortKey === currentSort && o.reverse === currentReverse
-    )?.label ?? "Featured";
 
   const handleSort = useCallback(
     (sortKey: string, reverse: boolean) => {
       const params = new URLSearchParams(searchParams.toString());
-      params.set("sort", sortKey);
-      params.set("reverse", String(reverse));
+      if (sortKey === "COLLECTION_DEFAULT" && reverse === false) {
+        params.delete("sort");
+        params.delete("reverse");
+      } else {
+        params.set("sort", sortKey);
+        params.set("reverse", String(reverse));
+      }
       params.delete("after");
-      router.push(`?${params.toString()}`);
+      const qs = params.toString();
+      router.push(qs ? `?${qs}` : "?", { scroll: false });
     },
     [router, searchParams]
   );
 
-  const handleReset = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("sort");
-    params.delete("reverse");
-    params.delete("after");
-    const qs = params.toString();
-    router.push(qs ? `?${qs}` : pathname);
-  }, [router, pathname, searchParams]);
-
   return (
-    <div className="flex items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="sm"
-            className="flex items-center gap-2 rounded-none border border-foreground bg-transparent px-6 py-2.5 text-sm text-foreground tracking-wider transition-colors hover:bg-foreground hover:text-background focus-visible:ring-0"
-          >
-            <ArrowUpDown className="mr-2 size-4" />
-            {currentLabel}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {SORT_OPTIONS.map((option) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex shrink-0 items-center gap-1 whitespace-nowrap text-base text-zinc-900 tracking-[0.24px] transition-colors hover:text-zinc-500 focus-visible:outline-none data-[state=open]:text-zinc-500 dark:text-zinc-100 dark:hover:text-zinc-400">
+        Sort by
+        <ChevronDown className="size-[18px]" strokeWidth={1.75} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {SORT_OPTIONS.map((option) => {
+          const active =
+            option.sortKey === currentSort && option.reverse === currentReverse;
+          return (
             <DropdownMenuItem
+              className="flex items-center justify-between gap-6"
               key={`${option.sortKey}-${option.reverse}`}
               onClick={() => handleSort(option.sortKey, option.reverse)}
             >
               {option.label}
+              <Check
+                className={cn("size-4", active ? "opacity-100" : "opacity-0")}
+              />
             </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {!isDefault && (
-        <Button
-          size="sm"
-          onClick={handleReset}
-          className="size-8 rounded-none border border-foreground bg-transparent p-0 text-foreground transition-colors hover:bg-foreground hover:text-background focus-visible:ring-0"
-        >
-          <X className="size-4" />
-          <span className="sr-only">Reset sort</span>
-        </Button>
-      )}
-    </div>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

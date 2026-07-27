@@ -5,13 +5,23 @@ import { queryBlogPaths, queryBlogSlugPageData } from "@workspace/sanity/query";
 import { notFound } from "next/navigation";
 
 import { BlogAuthor } from "@/components/blog-card";
+import { BlogShare } from "@/components/blog-share";
 import { RichText } from "@/components/elements/rich-text";
-import { SanityImage } from "@/components/elements/sanity-image";
 import { TableOfContent } from "@/components/elements/table-of-content";
-import { ArticleJsonLd } from "@/components/json-ld";
+import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/json-ld";
 import { getSEOMetadata } from "@/lib/seo";
+import { getBaseUrl } from "@/utils";
 
 const logger = new Logger("BlogSlug");
+
+function formatBlogDate(date: string | null | undefined) {
+  if (!date) return null;
+  return new Date(date).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 async function fetchBlogSlugPageData(slug: string) {
   return await sanityFetch({
@@ -77,67 +87,73 @@ export default async function BlogSlugPage({
   const { data } = await fetchBlogSlugPageData(slug);
   if (!data) return notFound();
 
-  const { title, description, image, richText, authors, publishedAt } =
-    data ?? {};
+  const {
+    title,
+    richText,
+    authors,
+    publishedAt,
+    _updatedAt,
+    slug: dataSlug,
+  } = data ?? {};
+
+  const baseUrl = getBaseUrl();
+  const shareUrl = `${baseUrl}${dataSlug ?? `/blog/${slug}`}`;
+  const publishedDate = formatBlogDate(publishedAt);
+  const updatedDate = formatBlogDate(_updatedAt);
 
   return (
-    <div className="container mx-auto px-4 md:px-6 py-16 max-w-7xl">
+    <div className=" site-container px-4 py-16 md:px-8">
       <ArticleJsonLd article={data} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: baseUrl },
+          { name: "Blog", url: `${baseUrl}/blog` },
+          { name: title ?? "" },
+        ]}
+      />
 
-      {/* Hero header — full width, centered */}
-      <header className="mb-12 max-w-3xl mx-auto text-center">
-        <h1 className="font-semibold text-4xl md:text-5xl leading-tight tracking-tight font-(family-name:--font-geist-pixel-square) mb-4">
+      {/* Article header — left aligned */}
+      <header className="pb-18 flex flex-col gap-6">
+        <h1 className="max-w-4xl font-medium text-4xl leading-tight tracking-tight md:text-5xl lg:text-6xl">
           {title}
         </h1>
-        <p className="text-lg text-muted-foreground leading-relaxed mb-6">
-          {description}
-        </p>
-        {(authors || publishedAt) && (
-          <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
-            <BlogAuthor author={authors} />
-            {authors && publishedAt && (
-              <span className="text-muted-foreground/40">&middot;</span>
-            )}
-            {publishedAt && (
-              <time dateTime={publishedAt}>
-                {new Date(publishedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </time>
-            )}
-          </div>
-        )}
+        <div className="flex flex-col gap-4">
+          {(publishedDate || updatedDate) && (
+            <div className="flex flex-col gap-0.5 text-sm">
+              {publishedDate && (
+                <p>
+                  <span className="text-muted-foreground">Published At:</span>{" "}
+                  <time dateTime={publishedAt ?? undefined}>
+                    {publishedDate}
+                  </time>
+                </p>
+              )}
+              {updatedDate && (
+                <p>
+                  <span className="text-muted-foreground">
+                    Last Updated At:
+                  </span>{" "}
+                  <time dateTime={_updatedAt ?? undefined}>{updatedDate}</time>
+                </p>
+              )}
+            </div>
+          )}
+          <BlogAuthor author={authors} />
+        </div>
       </header>
 
-      {/* Hero image — full width */}
-      {image && (
-        <div className="mb-12  overflow-hidden">
-          <SanityImage
-            alt={title}
-            className="h-auto w-full object-cover"
-            height={900}
-            image={image}
-            loading="eager"
-            width={1600}
-          />
-        </div>
-      )}
-
-      {/* Two-column: article body + sticky TOC sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] xl:grid-cols-[1fr_280px] gap-12 items-start">
+      {/* Two-column: article body + sticky sidebar (TOC + share) */}
+      <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-16">
         <main className="min-w-0">
           <RichText richText={richText} />
         </main>
 
-        {/* Sticky TOC sidebar */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-8 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-              On this page
-            </p>
-            <TableOfContent richText={richText ?? []} />
+        <aside className="hidden self-start lg:sticky lg:top-24 lg:block">
+          <div className="bg-grid-dots p-4 text-muted-foreground">
+            <div className="flex flex-col gap-12 bg-card p-4 text-foreground">
+              <TableOfContent richText={richText ?? []} />
+              <BlogShare title={title ?? ""} url={shareUrl} />
+            </div>
           </div>
         </aside>
       </div>

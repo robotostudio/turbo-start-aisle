@@ -6,13 +6,18 @@ import type { QueryHomePageDataResult } from "@workspace/sanity/types";
 import { createDataAttribute } from "next-sanity";
 import { useCallback, useMemo } from "react";
 
+import type { FeaturedProduct } from "@/lib/shopify/types";
 import { CollectionBanner } from "./sections/collection-banner";
 import { CTABlock } from "./sections/cta";
+import { EditorialTwoUp } from "./sections/editorial-two-up";
 import { ExploreCategories } from "./sections/explore-categories";
 import { FaqAccordion } from "./sections/faq-accordion";
+import { FaqCategories } from "./sections/faq-categories";
 import { FeatureCardsWithIcon } from "./sections/feature-cards-with-icon";
+import { FeaturedProducts } from "./sections/featured-products";
 import { HeroBlock } from "./sections/hero";
 import { ImageLinkCards } from "./sections/image-link-cards";
+import { LayersShowcase } from "./sections/layers-showcase";
 import { SubscribeNewsletter } from "./sections/subscribe-newsletter";
 
 // More specific and descriptive type aliases
@@ -24,6 +29,12 @@ export type PageBuilderProps = {
   readonly pageBuilder?: PageBuilderBlock[];
   readonly id: string;
   readonly type: string;
+  /**
+   * Full Shopify product data for `featuredProducts` blocks, fetched
+   * server-side in the page and keyed by block `_key`. Blocks can't fetch
+   * Shopify themselves since this is a client component.
+   */
+  readonly featuredProductsByKey?: Record<string, FeaturedProduct[]>;
 };
 
 type SanityDataAttributeConfig = {
@@ -36,10 +47,14 @@ type SanityDataAttributeConfig = {
 const BLOCK_COMPONENTS: Record<string, React.ComponentType<any>> = {
   collectionBanner: CollectionBanner,
   cta: CTABlock,
+  editorialTwoUp: EditorialTwoUp,
   exploreCategories: ExploreCategories,
   faqAccordion: FaqAccordion,
+  faqCategories: FaqCategories,
+  featuredProducts: FeaturedProducts,
   hero: HeroBlock,
   featureCardsIcon: FeatureCardsWithIcon,
+  layersShowcase: LayersShowcase,
   subscribeNewsletter: SubscribeNewsletter,
   imageLinkCards: ImageLinkCards,
 };
@@ -107,7 +122,11 @@ function useOptimisticPageBuilder(
 /**
  * Custom hook for block component rendering logic
  */
-function useBlockRenderer(id: string, type: string) {
+function useBlockRenderer(
+  id: string,
+  type: string,
+  featuredProductsByKey?: Record<string, FeaturedProduct[]>
+) {
   const createBlockDataAttribute = useCallback(
     (blockKey: string) =>
       createSanityDataAttribute({
@@ -133,17 +152,24 @@ function useBlockRenderer(id: string, type: string) {
         );
       }
 
+      // `featuredProducts` blocks receive their Shopify data (fetched
+      // server-side) injected here, since a client block can't fetch it.
+      const injectedProps =
+        block._type === "featuredProducts"
+          ? { products: featuredProductsByKey?.[block._key] ?? [] }
+          : {};
+
       return (
         <div
           data-sanity={createBlockDataAttribute(block._key)}
           key={`${block._type}-${block._key}`}
         >
           {/** biome-ignore lint/suspicious/noExplicitAny: <any is used to allow for dynamic component rendering> */}
-          <Component {...(block as any)} />
+          <Component {...(block as any)} {...injectedProps} />
         </div>
       );
     },
-    [createBlockDataAttribute]
+    [createBlockDataAttribute, featuredProductsByKey]
   );
 
   return { renderBlock };
@@ -156,9 +182,10 @@ export function PageBuilder({
   pageBuilder: initialBlocks = [],
   id,
   type,
+  featuredProductsByKey,
 }: PageBuilderProps) {
   const blocks = useOptimisticPageBuilder(initialBlocks, id);
-  const { renderBlock } = useBlockRenderer(id, type);
+  const { renderBlock } = useBlockRenderer(id, type, featuredProductsByKey);
 
   const containerDataAttribute = useMemo(
     () => createSanityDataAttribute({ id, type, path: "pageBuilder" }),
@@ -170,10 +197,7 @@ export function PageBuilder({
   }
 
   return (
-    <main
-      className="my-16 flex flex-col gap-16"
-      data-sanity={containerDataAttribute}
-    >
+    <main className="flex flex-col" data-sanity={containerDataAttribute}>
       {blocks.map(renderBlock)}
     </main>
   );

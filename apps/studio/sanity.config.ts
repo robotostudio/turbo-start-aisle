@@ -1,4 +1,3 @@
-import { agentContextPlugin } from "@sanity/agent-context/studio";
 import { assist } from "@sanity/assist";
 import { colorInput } from "@sanity/color-input";
 import { visionTool } from "@sanity/vision";
@@ -53,7 +52,6 @@ export default defineConfig({
     unsplashImageAsset(),
     media(),
     assist(),
-    agentContextPlugin(),
   ],
   document: {
     newDocumentOptions: (prev, { creationContext }) => {
@@ -67,7 +65,6 @@ export default defineConfig({
               "footer",
               "settings",
               "blogIndex",
-              "aiAssistantSettings",
               "assist.instruction.context",
               "media.tag",
             ].includes(template?.templateId)

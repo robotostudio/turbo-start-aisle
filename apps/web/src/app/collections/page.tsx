@@ -5,8 +5,9 @@ import {
 } from "@workspace/sanity/query";
 
 import { CollectionsContent } from "@/components/collections/collections-content";
-import { CollectionsHero } from "@/components/collections/collections-hero";
+import { BreadcrumbJsonLd, CollectionJsonLd } from "@/components/json-ld";
 import { getSEOMetadata } from "@/lib/seo";
+import { getBaseUrl } from "@/utils";
 
 export async function generateMetadata() {
   const { data } = await sanityFetch({
@@ -27,18 +28,25 @@ export default async function CollectionsPage() {
     sanityFetch({ query: queryAllCollections }),
   ]);
 
+  const baseUrl = getBaseUrl();
+  const title = indexData?.title ?? "Collections";
+  const allCollections = collections ?? [];
+
   return (
-    <div className="flex flex-col gap-4 md:gap-8">
-      <CollectionsHero
-        buttons={indexData?.buttons ?? null}
-        heroImage={indexData?.heroImage ?? null}
-        heroTitle={indexData?.heroTitle ?? null}
+    <>
+      <BreadcrumbJsonLd
+        items={[{ name: "Home", url: baseUrl }, { name: title }]}
       />
-      <CollectionsContent
-        collections={collections ?? []}
-        subtitle={indexData?.subtitle ?? null}
-        title={indexData?.title ?? "Collections"}
+      <CollectionJsonLd
+        description={indexData?.subtitle ?? null}
+        items={allCollections.map((c) => ({
+          name: c.title ?? "",
+          ...(c.slug ? { url: `${baseUrl}/collections/${c.slug}` } : {}),
+        }))}
+        name={title}
+        url={`${baseUrl}/collections`}
       />
-    </div>
+      <CollectionsContent collections={allCollections} title={title} />
+    </>
   );
 }
