@@ -1,5 +1,7 @@
 import "@workspace/ui/globals.css";
 
+import { ChatWidget } from "@workspace/ai-commerce";
+import { env } from "@workspace/env/client";
 import { SanityLive } from "@workspace/sanity/live";
 import { Toaster } from "@workspace/ui/components/sonner";
 import { GeistMono } from "geist/font/mono";
@@ -9,10 +11,12 @@ import { VisualEditing } from "next-sanity/visual-editing";
 import { Suspense } from "react";
 import { preconnect, prefetchDNS } from "react-dom";
 
+import { AiCartBridge } from "@/components/ai-cart-bridge";
 import { CartToasts } from "@/components/cart/cart-toasts";
 import { FooterServer, FooterSkeleton } from "@/components/footer";
 import { CombinedJsonLd } from "@/components/json-ld";
 import { Navbar } from "@/components/navbar";
+import { PageContextTracker } from "@/components/page-context-tracker";
 import { PreviewBar } from "@/components/preview-bar";
 import { PromoBanner } from "@/components/promo-banner";
 import { Providers } from "@/components/providers";
@@ -50,7 +54,12 @@ export default async function RootLayout({
           </div>
           {modal}
           <CartToasts />
-          <Toaster position="bottom-right" richColors />
+          {/* Offset clears the AI chat launcher (fixed bottom-right, 3.5rem). */}
+          <Toaster
+            offset={{ bottom: "5.5rem", right: "1rem" }}
+            position="bottom-right"
+            richColors
+          />
           <SanityLive />
           <CombinedJsonLd includeOrganization includeWebsite />
           {(await draftMode()).isEnabled && (
@@ -59,6 +68,13 @@ export default async function RootLayout({
               <VisualEditing />
             </>
           )}
+
+          {/* AI Commerce — inside Providers: PageContextTracker needs
+              QueryClientProvider, AiCartBridge needs CartProvider, and
+              ChatWidget's product cards query Sanity via react-query. */}
+          <PageContextTracker />
+          <AiCartBridge />
+          <ChatWidget currencyCode={env.NEXT_PUBLIC_STORE_CURRENCY} />
         </Providers>
       </body>
     </html>

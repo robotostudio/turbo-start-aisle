@@ -42,7 +42,7 @@ function getStudioHost(): string | undefined {
     return `${projectId}`;
   }
 
-  return "roboto-shopify";
+  return undefined;
 }
 
 const studioHost = getStudioHost();

@@ -14,7 +14,7 @@ const logger = new Logger("LlmsTxt");
 
 const PUBLISHED = { perspective: "published", stega: false } as const;
 
-const SITE_TITLE = "Roboto Studio Demo";
+const SITE_TITLE = "Turbo Start Aisle";
 const SITE_DESCRIPTION =
   "Headless commerce storefront. Append .md to any URL, or send Accept: text/markdown, to get a structured Markdown view of a page.";
 

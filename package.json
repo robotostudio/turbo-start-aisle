@@ -14,7 +14,8 @@
     "format:check": "turbo run format:check",
     "check-types": "turbo run check-types",
     "seed:shopify": "pnpm --filter studio seed:shopify",
-    "verify:shopify": "pnpm --filter studio verify:shopify"
+    "verify:shopify": "pnpm --filter studio verify:shopify",
+    "test": "turbo run test"
   },
   "dependencies": {
     "@workspace/env": "workspace:*"

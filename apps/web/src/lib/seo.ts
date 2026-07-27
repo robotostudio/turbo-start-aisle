@@ -32,10 +32,22 @@ type OgImageParams = {
 
 // Default site configuration
 const siteConfig: SiteConfig = {
-  title: "Roboto Studio Demo",
-  description: "Roboto Studio Demo",
-  twitterHandle: "@studioroboto",
-  keywords: ["roboto", "studio", "demo", "sanity", "next", "react", "template"],
+  title: "Turbo Start Aisle",
+  description:
+    "AI shopping assistant for headless Shopify — built on Sanity + Next.js with a chat widget that surfaces products, controls filters, and renders inline product cards.",
+  twitterHandle: "@akintola4",
+  keywords: [
+    "aisle",
+    "turbo-start-aisle",
+    "shopify",
+    "sanity",
+    "ai",
+    "ai shopping assistant",
+    "headless commerce",
+    "next.js",
+    "gemini",
+    "vercel ai sdk",
+  ],
 };
 
 function generateOgImageUrl(params: OgImageParams = {}): string {

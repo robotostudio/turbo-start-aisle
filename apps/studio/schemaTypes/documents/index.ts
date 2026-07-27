@@ -1,3 +1,4 @@
+import { aiAssistantSettings } from "@/schemaTypes/documents/ai-assistant-settings";
 import { author } from "@/schemaTypes/documents/author";
 import { blog } from "@/schemaTypes/documents/blog";
 import { blogIndex } from "@/schemaTypes/documents/blog-index";
@@ -24,6 +25,7 @@ export const singletons = [
   footer,
   navbar,
   promoBanner,
+  aiAssistantSettings,
 ];
 
 export const documents = [

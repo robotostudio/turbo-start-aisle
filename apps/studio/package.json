@@ -19,12 +19,17 @@
     "seed:shopify": "tsx scripts/seed-shopify/index.ts",
     "migrate:handoff": "tsx scripts/migrate-handoff/index.ts",
     "verify:shopify": "tsx scripts/verify-shopify.ts",
-    "postinstall": "sanity exec scripts/cli-alert-for-data.ts"
+    "postinstall": "sanity exec scripts/cli-alert-for-data.ts",
+    "clean": "rm -rf dist schema.json",
+    "predeploy": "pnpm run clean",
+    "schema:deploy": "pnpm run clean && sanity schema extract --enforce-required-fields && sanity schema deploy",
+    "seed:ai-assistant": "sanity exec scripts/seed-ai-assistant.ts --with-user-token"
   },
   "keywords": [
     "sanity"
   ],
   "dependencies": {
+    "@sanity/agent-context": "^0.1.0",
     "@sanity/asset-utils": "^1.3.0",
     "@sanity/assist": "^5.0.4",
     "@sanity/client": "catalog:",
