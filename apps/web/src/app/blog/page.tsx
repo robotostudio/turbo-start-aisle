@@ -1,5 +1,6 @@
 import { sanityFetch } from "@workspace/sanity/live";
 import {
+  queryBlogCategories,
   queryBlogIndexPageBlogs,
   queryBlogIndexPageBlogsCount,
   queryBlogIndexPageData,
@@ -8,10 +9,12 @@ import { notFound } from "next/navigation";
 
 import { BlogHeader } from "@/components/blog-card";
 import { BlogPageContent } from "@/components/blog-page-content";
+import { BreadcrumbJsonLd } from "@/components/json-ld";
 import { PageBuilder } from "@/components/pagebuilder";
 import { getSEOMetadata } from "@/lib/seo";
 import {
   calculatePaginationMetadata,
+  getBaseUrl,
   getBlogPaginationStartEnd,
   handleErrors,
 } from "@/utils";
@@ -21,18 +24,28 @@ async function fetchBlogIndexPageData() {
   return res.data;
 }
 
-async function fetchBlogIndexPageBlogs(start: number, end: number) {
+async function fetchBlogIndexPageBlogs(
+  start: number,
+  end: number,
+  category: string
+) {
   const res = await sanityFetch({
     query: queryBlogIndexPageBlogs,
-    params: { start, end },
+    params: { start, end, category },
   });
   return res.data;
 }
 
-async function fetchBlogIndexPageBlogsCount() {
+async function fetchBlogIndexPageBlogsCount(category: string) {
   const res = await sanityFetch({
     query: queryBlogIndexPageBlogsCount,
+    params: { category },
   });
+  return res.data;
+}
+
+async function fetchBlogCategories() {
+  const res = await sanityFetch({ query: queryBlogCategories });
   return res.data;
 }
 
@@ -57,19 +70,25 @@ export async function generateMetadata() {
 type BlogPageProps = {
   searchParams: Promise<{
     page?: string;
+    category?: string;
   }>;
 };
 
 export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
-  const { page } = await searchParams;
+  const { page, category } = await searchParams;
   const currentPage = page ? Number(page) : 1;
+  const activeCategory = category ?? "";
 
-  // Fetch page data and total count in parallel
-  const [[indexPageData, errIndexPageData], [totalCount, errTotalCount]] =
-    await Promise.all([
-      handleErrors(fetchBlogIndexPageData()),
-      handleErrors(fetchBlogIndexPageBlogsCount()),
-    ]);
+  // Fetch page data, categories, and total count in parallel
+  const [
+    [indexPageData, errIndexPageData],
+    [categories, errCategories],
+    [totalCount, errTotalCount],
+  ] = await Promise.all([
+    handleErrors(fetchBlogIndexPageData()),
+    handleErrors(fetchBlogCategories()),
+    handleErrors(fetchBlogIndexPageBlogsCount(activeCategory)),
+  ]);
 
   if (errIndexPageData || !indexPageData) {
     notFound();
@@ -77,11 +96,8 @@ export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
 
   if (errTotalCount || totalCount === null || totalCount === undefined) {
     return (
-      <main className="container mx-auto my-16 px-4 md:px-6">
-        <BlogHeader
-          description={indexPageData.description}
-          title={indexPageData.title}
-        />
+      <main className="site-container my-16">
+        <BlogHeader title={indexPageData.title} />
         <div className="py-12 text-center">
           <p className="text-muted-foreground">
             Unable to load blog posts at the moment.
@@ -98,9 +114,11 @@ export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
     );
   }
 
-  const featuredBlogsCount = indexPageData.displayFeaturedBlogs
-    ? Number(indexPageData.featuredBlogsCount) || 0
-    : 0;
+  // Featured posts only apply on the unfiltered, first-page view.
+  const featuredBlogsCount =
+    indexPageData.displayFeaturedBlogs && !activeCategory
+      ? Number(indexPageData.featuredBlogsCount) || 0
+      : 0;
 
   const paginationMetadata = calculatePaginationMetadata(
     totalCount,
@@ -113,16 +131,13 @@ export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
     currentPage === 1 ? end + featuredBlogsCount : end + featuredBlogsCount;
 
   const [blogs, errBlogs] = await handleErrors(
-    fetchBlogIndexPageBlogs(blogStart, blogEnd)
+    fetchBlogIndexPageBlogs(blogStart, blogEnd, activeCategory)
   );
 
   if (errBlogs || !blogs) {
     return (
-      <main className="container mx-auto my-16 px-4 md:px-6">
-        <BlogHeader
-          description={indexPageData.description}
-          title={indexPageData.title}
-        />
+      <main className="site-container my-16">
+        <BlogHeader title={indexPageData.title} />
         <div className="py-12 text-center">
           <p className="text-muted-foreground">
             No blog posts available at the moment.
@@ -139,11 +154,20 @@ export default async function BlogIndexPage({ searchParams }: BlogPageProps) {
     );
   }
 
+  const baseUrl = getBaseUrl();
+
   return (
-    <BlogPageContent
-      blogs={blogs}
-      indexPageData={indexPageData}
-      paginationMetadata={paginationMetadata}
-    />
+    <>
+      <BreadcrumbJsonLd
+        items={[{ name: "Home", url: baseUrl }, { name: "Blog" }]}
+      />
+      <BlogPageContent
+        activeCategory={activeCategory}
+        blogs={blogs}
+        categories={errCategories ? [] : (categories ?? [])}
+        indexPageData={indexPageData}
+        paginationMetadata={paginationMetadata}
+      />
+    </>
   );
 }

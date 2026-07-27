@@ -21,8 +21,7 @@ export const aiAssistantSettings = defineType({
       title: "Welcome subtitle",
       type: "text",
       rows: 2,
-      description:
-        "One or two sentences explaining what the assistant can do.",
+      description: "One or two sentences explaining what the assistant can do.",
       validation: (rule) => rule.required().max(280),
     }),
     defineField({

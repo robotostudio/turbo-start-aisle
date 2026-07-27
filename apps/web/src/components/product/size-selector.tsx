@@ -16,7 +16,7 @@ export function SizeSelector({
   onSelect,
 }: SizeSelectorProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {values.map((value) => {
         const isAvailable = availability[value] !== false;
         const isSelected = selectedValue === value;
@@ -24,10 +24,10 @@ export function SizeSelector({
         return (
           <button
             className={cn(
-              "min-w-14 border px-4 py-2.5 text-center text-sm font-medium transition-colors",
+              "border-b px-1 pb-0.5 text-xs tracking-wide transition-colors",
               isSelected
-                ? "border-foreground bg-foreground text-background"
-                : "border-border text-foreground hover:border-foreground/50",
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
               !isAvailable && "opacity-40 line-through"
             )}
             key={value}

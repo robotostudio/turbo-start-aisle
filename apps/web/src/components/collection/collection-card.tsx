@@ -1,37 +1,30 @@
-import Image from "next/image";
 import Link from "next/link";
 
-type CollectionCardProps = {
+import { ShopifyImage as Image } from "@/components/product/shopify-image";
+
+export type CollectionCardProps = {
   handle: string;
   title: string;
   imageUrl: string | null;
-  description?: string | null;
 };
-
-/** Strips HTML tags from a string. */
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, "").trim();
-}
 
 export function CollectionCard({
   handle,
   title,
   imageUrl,
-  description,
 }: CollectionCardProps) {
-  const plainDescription = description ? stripHtml(description) : null;
   return (
     <Link
-      className="group block overflow-hidden bg-card"
+      className="group block overflow-hidden"
       href={`/collections/${handle}`}
     >
-      <div className="relative aspect-square overflow-hidden bg-muted">
+      <div className="card-surface relative aspect-56/75 overflow-hidden">
         {imageUrl ? (
           <Image
             alt={title}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             fill
-            sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+            sizes="(min-width: 768px) 33vw, 50vw"
             src={imageUrl}
           />
         ) : (
@@ -39,16 +32,16 @@ export function CollectionCard({
             No image
           </div>
         )}
+
+        {/* "View Collection" bar — fades in on hover (mirrors the product card's add-to-cart bar). */}
+        <div className="absolute inset-x-2 bottom-2 z-10 flex items-center justify-center bg-background p-2 opacity-0 transition-opacity duration-200 md:group-hover:opacity-100">
+          <span className="font-medium text-foreground text-sm">
+            View Collection
+          </span>
+        </div>
       </div>
-      <div className="py-4 flex flex-col gap-2">
-        <h2 className="font-medium text-sm md:text-xl group-hover:underline">
-          {title}
-        </h2>
-        {plainDescription ? (
-          <p className=" line-clamp-2 text-muted-foreground text-xs">
-            {plainDescription}
-          </p>
-        ) : null}
+      <div className="px-1 pt-2">
+        <h2 className="font-medium text-base text-foreground">{title}</h2>
       </div>
     </Link>
   );

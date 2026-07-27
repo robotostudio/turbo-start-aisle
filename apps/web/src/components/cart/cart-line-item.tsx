@@ -1,19 +1,45 @@
 "use client";
 
-import { Button } from "@workspace/ui/components/button";
-import { Minus, Plus, Trash2 } from "lucide-react";
-import Image from "next/image";
+import { Trash2 } from "lucide-react";
 import Link from "next/link";
 
-import { formatMoney } from "@/lib/shopify/money";
-import type { CartLine } from "@/lib/shopify/types";
+import { AnimatedMoney } from "@/components/elements/animated-money";
+import { BookmarkIcon } from "@/components/icons";
+import { QuantitySelector } from "@/components/product/quantity-selector";
+import { ShopifyImage as Image } from "@/components/product/shopify-image";
+import { useSavedItems } from "@/components/saved-items/saved-items-context";
+import { isSyntheticLineId } from "@/lib/cart/intents";
+import { getColorHex } from "@/lib/shopify/color";
+import { getOptionType } from "@/lib/shopify/options";
+import type { CartLine, SelectedOption } from "@/lib/shopify/types";
+import {
+  findVariantByOptions,
+  getOptionAvailability,
+} from "@/lib/shopify/variant-utils";
 import { useCart } from "./cart-context";
+import {
+  CartLineVariantSelect,
+  type VariantOption,
+} from "./cart-line-variant-select";
+import { useProductOptions } from "./use-product-options";
+
+const DEFAULT_TITLE = "Default Title";
+
+function selectionsFromOptions(
+  options: SelectedOption[]
+): Record<string, string> {
+  const record: Record<string, string> = {};
+  for (const option of options) {
+    record[option.name] = option.value;
+  }
+  return record;
+}
 
 function buildProductUrl(line: CartLine): string {
   const handle = line.merchandise.product.handle;
   const params = new URLSearchParams();
   for (const opt of line.merchandise.selectedOptions) {
-    if (opt.value && opt.value !== "Default Title") {
+    if (opt.value && opt.value !== DEFAULT_TITLE) {
       params.set(opt.name, opt.value);
     }
   }
@@ -22,84 +48,143 @@ function buildProductUrl(line: CartLine): string {
 }
 
 export function CartLineItem({ line }: { line: CartLine }) {
-  const { updateLine, removeLine, closeCart } = useCart();
+  const { updateLine, swapLineVariant, removeLine, closeCart, cartError } =
+    useCart();
+  const { add: addToWishlist } = useSavedItems();
+  const handle = line.merchandise.product.handle;
+  const { data: productOptions } = useProductOptions(handle);
+  const isSynthetic = isSyntheticLineId(line.id);
+  const lineError = cartError?.lineId === line.id ? cartError : null;
+
   const productUrl = buildProductUrl(line);
+  const currentSelections = selectionsFromOptions(
+    line.merchandise.selectedOptions
+  );
+
+  // Prefer the fetched product options (all values + availability); fall back
+  // to the line's own selected options as read-only single-value selectors.
+  const optionDefs =
+    productOptions?.options ??
+    line.merchandise.selectedOptions.map((option) => ({
+      id: option.name,
+      name: option.name,
+      values: [option.value],
+    }));
+  const variants = productOptions?.variants ?? [];
+
+  function handleSelect(optionName: string, nextValue: string) {
+    const next = { ...currentSelections, [optionName]: nextValue };
+    const target = findVariantByOptions(variants, next);
+    if (target?.availableForSale) {
+      swapLineVariant(line.id, target.id, line.quantity, {
+        variantTitle: target.title,
+        price: target.price,
+        image: target.image,
+        selectedOptions: target.selectedOptions,
+      });
+    }
+  }
+
+  function handleMoveToWishlist() {
+    addToWishlist(handle);
+    removeLine(line.id);
+  }
+
+  const selectableOptions = optionDefs.filter(
+    (option) =>
+      !(option.values.length === 1 && option.values[0] === DEFAULT_TITLE)
+  );
 
   return (
-    <div className="flex gap-4 py-4">
-      <Link
-        className="shrink-0"
-        href={productUrl}
-        onClick={closeCart}
-      >
-        {line.merchandise.image ? (
-          <div className="relative size-20 overflow-hidden rounded-lg border">
-            <Image
-              alt={line.merchandise.image.altText ?? line.merchandise.title}
-              className="object-cover"
-              fill
-              sizes="80px"
-              src={line.merchandise.image.url}
-            />
-          </div>
-        ) : (
-          <div className="size-20 rounded-lg border bg-muted" />
-        )}
-      </Link>
-
-      <div className="flex flex-1 flex-col justify-between">
-        <div>
-          <Link
-            className="font-medium text-sm leading-tight hover:underline"
-            href={productUrl}
-            onClick={closeCart}
-          >
-            {line.merchandise.product.title}
-          </Link>
-          {line.merchandise.title !== "Default Title" && (
-            <p className="mt-0.5 text-muted-foreground text-xs">
-              {line.merchandise.title}
+    <div className="flex items-stretch justify-between gap-4 py-8 first:pt-0">
+      <div className="flex flex-1 flex-col items-start gap-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1">
+            <Link
+              className="font-medium text-base text-foreground leading-tight hover:underline"
+              href={productUrl}
+              onClick={closeCart}
+            >
+              {line.merchandise.product.title}
+            </Link>
+            <p className="font-medium text-foreground text-sm tabular-nums">
+              <AnimatedMoney money={line.cost.totalAmount} />
             </p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            {selectableOptions.map((option) => {
+              const type = getOptionType(option.name);
+              const availability = getOptionAvailability(
+                variants,
+                option.name,
+                currentSelections
+              );
+              const values: VariantOption[] = option.values.map((value) => ({
+                value,
+                available: availability[value] ?? variants.length === 0,
+                hex: type === "color" ? getColorHex(value) : null,
+              }));
+              return (
+                <CartLineVariantSelect
+                  disabled={isSynthetic}
+                  key={option.name}
+                  label={option.name}
+                  onSelect={(value) => handleSelect(option.name, value)}
+                  options={values}
+                  type={type}
+                  value={currentSelections[option.name] ?? ""}
+                />
+              );
+            })}
+          </div>
+
+          {lineError && (
+            <p className="text-red-600 text-sm">{lineError.message}</p>
           )}
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <Button
-              disabled={line.quantity <= 1}
-              onClick={() => updateLine(line.id, line.quantity - 1)}
-              size="icon"
-              variant="outline"
-              className="size-7"
-            >
-              <Minus className="size-3" />
-            </Button>
-            <span className="w-8 text-center text-sm">{line.quantity}</span>
-            <Button
-              onClick={() => updateLine(line.id, line.quantity + 1)}
-              size="icon"
-              variant="outline"
-              className="size-7"
-            >
-              <Plus className="size-3" />
-            </Button>
-          </div>
+        <QuantitySelector
+          disabled={isSynthetic}
+          onChange={(value) => updateLine(line.id, value)}
+          value={line.quantity}
+        />
 
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-sm">
-              {formatMoney(line.cost.totalAmount)}
-            </p>
-            <Button
-              className="size-7 text-muted-foreground hover:text-destructive"
-              onClick={() => removeLine(line.id)}
-              size="icon"
-              variant="ghost"
-            >
-              <Trash2 className="size-3" />
-            </Button>
-          </div>
+        <div className="flex items-center gap-4">
+          <button
+            className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+            onClick={handleMoveToWishlist}
+            type="button"
+          >
+            <BookmarkIcon className="size-4" />
+            Move to wishlist
+          </button>
+          <button
+            className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+            onClick={() => removeLine(line.id)}
+            type="button"
+          >
+            <Trash2 className="size-4" />
+            Remove
+          </button>
         </div>
       </div>
+
+      <Link
+        className="card-surface relative w-31.25 shrink-0 self-stretch overflow-hidden"
+        href={productUrl}
+        onClick={closeCart}
+      >
+        {line.merchandise.image && (
+          <Image
+            alt={line.merchandise.image.altText ?? line.merchandise.title}
+            className="object-cover"
+            fill
+            sizes="125px"
+            src={line.merchandise.image.url}
+          />
+        )}
+      </Link>
     </div>
   );
 }

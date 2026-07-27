@@ -2,25 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { client } from "@workspace/sanity/client";
+import { queryAiAssistantSettings } from "@workspace/sanity/query";
+import type { QueryAiAssistantSettingsResult } from "@workspace/sanity/types";
 import { SparklesIcon } from "lucide-react";
 
 interface EmptyStateProps {
   onSuggestion: (text: string) => void;
 }
-
-interface AiAssistantSettings {
-  welcomeHeading: string | null;
-  welcomeSubtitle: string | null;
-  suggestions: string[] | null;
-}
-
-const SETTINGS_QUERY = /* groq */ `
-  *[_type == "aiAssistantSettings" && _id == "aiAssistantSettings"][0]{
-    welcomeHeading,
-    welcomeSubtitle,
-    suggestions
-  }
-`;
 
 const FALLBACK = {
   heading: "Welcome to Aisle",
@@ -37,7 +25,8 @@ const FALLBACK = {
 export function EmptyState({ onSuggestion }: EmptyStateProps) {
   const { data } = useQuery({
     queryKey: ["ai-commerce", "ai-assistant-settings"],
-    queryFn: () => client.fetch<AiAssistantSettings | null>(SETTINGS_QUERY),
+    queryFn: () =>
+      client.fetch<QueryAiAssistantSettingsResult>(queryAiAssistantSettings),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -51,10 +40,7 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-4 py-6 text-center">
-      <div
-        className="flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: "#0B0F19", color: "#B8FF3C" }}
-      >
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <SparklesIcon className="h-6 w-6" />
       </div>
       <div>

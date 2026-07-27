@@ -11,6 +11,10 @@ export { buildSystemPrompt } from "./system-prompt";
 // Tool registry
 export { clientTools } from "./tools";
 export type {
+  AddToCartEventDetail,
+  AiMoneyV2,
+  AiSelectedOption,
+  AiShopifyImage,
   ClientToolName,
   NavigateDirective,
   PageContext,
@@ -18,7 +22,12 @@ export type {
   ProductFiltersInput,
   UserContext,
 } from "./types";
-export { CLIENT_TOOLS, productFiltersSchema } from "./types";
+export {
+  ADD_TO_CART_EVENT,
+  CLIENT_TOOLS,
+  PRICE_BUCKETS,
+  productFiltersSchema,
+} from "./types";
 // UI
 export { ChatWidget } from "./ui/chat-widget";
 export { Product } from "./ui/product";

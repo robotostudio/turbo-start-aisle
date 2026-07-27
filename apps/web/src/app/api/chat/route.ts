@@ -35,9 +35,28 @@ const userContextSchema = z
   .nullable()
   .optional();
 
+// Which route the user is on, written by <PageContextTracker /> on every
+// navigation. Lets the model answer "what's on this page?" without a tool call.
+const pageContextSchema = z
+  .object({
+    route: z.string().max(2000),
+    surface: z.enum([
+      "home",
+      "pdp",
+      "collection",
+      "search",
+      "cart",
+      "content",
+      "other",
+    ]),
+  })
+  .nullable()
+  .optional();
+
 const requestSchema = z.object({
   messages: z.array(z.unknown()).max(200),
   userContext: userContextSchema,
+  pageContext: pageContextSchema,
   // ISO 4217 currency code from the ChatWidget. Defaults to GBP if absent;
   // the regex blocks anything that isn't a 3-letter A-Z code so the value is
   // safe to splice into the system prompt as text.
@@ -64,9 +83,7 @@ interface StepTrace {
 function logStepTrace(step: StepTrace) {
   for (const call of step.toolCalls ?? []) {
     const input =
-      typeof call.input === "string"
-        ? call.input
-        : JSON.stringify(call.input);
+      typeof call.input === "string" ? call.input : JSON.stringify(call.input);
     console.log(`[chat] tool=${call.toolName} input=${input.slice(0, 500)}`);
   }
   for (const result of step.toolResults ?? []) {
@@ -75,7 +92,7 @@ function logStepTrace(step: StepTrace) {
         ? result.output
         : JSON.stringify(result.output);
     console.log(
-      `[chat] tool=${result.toolName} result=${output.slice(0, 500)}`,
+      `[chat] tool=${result.toolName} result=${output.slice(0, 500)}`
     );
   }
 }
@@ -85,6 +102,35 @@ function jsonError(status: number, message: string) {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+/**
+ * Map a streaming failure to a message that is safe to show the user.
+ *
+ * Errors thrown mid-stream (gateway 402/429, provider outages) are the ones a
+ * user is most likely to hit, and the AI SDK masks them all as "An error
+ * occurred" by default — which leaves a retry button that can only fail the
+ * same way. We map the status code to a fixed string rather than echoing the
+ * upstream message, because AI SDK / MCP errors can carry request headers
+ * including the SANITY_API_READ_TOKEN and AI_GATEWAY_API_KEY bearer tokens.
+ */
+function streamErrorMessage(error: unknown): string {
+  const status =
+    typeof error === "object" && error !== null && "statusCode" in error
+      ? (error as { statusCode?: unknown }).statusCode
+      : undefined;
+
+  switch (status) {
+    case 402:
+      return "The AI Gateway needs a positive credit balance before it will serve requests. Top up at vercel.com/dashboard/ai-gateway.";
+    case 401:
+    case 403:
+      return "The AI Gateway rejected our credentials. Check AI_GATEWAY_API_KEY.";
+    case 429:
+      return "The AI Gateway is rate-limiting us. Wait a moment and try again.";
+    default:
+      return "The chat service didn't respond.";
+  }
 }
 
 export async function POST(req: Request) {
@@ -122,12 +168,21 @@ export async function POST(req: Request) {
   if (!result.success) {
     return jsonError(400, "Invalid request shape.");
   }
-  const { messages, userContext, currencyCode } = result.data;
+  const { messages, userContext, pageContext, currencyCode } = result.data;
 
   const mcpClient = await createSanityAgentContextClient({
     url: env.SANITY_CONTEXT_MCP_URL,
     token: env.SANITY_API_READ_TOKEN,
   });
+
+  // onFinish and onError are mutually exclusive but both can race a thrown
+  // error in the catch below, so close exactly once.
+  let mcpClosed = false;
+  const closeMcp = async () => {
+    if (mcpClosed) return;
+    mcpClosed = true;
+    await mcpClient.close();
+  };
 
   try {
     const mcpTools = await mcpClient.tools();
@@ -146,6 +201,7 @@ export async function POST(req: Request) {
       },
       system: buildSystemPrompt({
         userContext: userContext ?? null,
+        pageContext: pageContext ?? null,
         currencyCode,
       }),
       messages: await convertToModelMessages(messages as never),
@@ -166,13 +222,20 @@ export async function POST(req: Request) {
       // avoid leaking content into platform logs.
       onStepFinish:
         process.env.NODE_ENV === "development" ? logStepTrace : undefined,
-      onFinish: async () => {
-        await mcpClient.close();
+      onFinish: closeMcp,
+      // The model call happens lazily while the response streams, so a gateway
+      // failure lands here rather than in the catch below. Without this the MCP
+      // client would leak a connection on every failed request.
+      onError: async ({ error }) => {
+        console.error("/api/chat stream error", error);
+        await closeMcp();
       },
     });
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      onError: streamErrorMessage,
+    });
   } catch (error) {
-    await mcpClient.close();
+    await closeMcp();
     // Log server-side; do not echo the raw error to the client because upstream
     // errors from the AI SDK / MCP client / gateway may include header values
     // like the SANITY_API_READ_TOKEN or AI_GATEWAY_API_KEY Bearer tokens.

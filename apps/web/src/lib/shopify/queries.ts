@@ -26,6 +26,42 @@ const VARIANT_FRAGMENT = /* graphql */ `
   }
 `;
 
+/**
+ * Variant selection shared by every product-card query. `image` is what lets a
+ * card swap its photo when a color swatch is picked.
+ */
+const CARD_VARIANT_FIELDS = /* graphql */ `
+  id
+  availableForSale
+  quantityAvailable
+  price {
+    amount
+    currencyCode
+  }
+  selectedOptions {
+    name
+    value
+  }
+  image {
+    url
+  }
+`;
+
+/**
+ * Product gallery window for cards. Wide enough to locate the image following a
+ * variant's image, which the card uses as the hover cross-fade partner.
+ */
+const CARD_GALLERY_SIZE = 20;
+
+/**
+ * Card image selection. Cards render with `fill` and alt from the product
+ * title, so `url` is the only field any card path reads — worth keeping narrow
+ * given the gallery window above multiplies it by 20 per product.
+ */
+const CARD_IMAGE_FIELDS = /* graphql */ `
+  url
+`;
+
 const PRODUCT_FIELDS_FRAGMENT = /* graphql */ `
   fragment ProductFields on Product {
     id
@@ -33,6 +69,7 @@ const PRODUCT_FIELDS_FRAGMENT = /* graphql */ `
     title
     description
     descriptionHtml
+    updatedAt
     vendor
     productType
     tags
@@ -50,6 +87,19 @@ const PRODUCT_FIELDS_FRAGMENT = /* graphql */ `
       altText
       width
       height
+    }
+    metafields(
+      identifiers: [
+        { namespace: "custom", key: "details" }
+        { namespace: "custom", key: "fit_sizing" }
+        { namespace: "custom", key: "materials" }
+        { namespace: "custom", key: "shipping" }
+      ]
+    ) {
+      key
+      namespace
+      value
+      type
     }
   }
 `;
@@ -126,11 +176,24 @@ export const COLLECTION_QUERY = /* graphql */ `
             title
             vendor
             productType
+            tags
+            options {
+              id
+              name
+              values
+            }
             featuredImage {
               url
               altText
               width
               height
+            }
+            images(first: ${CARD_GALLERY_SIZE}) {
+              edges {
+                node {
+          ${CARD_IMAGE_FIELDS}
+                }
+              }
             }
             priceRange {
               minVariantPrice {
@@ -148,12 +211,10 @@ export const COLLECTION_QUERY = /* graphql */ `
                 currencyCode
               }
             }
-            variants(first: 1) {
+            variants(first: 100) {
               edges {
                 node {
-                  id
-                  availableForSale
-                  quantityAvailable
+                  ${CARD_VARIANT_FIELDS}
                 }
               }
             }
@@ -163,18 +224,6 @@ export const COLLECTION_QUERY = /* graphql */ `
           hasNextPage
           endCursor
         }
-      }
-    }
-  }
-`;
-
-export const VARIANT_INVENTORY_QUERY = /* graphql */ `
-  query VariantInventory($id: ID!) {
-    node(id: $id) {
-      ... on ProductVariant {
-        id
-        availableForSale
-        quantityAvailable
       }
     }
   }
@@ -216,33 +265,86 @@ export const RECOMMENDED_PRODUCTS_QUERY = /* graphql */ `
   }
 `;
 
+/** Shared node selection for product-card data (used by featured queries). */
+const PRODUCT_CARD_FIELDS = /* graphql */ `
+  id
+  handle
+  title
+  vendor
+  tags
+  availableForSale
+  totalInventory
+  options {
+    id
+    name
+    values
+  }
+  variants(first: 100) {
+    edges {
+      node {
+        ${CARD_VARIANT_FIELDS}
+      }
+    }
+  }
+  featuredImage {
+    url
+    altText
+    width
+    height
+  }
+  images(first: ${CARD_GALLERY_SIZE}) {
+    edges {
+      node {
+          ${CARD_IMAGE_FIELDS}
+      }
+    }
+  }
+  priceRange {
+    minVariantPrice {
+      amount
+      currencyCode
+    }
+    maxVariantPrice {
+      amount
+      currencyCode
+    }
+  }
+  compareAtPriceRange {
+    minVariantPrice {
+      amount
+      currencyCode
+    }
+  }
+`;
+
 export const FEATURED_PRODUCTS_QUERY = /* graphql */ `
   query FeaturedProducts($first: Int!) {
     products(first: $first, sortKey: BEST_SELLING) {
       edges {
         node {
-          id
-          handle
-          title
-          vendor
-          featuredImage {
-            url
-            altText
-            width
-            height
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-            maxVariantPrice {
-              amount
-              currencyCode
-            }
-          }
+          ${PRODUCT_CARD_FIELDS}
         }
       }
+    }
+  }
+`;
+
+export const PRODUCTS_BY_HANDLES_QUERY = /* graphql */ `
+  query ProductsByHandles($query: String!, $first: Int!) {
+    products(first: $first, query: $query) {
+      edges {
+        node {
+          ${PRODUCT_CARD_FIELDS}
+        }
+      }
+    }
+  }
+`;
+
+export const RELATED_PRODUCTS_QUERY = /* graphql */ `
+  query RelatedProducts($productId: ID!) {
+    productRecommendations(productId: $productId) {
+      ${PRODUCT_CARD_FIELDS}
     }
   }
 `;
@@ -279,11 +381,24 @@ export const SEARCH_PRODUCTS_QUERY = /* graphql */ `
             title
             vendor
             productType
+            tags
+            options {
+              id
+              name
+              values
+            }
             featuredImage {
               url
               altText
               width
               height
+            }
+            images(first: ${CARD_GALLERY_SIZE}) {
+              edges {
+                node {
+          ${CARD_IMAGE_FIELDS}
+                }
+              }
             }
             priceRange {
               minVariantPrice {
@@ -295,12 +410,16 @@ export const SEARCH_PRODUCTS_QUERY = /* graphql */ `
                 currencyCode
               }
             }
-            variants(first: 1) {
+            compareAtPriceRange {
+              minVariantPrice {
+                amount
+                currencyCode
+              }
+            }
+            variants(first: 100) {
               edges {
                 node {
-                  id
-                  availableForSale
-                  quantityAvailable
+                  ${CARD_VARIANT_FIELDS}
                 }
               }
             }
@@ -308,6 +427,139 @@ export const SEARCH_PRODUCTS_QUERY = /* graphql */ `
         }
       }
       totalCount
+    }
+  }
+`;
+
+export const PREDICTIVE_SEARCH_QUERY = /* graphql */ `
+  query PredictiveSearch($query: String!, $limit: Int!) {
+    predictiveSearch(
+      query: $query
+      limit: $limit
+      limitScope: EACH
+      types: [PRODUCT, COLLECTION, QUERY]
+    ) {
+      products {
+        id
+        handle
+        title
+        vendor
+        productType
+        tags
+        options {
+          id
+          name
+          values
+        }
+        featuredImage {
+          url
+          altText
+          width
+          height
+        }
+        images(first: ${CARD_GALLERY_SIZE}) {
+          edges {
+            node {
+          ${CARD_IMAGE_FIELDS}
+            }
+          }
+        }
+        priceRange {
+          minVariantPrice {
+            amount
+            currencyCode
+          }
+          maxVariantPrice {
+            amount
+            currencyCode
+          }
+        }
+        compareAtPriceRange {
+          minVariantPrice {
+            amount
+            currencyCode
+          }
+        }
+        variants(first: 100) {
+          edges {
+            node {
+              ${CARD_VARIANT_FIELDS}
+            }
+          }
+        }
+      }
+      collections {
+        id
+        handle
+        title
+        image {
+          url
+          altText
+          width
+          height
+        }
+      }
+      queries {
+        text
+      }
+    }
+  }
+`;
+
+export const BEST_SELLING_PRODUCTS_QUERY = /* graphql */ `
+  query BestSellingProducts($first: Int!) {
+    products(first: $first, sortKey: BEST_SELLING) {
+      edges {
+        node {
+          id
+          handle
+          title
+          vendor
+          productType
+          tags
+          options {
+            id
+            name
+            values
+          }
+          featuredImage {
+            url
+            altText
+            width
+            height
+          }
+          images(first: ${CARD_GALLERY_SIZE}) {
+            edges {
+              node {
+          ${CARD_IMAGE_FIELDS}
+              }
+            }
+          }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+            maxVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          compareAtPriceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          variants(first: 100) {
+            edges {
+              node {
+                ${CARD_VARIANT_FIELDS}
+              }
+            }
+          }
+        }
+      }
     }
   }
 `;
@@ -366,11 +618,24 @@ export const PRODUCT_BY_HANDLE_QUERY = /* graphql */ `
       title
       vendor
       productType
+      tags
+      options {
+        id
+        name
+        values
+      }
       featuredImage {
         url
         altText
         width
         height
+      }
+      images(first: ${CARD_GALLERY_SIZE}) {
+        edges {
+          node {
+          ${CARD_IMAGE_FIELDS}
+          }
+        }
       }
       priceRange {
         minVariantPrice {
@@ -382,11 +647,16 @@ export const PRODUCT_BY_HANDLE_QUERY = /* graphql */ `
           currencyCode
         }
       }
-      variants(first: 1) {
+      compareAtPriceRange {
+        minVariantPrice {
+          amount
+          currencyCode
+        }
+      }
+      variants(first: 100) {
         edges {
           node {
-            id
-            availableForSale
+            ${CARD_VARIANT_FIELDS}
           }
         }
       }

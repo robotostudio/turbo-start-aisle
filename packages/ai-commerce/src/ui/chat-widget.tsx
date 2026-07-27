@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageCircleIcon, XIcon } from "lucide-react";
-import { type CSSProperties, useState } from "react";
+import { useState } from "react";
 
 import { CurrencyProvider } from "../context/currency-context";
 import { ChatPanel } from "./chat-panel";
@@ -12,82 +12,48 @@ interface ChatWidgetProps {
   currencyCode?: string;
 }
 
-const panelStyle: CSSProperties = {
-  position: "fixed",
-  bottom: "5.5rem",
-  right: "1rem",
-  zIndex: 50,
-  height: "500px",
-  width: "380px",
-};
+// The launcher sits above the sonner Toaster, which the root layout offsets by
+// 5.5rem to clear it. Keep the two in sync if this height changes.
+const PANEL_CLASS =
+  "fixed right-4 bottom-22 z-50 h-125 w-95 max-w-[calc(100vw-2rem)]";
 
-const buttonStyle: CSSProperties = {
-  position: "fixed",
-  bottom: "1rem",
-  right: "1rem",
-  zIndex: 50,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: "3.5rem",
-  height: "3.5rem",
-  borderRadius: "9999px",
-  backgroundColor: "#0B0F19",
-  color: "#B8FF3C",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
-  border: "none",
-  cursor: "pointer",
-  transition: "transform 200ms ease-out, box-shadow 200ms ease-out",
-};
+const LAUNCHER_CLASS =
+  "fixed right-4 bottom-4 z-50 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-none bg-primary text-primary-foreground shadow-lg transition-transform duration-200 ease-out hover:scale-105 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2";
 
-const iconWrapStyle: CSSProperties = {
-  position: "relative",
-  width: "1.5rem",
-  height: "1.5rem",
-};
-
-function iconStyle(visible: boolean): CSSProperties {
-  return {
-    position: "absolute",
-    inset: 0,
-    width: "1.5rem",
-    height: "1.5rem",
-    transition: "transform 300ms, opacity 300ms",
-    transform: visible ? "rotate(0) scale(1)" : "rotate(90deg) scale(0)",
-    opacity: visible ? 1 : 0,
-  };
+function iconClass(visible: boolean): string {
+  return `absolute inset-0 h-6 w-6 transition-[transform,opacity] duration-300 ${
+    visible ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0"
+  }`;
 }
 
 export function ChatWidget({ currencyCode = "GBP" }: ChatWidgetProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // ChatPanel stays mounted across open/close so its message history and
-  // input draft survive — conditional rendering would tear down useChat and
-  // wipe everything every toggle. Visibility is CSS-only.
-  const panelVisibilityStyle: CSSProperties = {
-    ...panelStyle,
-    display: isOpen ? "block" : "none",
-  };
-
   return (
     <CurrencyProvider value={currencyCode}>
-      <div data-agent-chat-hidden style={panelVisibilityStyle}>
+      {/* ChatPanel stays mounted across open/close so its message history and
+          input draft survive — conditional rendering would tear down useChat
+          and wipe everything every toggle. Visibility is CSS-only. */}
+      <div
+        className={`${PANEL_CLASS} ${isOpen ? "block" : "hidden"}`}
+        data-agent-chat-hidden
+      >
         <ChatPanel
-          onClose={() => setIsOpen(false)}
           currencyCode={currencyCode}
+          onClose={() => setIsOpen(false)}
         />
       </div>
 
       <button
-        type="button"
+        aria-label={isOpen ? "Close chat" : "Open chat"}
+        className={LAUNCHER_CLASS}
         data-agent-chat-hidden
         onClick={() => setIsOpen((v) => !v)}
-        aria-label={isOpen ? "Close chat" : "Open chat"}
-        style={buttonStyle}
+        type="button"
       >
-        <span style={iconWrapStyle}>
-          <MessageCircleIcon style={iconStyle(!isOpen)} />
-          <XIcon style={iconStyle(isOpen)} />
+        <span className="relative h-6 w-6">
+          <MessageCircleIcon className={iconClass(!isOpen)} />
+          <XIcon className={iconClass(isOpen)} />
         </span>
       </button>
     </CurrencyProvider>

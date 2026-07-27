@@ -13,6 +13,7 @@
 ## Task 1: Shopify Query + Types for fetching products by handles
 
 **Files:**
+
 - Modify: `apps/web/src/lib/shopify/queries.ts` (append new query)
 - Modify: `apps/web/src/lib/shopify/types.ts` (append response type)
 
@@ -89,6 +90,7 @@ git commit -m "feat: add Shopify query for fetching products by handles"
 ## Task 2: SavedItemsContext — Provider + Hook
 
 **Files:**
+
 - Create: `apps/web/src/components/saved-items/saved-items-context.tsx`
 
 **Step 1: Create context**
@@ -163,7 +165,7 @@ export function SavedItemsProvider({
     setItems((prev) =>
       prev.includes(handle)
         ? prev.filter((h) => h !== handle)
-        : [...prev, handle]
+        : [...prev, handle],
     );
   }, []);
 
@@ -173,7 +175,7 @@ export function SavedItemsProvider({
 
   const isInSavedItems = useCallback(
     (handle: string) => items.includes(handle),
-    [items]
+    [items],
   );
 
   const value = useMemo(
@@ -184,7 +186,7 @@ export function SavedItemsProvider({
       remove,
       isInSavedItems,
     }),
-    [items, toggle, remove, isInSavedItems]
+    [items, toggle, remove, isInSavedItems],
   );
 
   return <SavedItemsContext value={value}>{children}</SavedItemsContext>;
@@ -216,6 +218,7 @@ git commit -m "feat: add SavedItemsContext with localStorage persistence"
 ## Task 3: SavedItemButton — Heart icon component
 
 **Files:**
+
 - Create: `apps/web/src/components/saved-items/saved-item-button.tsx`
 
 **Step 1: Create component**
@@ -245,7 +248,7 @@ export function SavedItemButton({ handle, className }: SavedItemButtonProps) {
       aria-label={isSaved ? "Remove from saved items" : "Save for later"}
       className={cn(
         "group/heart flex size-9 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-all hover:bg-background hover:scale-110 active:scale-95",
-        className
+        className,
       )}
       onClick={(e) => {
         e.preventDefault();
@@ -259,7 +262,7 @@ export function SavedItemButton({ handle, className }: SavedItemButtonProps) {
           "size-4 transition-colors",
           isSaved
             ? "fill-red-500 text-red-500"
-            : "fill-transparent text-foreground group-hover/heart:text-red-500"
+            : "fill-transparent text-foreground group-hover/heart:text-red-500",
         )}
       />
     </button>
@@ -268,6 +271,7 @@ export function SavedItemButton({ handle, className }: SavedItemButtonProps) {
 ```
 
 **Design notes:**
+
 - `e.preventDefault()` + `e.stopPropagation()` prevents parent Link navigation
 - `bg-background/80 backdrop-blur-sm` — semi-transparent pill matching common ecom pattern
 - `hover:scale-110 active:scale-95` — micro-interaction (scale up on hover, press effect)
@@ -292,6 +296,7 @@ git commit -m "feat: add SavedItemButton heart icon component"
 ## Task 4: Wire SavedItemsProvider into app
 
 **Files:**
+
 - Modify: `apps/web/src/components/providers.tsx`
 
 **Step 1: Add provider**
@@ -348,6 +353,7 @@ git commit -m "feat: wire SavedItemsProvider into app providers"
 ## Task 5: Add heart to ProductCard
 
 **Files:**
+
 - Modify: `apps/web/src/components/product/product-card.tsx`
 
 **Step 1: Add heart overlay**
@@ -463,11 +469,13 @@ But we also need it visible when saved. We'll handle this by passing the saved s
 **Step 2: Update SavedItemButton to expose saved state as data attribute**
 
 In `saved-item-button.tsx`, add to the button element:
+
 ```tsx
 data-saved={isSaved}
 ```
 
 And update the className in product-card.tsx to:
+
 ```
 "absolute top-2 right-2 z-10 md:opacity-0 md:group-hover:opacity-100 md:data-[saved=true]:opacity-100 transition-opacity"
 ```
@@ -493,6 +501,7 @@ git commit -m "feat: add heart icon to product cards"
 ## Task 6: Add heart to ProductGrid (collections)
 
 **Files:**
+
 - Modify: `apps/web/src/components/collection/product-grid.tsx`
 
 **Step 1: Add heart overlay**
@@ -591,6 +600,7 @@ git commit -m "feat: add heart icon to collection product grid"
 ## Task 7: Add heart to FeaturedProducts
 
 **Files:**
+
 - Modify: `apps/web/src/components/home/featured-products.tsx`
 
 **Step 1: Add heart overlay**
@@ -622,9 +632,7 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
           )}
         </div>
         <div className="mt-4 space-y-1">
-          <h3 className="font-normal text-sm tracking-wide">
-            {product.title}
-          </h3>
+          <h3 className="font-normal text-sm tracking-wide">{product.title}</h3>
           {product.vendor && (
             <p className="text-neutral-500 text-xs tracking-wider uppercase">
               {product.vendor}
@@ -645,6 +653,7 @@ function ProductCard({ product }: { product: FeaturedProduct }) {
 ```
 
 Add import at top:
+
 ```tsx
 import { SavedItemButton } from "@/components/saved-items/saved-item-button";
 ```
@@ -670,6 +679,7 @@ git commit -m "feat: add heart icon to featured products"
 ## Task 8: Add heart to Product Detail Page
 
 **Files:**
+
 - Modify: `apps/web/src/app/products/[handle]/page.tsx`
 
 **Step 1: Add SavedItemButton next to Add to Cart**
@@ -679,7 +689,9 @@ In the PDP, add the heart button next to the Add to Cart button. Wrap them in a 
 In `ProductPage` component, replace the standalone `<AddToCart>` with:
 
 ```tsx
-{/* Add to Cart + Save */}
+{
+  /* Add to Cart + Save */
+}
 <div className="flex gap-3">
   <div className="flex-1">
     <AddToCart
@@ -691,10 +703,11 @@ In `ProductPage` component, replace the standalone `<AddToCart>` with:
     className="flex size-12 shrink-0 items-center justify-center border border-border transition-colors hover:bg-accent"
     handle={handle}
   />
-</div>
+</div>;
 ```
 
 Add import:
+
 ```tsx
 import { SavedItemButton } from "@/components/saved-items/saved-item-button";
 ```
@@ -722,6 +735,7 @@ git commit -m "feat: add save button to product detail page"
 ## Task 9: SavedItemsToggle — Navbar indicator
 
 **Files:**
+
 - Create: `apps/web/src/components/saved-items/saved-items-toggle.tsx`
 
 **Step 1: Create component**
@@ -780,11 +794,13 @@ git commit -m "feat: add SavedItemsToggle navbar indicator"
 ## Task 10: Add SavedItemsToggle to Navbar
 
 **Files:**
+
 - Modify: `apps/web/src/components/navbar.tsx`
 
 **Step 1: Add to desktop + mobile actions**
 
 Import:
+
 ```tsx
 import { SavedItemsToggle } from "./saved-items/saved-items-toggle";
 ```
@@ -792,7 +808,9 @@ import { SavedItemsToggle } from "./saved-items/saved-items-toggle";
 In **Desktop Actions** section (around line 215), add `<SavedItemsToggle />` between the Search link and `<CartToggle />`:
 
 ```tsx
-{/* Desktop Actions */}
+{
+  /* Desktop Actions */
+}
 <div className="hidden flex-1 items-center justify-end gap-4 md:flex">
   <Link
     aria-label="Search"
@@ -803,13 +821,15 @@ In **Desktop Actions** section (around line 215), add `<SavedItemsToggle />` bet
   </Link>
   <SavedItemsToggle />
   <CartToggle />
-</div>
+</div>;
 ```
 
 In **Mobile Actions** section (around line 232), add `<SavedItemsToggle />` between Search and CartToggle:
 
 ```tsx
-{/* Mobile Actions */}
+{
+  /* Mobile Actions */
+}
 <div className="flex items-center gap-2 md:hidden">
   <Link
     aria-label="Search"
@@ -821,7 +841,7 @@ In **Mobile Actions** section (around line 232), add `<SavedItemsToggle />` betw
   <SavedItemsToggle />
   <CartToggle />
   <MobileMenu navbarData={navbarData} settingsData={settingsData} />
-</div>
+</div>;
 ```
 
 **Step 2: Verify**
@@ -845,6 +865,7 @@ git commit -m "feat: add saved items indicator to navbar"
 ## Task 11: API route for fetching saved products
 
 **Files:**
+
 - Create: `apps/web/src/app/api/saved-items/route.ts`
 
 **Step 1: Create route**
@@ -872,7 +893,7 @@ export async function GET(request: Request) {
 
   const result = await storefrontQuery<ProductsByHandlesResponse>(
     PRODUCTS_BY_HANDLES_QUERY,
-    { variables: { query, first: handleList.length } }
+    { variables: { query, first: handleList.length } },
   );
 
   if (!result.ok) {
@@ -901,6 +922,7 @@ git commit -m "feat: add API route for fetching saved products by handles"
 ## Task 12: Saved Items page (/saved)
 
 **Files:**
+
 - Create: `apps/web/src/app/saved/page.tsx`
 
 **Step 1: Create page**
@@ -925,22 +947,16 @@ type SavedProductsResponse = {
 };
 
 async function fetchSavedProducts(
-  handles: string[]
+  handles: string[],
 ): Promise<ShopifyCollectionProduct[]> {
   if (handles.length === 0) return [];
-  const response = await fetch(
-    `/api/saved-items?handles=${handles.join(",")}`
-  );
+  const response = await fetch(`/api/saved-items?handles=${handles.join(",")}`);
   if (!response.ok) return [];
   const data: SavedProductsResponse = await response.json();
   return data.products;
 }
 
-function SavedProductCard({
-  product,
-}: {
-  product: ShopifyCollectionProduct;
-}) {
+function SavedProductCard({ product }: { product: ShopifyCollectionProduct }) {
   const { addLine, openCart } = useCart();
   const firstVariant = product.variants.edges[0]?.node;
 
@@ -963,9 +979,7 @@ function SavedProductCard({
           )}
         </div>
         <div className="space-y-1">
-          <h3 className="font-normal text-sm leading-tight">
-            {product.title}
-          </h3>
+          <h3 className="font-normal text-sm leading-tight">{product.title}</h3>
           {product.vendor && (
             <p className="text-xs uppercase tracking-wider text-muted-foreground">
               {product.vendor}
@@ -989,7 +1003,7 @@ function SavedProductCard({
             openCart();
           }}
           size="sm"
-          variant="outline"
+          variant="default"
         >
           <ShoppingBag className="mr-2 size-4" />
           Add to Bag
@@ -1117,6 +1131,7 @@ git commit -m "chore: format"
 ## Summary of files
 
 **Created (5):**
+
 - `apps/web/src/components/saved-items/saved-items-context.tsx`
 - `apps/web/src/components/saved-items/saved-item-button.tsx`
 - `apps/web/src/components/saved-items/saved-items-toggle.tsx`
@@ -1124,6 +1139,7 @@ git commit -m "chore: format"
 - `apps/web/src/app/saved/page.tsx`
 
 **Modified (6):**
+
 - `apps/web/src/lib/shopify/queries.ts`
 - `apps/web/src/lib/shopify/types.ts`
 - `apps/web/src/components/providers.tsx`

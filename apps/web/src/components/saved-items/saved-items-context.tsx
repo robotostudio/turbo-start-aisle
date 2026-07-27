@@ -15,8 +15,12 @@ type SavedItemsContextValue = {
   items: string[];
   count: number;
   toggle: (handle: string) => void;
+  add: (handle: string) => void;
   remove: (handle: string) => void;
   isInSavedItems: (handle: string) => boolean;
+  isSavedOpen: boolean;
+  openSaved: () => void;
+  closeSaved: () => void;
 };
 
 const SavedItemsContext = createContext<SavedItemsContextValue | null>(null);
@@ -49,6 +53,7 @@ export function SavedItemsProvider({
 }) {
   const [items, setItems] = useState<string[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isSavedOpen, setIsSavedOpen] = useState(false);
 
   useEffect(() => {
     setItems(readFromStorage());
@@ -69,6 +74,10 @@ export function SavedItemsProvider({
     );
   }, []);
 
+  const add = useCallback((handle: string) => {
+    setItems((prev) => (prev.includes(handle) ? prev : [...prev, handle]));
+  }, []);
+
   const remove = useCallback((handle: string) => {
     setItems((prev) => prev.filter((h) => h !== handle));
   }, []);
@@ -78,15 +87,31 @@ export function SavedItemsProvider({
     [items]
   );
 
+  const openSaved = useCallback(() => setIsSavedOpen(true), []);
+  const closeSaved = useCallback(() => setIsSavedOpen(false), []);
+
   const value = useMemo(
     () => ({
       items,
       count: items.length,
       toggle,
+      add,
       remove,
       isInSavedItems,
+      isSavedOpen,
+      openSaved,
+      closeSaved,
     }),
-    [items, toggle, remove, isInSavedItems]
+    [
+      items,
+      toggle,
+      add,
+      remove,
+      isInSavedItems,
+      isSavedOpen,
+      openSaved,
+      closeSaved,
+    ]
   );
 
   return <SavedItemsContext value={value}>{children}</SavedItemsContext>;

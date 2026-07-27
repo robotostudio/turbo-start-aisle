@@ -2,6 +2,7 @@ import { aiAssistantSettings } from "@/schemaTypes/documents/ai-assistant-settin
 import { author } from "@/schemaTypes/documents/author";
 import { blog } from "@/schemaTypes/documents/blog";
 import { blogIndex } from "@/schemaTypes/documents/blog-index";
+import { category } from "@/schemaTypes/documents/category";
 import { collectionsIndex } from "@/schemaTypes/documents/collections-index";
 import { faq } from "@/schemaTypes/documents/faq";
 import { footer } from "@/schemaTypes/documents/footer";
@@ -32,6 +33,7 @@ export const documents = [
   page,
   faq,
   author,
+  category,
   product,
   collection,
   colorTheme,

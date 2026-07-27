@@ -27,22 +27,23 @@ async function publishResource(
   resourceId: string,
   publicationId: string
 ): Promise<boolean> {
+  // API 2026-01: publishablePublish takes `input: [PublicationInput!]!`
+  // (the old scalar `PublishablePublishInput` was removed).
   const result = await adminQuery<{
     publishablePublish: {
-      shop: { name: string } | null;
       userErrors: UserError[];
     };
   }>(
-    `mutation($id: ID!, $input: PublishablePublishInput!) {
+    `mutation($id: ID!, $input: [PublicationInput!]!) {
       publishablePublish(id: $id, input: $input) {
-        shop { name }
         userErrors { field message }
       }
     }`,
-    { id: resourceId, input: { publicationId } }
+    { id: resourceId, input: [{ publicationId }] }
   );
 
   if (result.errors) {
+    log.error(`Publish:${resourceId} — GraphQL: ${JSON.stringify(result.errors)}`);
     return false;
   }
 

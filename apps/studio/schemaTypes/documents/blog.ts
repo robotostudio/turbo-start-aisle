@@ -83,6 +83,15 @@ export const blog = defineType({
       group: GROUP.CONTENT,
     }),
     defineField({
+      name: "category",
+      type: "reference",
+      title: "Category",
+      description:
+        "The category this post belongs to (powers the blog filter and the label on cards)",
+      to: [{ type: "category" }],
+      group: GROUP.CONTENT,
+    }),
+    defineField({
       name: "publishedAt",
       type: "date",
       initialValue: () => new Date().toISOString().split("T")[0],

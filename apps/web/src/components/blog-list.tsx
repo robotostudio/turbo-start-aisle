@@ -6,21 +6,21 @@ export type BlogListProps = {
   isLoading?: boolean;
 };
 
+const GRID_CLASSES = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
+
 export function BlogList({ blogs, isLoading = false }: BlogListProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-8">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className={GRID_CLASSES}>
+        {Array.from({ length: 6 }).map((_, index) => (
           <div
-            className="grid w-full grid-cols-1 gap-8 lg:grid-cols-2"
+            className="flex h-full flex-col gap-4 border border-border p-6"
             key={`skeleton-${index.toString()}`}
           >
-            <div className="aspect-video animate-pulse bg-muted" />
-            <div className="flex flex-col justify-center space-y-3">
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-6 w-full animate-pulse rounded bg-muted" />
-              <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-            </div>
+            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+            <div className="h-6 w-full animate-pulse rounded bg-muted" />
+            <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+            <div className="mt-auto h-6 w-24 animate-pulse rounded bg-muted" />
           </div>
         ))}
       </div>
@@ -38,7 +38,7 @@ export function BlogList({ blogs, isLoading = false }: BlogListProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-8">
+    <div className={GRID_CLASSES}>
       {blogs.map((blog) => (
         <BlogCard blog={blog} key={blog._id} />
       ))}

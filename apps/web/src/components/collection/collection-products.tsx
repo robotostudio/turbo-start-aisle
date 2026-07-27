@@ -33,6 +33,8 @@ export function CollectionProducts({
   sort,
 }: CollectionProductsProps) {
   const searchParams = useSearchParams();
+  const density =
+    searchParams.get("view") === "dense" ? "dense" : "comfortable";
 
   // Extract filter params to include in query key and API calls
   const filterEntries: [string, string][] = [];
@@ -81,7 +83,7 @@ export function CollectionProducts({
         Showing {allProducts.length} product
         {allProducts.length !== 1 ? "s" : ""}
       </p>
-      <ProductGrid products={allProducts} />
+      <ProductGrid density={density} products={allProducts} />
       <CollectionPagination
         hasNextPage={hasNextPage}
         isLoading={isFetchingNextPage}

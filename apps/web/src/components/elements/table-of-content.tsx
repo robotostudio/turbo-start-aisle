@@ -1,8 +1,7 @@
 "use client";
 import { cn } from "@workspace/ui/lib/utils";
-import { ChevronDown, Circle } from "lucide-react";
 import Link from "next/link";
-import { type FC, useCallback, useMemo } from "react";
+import { type FC, useEffect, useMemo, useState } from "react";
 import slugify from "slugify";
 
 import type { SanityRichTextBlock, SanityRichTextProps } from "@/types";
@@ -32,6 +31,8 @@ type AnchorProps = {
   readonly heading: ProcessedHeading;
   readonly maxDepth?: number;
   readonly currentDepth?: number;
+  readonly activeSlug: string | null;
+  readonly onSelect: (slug: string) => void;
 };
 
 type TableOfContentState = {
@@ -358,6 +359,91 @@ function useTableOfContentState(
 }
 
 // ============================================================================
+// SCROLL SPY
+// ============================================================================
+
+/** Vertical offset (px) so anchored headings clear the sticky navbar. */
+const SCROLL_OFFSET = 96;
+
+/** Recursively collect the anchor slugs (href without the leading #). */
+function collectSlugs(
+  headings: readonly ProcessedHeading[],
+  acc: string[] = []
+): string[] {
+  for (const heading of headings) {
+    const slug = heading.href.replace(/^#/, "");
+    if (slug) {
+      acc.push(slug);
+    }
+    if (heading.children.length > 0) {
+      collectSlugs(heading.children, acc);
+    }
+  }
+  return acc;
+}
+
+/** Smooth-scroll to a heading, leaving room for the sticky navbar. */
+function scrollToHeading(slug: string) {
+  const element = document.getElementById(slug);
+  if (!element) {
+    return;
+  }
+  const top =
+    element.getBoundingClientRect().top + window.scrollY - SCROLL_OFFSET;
+  window.scrollTo({ top, behavior: "smooth" });
+  window.history.replaceState(null, "", `#${slug}`);
+}
+
+/**
+ * Track which heading is currently in view for the active TOC underline.
+ * Returns the active slug plus a setter so clicks can highlight immediately.
+ */
+function useActiveSlug(
+  slugs: string[]
+): [string | null, (slug: string) => void] {
+  const key = slugs.join("|");
+  const [activeSlug, setActiveSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ids = key ? key.split("|") : [];
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+
+    if (elements.length === 0) {
+      return;
+    }
+
+    // Highlight the first section up front so something is always active.
+    setActiveSlug((prev) => prev ?? ids[0] ?? null);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((entry) => entry.isIntersecting);
+        if (visible.length === 0) {
+          return;
+        }
+        const topMost = visible.reduce((closest, entry) =>
+          entry.boundingClientRect.top < closest.boundingClientRect.top
+            ? entry
+            : closest
+        );
+        setActiveSlug(topMost.target.id);
+      },
+      // Activate a heading once it reaches just below the sticky navbar.
+      { rootMargin: `-${SCROLL_OFFSET}px 0px -66% 0px`, threshold: 0 }
+    );
+
+    for (const element of elements) {
+      observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [key]);
+
+  return [activeSlug, setActiveSlug];
+}
+
+// ============================================================================
 // COMPONENTS
 // ============================================================================
 
@@ -365,14 +451,10 @@ const TableOfContentAnchor: FC<AnchorProps> = ({
   heading,
   maxDepth = DEFAULT_MAX_DEPTH,
   currentDepth = 1,
+  activeSlug,
+  onSelect,
 }) => {
-  const { href, text, children, isChild, id } = heading;
-
-  const shouldRenderChildren = useCallback(
-    () =>
-      Array.isArray(children) && children.length > 0 && currentDepth < maxDepth,
-    [children, currentDepth, maxDepth]
-  );
+  const { href, text, children, isChild } = heading;
 
   // Don't render if we're at max depth and this is a child
   if (currentDepth > maxDepth) {
@@ -384,50 +466,41 @@ const TableOfContentAnchor: FC<AnchorProps> = ({
     return null;
   }
 
-  const hasChildren = shouldRenderChildren();
+  const hasChildren =
+    Array.isArray(children) && children.length > 0 && currentDepth < maxDepth;
+  const slug = href.replace(/^#/, "");
+  const isActive = activeSlug !== null && slug === activeSlug;
 
   return (
-    <li
-      className={cn(
-        "my-2 list-inside transition-all duration-200",
-        // paddingClass,
-        isChild && "ml-1.5"
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <Circle
-          aria-hidden="true"
-          className={cn(
-            "size-1.5 min-h-1.5 min-w-1.5 transition-colors duration-200",
-            isChild
-              ? "fill-zinc-600 dark:fill-zinc-400"
-              : "fill-zinc-900 dark:fill-zinc-100"
-          )}
-        />
-        <Link
-          aria-describedby={`${id}-level`}
-          className={cn(
-            "line-clamp-1 hover:text-blue-500 hover:underline",
-            "transition-colors duration-200 focus:outline-none",
-            "rounded-sm px-1 py-0.5"
-          )}
-          href={href}
-        >
-          {text}
-        </Link>
-        <span className="sr-only" id={`${id}-level`}>
-          Heading level {heading.level}
-        </span>
-      </div>
+    <li className={cn(isChild && "ml-4")}>
+      <Link
+        aria-current={isActive ? "location" : undefined}
+        className={cn(
+          "block py-1 text-base leading-6 transition-colors",
+          isActive
+            ? "text-foreground underline underline-offset-4"
+            : "text-muted-foreground hover:text-foreground"
+        )}
+        href={href}
+        onClick={(event) => {
+          event.preventDefault();
+          onSelect(slug);
+          scrollToHeading(slug);
+        }}
+      >
+        {text}
+      </Link>
 
       {hasChildren && (
-        <ul className="mt-1">
+        <ul>
           {children.map((child, index) => (
             <TableOfContentAnchor
+              activeSlug={activeSlug}
               currentDepth={currentDepth + 1}
               heading={child}
               key={child.id || `${child.text}-${index}-${currentDepth}`}
               maxDepth={maxDepth}
+              onSelect={onSelect}
             />
           ))}
         </ul>
@@ -446,6 +519,9 @@ export const TableOfContent: FC<TableOfContentProps> = ({
     maxDepth
   );
 
+  const slugs = useMemo(() => collectSlugs(headings), [headings]);
+  const [activeSlug, setActiveSlug] = useActiveSlug(slugs);
+
   // Early return for error state
   if (error) {
     return null;
@@ -457,52 +533,25 @@ export const TableOfContent: FC<TableOfContentProps> = ({
   }
 
   return (
-    <aside
+    <nav
       aria-labelledby="toc-heading"
-      className={cn(
-        "sticky top-8 flex w-full max-w-xs flex-col p-4",
-        "bg-gradient-to-b from-zinc-50 to-zinc-100",
-        "dark:from-zinc-800 dark:to-zinc-900",
-        "rounded-lg border border-zinc-300 shadow-sm dark:border-zinc-700",
-        "transition-all duration-200",
-        className
-      )}
-      //   role="complementary"
+      className={cn("flex flex-col", className)}
     >
-      <details className="group" open>
-        <summary
-          className={cn(
-            "flex cursor-pointer items-center justify-between",
-            "font-semibold text-lg text-zinc-800 dark:text-zinc-200",
-            "hover:text-blue-600 dark:hover:text-blue-400",
-            "transition-colors duration-200 focus:outline-none",
-            "rounded-sm p-1"
-          )}
-          id="toc-heading"
-        >
-          <span>Table of Contents</span>
-          <ChevronDown
-            aria-hidden="true"
-            className={cn(
-              "h-5 w-5 transform transition-transform duration-200",
-              "group-open:rotate-180"
-            )}
+      <p className="mb-6 text-foreground text-lg leading-7" id="toc-heading">
+        On this page
+      </p>
+      <ul className="flex flex-col gap-1">
+        {headings.map((heading, index) => (
+          <TableOfContentAnchor
+            activeSlug={activeSlug}
+            currentDepth={1}
+            heading={heading}
+            key={heading.id || `${heading.text}-${index}`}
+            maxDepth={maxDepth}
+            onSelect={setActiveSlug}
           />
-        </summary>
-
-        <nav aria-labelledby="toc-heading">
-          <ul className="mt-4 ml-3 space-y-1 text-sm">
-            {headings.map((heading, index) => (
-              <TableOfContentAnchor
-                currentDepth={1}
-                heading={heading}
-                key={heading.id || `${heading.text}-${index}`}
-                maxDepth={maxDepth}
-              />
-            ))}
-          </ul>
-        </nav>
-      </details>
-    </aside>
+        ))}
+      </ul>
+    </nav>
   );
 };

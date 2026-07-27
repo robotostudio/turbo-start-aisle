@@ -1,10 +1,8 @@
 "use client";
 
-import { env } from "@workspace/env/client";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import useSWR from "swr";
 
 import type { ColumnLink, NavColumn, NavigationData } from "@/types";
 import { CartDrawer } from "./cart/cart-drawer";
@@ -13,16 +11,9 @@ import { MenuLink } from "./elements/menu-link";
 import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
 import { CollectionGroupDropdown } from "./nav/collection-group-dropdown";
+import { SavedItemsDrawer } from "./saved-items/saved-items-drawer";
 import { SavedItemsToggle } from "./saved-items/saved-items-toggle";
-
-// Fetcher function
-const fetcher = async (url: string): Promise<NavigationData> => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("Failed to fetch navigation data");
-  }
-  return response.json();
-};
+import { SearchToggle } from "./search/search-toggle";
 
 function DesktopColumnDropdown({
   column,
@@ -44,7 +35,7 @@ function DesktopColumnDropdown({
       <button
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        className="flex items-center gap-1 px-3 py-2 font-medium text-sm transition-colors hover:text-foreground"
+        className="flex items-center gap-1 py-2 font-medium text-sm tracking-[0.02em] transition-colors hover:text-foreground"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         type="button"
@@ -85,7 +76,7 @@ function DesktopColumnLink({
 
   return (
     <Link
-      className="px-3 py-2 font-medium text-sm transition-colors hover:text-foreground"
+      className="py-2 font-medium text-sm tracking-[0.02em] transition-colors hover:text-foreground"
       href={column.href}
     >
       {column.name}
@@ -93,83 +84,16 @@ function DesktopColumnLink({
   );
 }
 
-function NavbarSkeleton() {
-  return (
-    <header className="sticky top-0 z-40 w-full  bg-background/80 backdrop-blur-sm">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo skeleton - matches Logo component dimensions: width={120} height={40} */}
-          {/* <div className="flex items-center">
-            <div className="h-10 w-[120px] rounded bg-muted/50 animate-pulse" />
-          </div> */}
-          <div className="flex h-10 w-40 items-center">
-            <div className="h-10 w-40 animate-pulse rounded bg-muted/50" />
-          </div>
-
-          {/* Desktop nav skeleton - matches nav gap-1 and px-3 py-2 buttons */}
-          {/* <nav className="hidden md:flex items-center gap-1">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div
-                key={`nav-${i}`}
-                className="h-9 px-3 py-2 rounded bg-muted/50 animate-pulse min-w-[60px]"
-              />
-            ))}
-          </nav> */}
-
-          {/* Desktop actions skeleton - matches gap-4, ModeToggle (icon button) + SanityButtons */}
-          {/* <div className="hidden md:flex items-center gap-4">
-            <div className="h-9 w-9 rounded bg-muted/50 animate-pulse" />
-            <div className="h-9 px-4 rounded-lg bg-muted/50 animate-pulse min-w-[80px]" />
-          </div> */}
-
-          {/* Mobile menu button skeleton - matches Button size="icon" */}
-          <div className="h-10 w-10 animate-pulse rounded bg-muted/50 md:hidden" />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-export function Navbar({
-  navbarData: initialNavbarData,
-  settingsData: initialSettingsData,
-}: NavigationData) {
-  const { data, error, isLoading } = useSWR<NavigationData>(
-    "/api/navigation",
-    fetcher,
-    {
-      fallbackData: {
-        navbarData: initialNavbarData,
-        settingsData: initialSettingsData,
-      },
-      revalidateOnFocus: false,
-      revalidateOnMount: false,
-      revalidateOnReconnect: true,
-      refreshInterval: 30_000,
-      errorRetryCount: 3,
-      errorRetryInterval: 5000,
-    }
-  );
-
-  const navigationData = data || {
-    navbarData: initialNavbarData,
-    settingsData: initialSettingsData,
-  };
-  const { navbarData, settingsData } = navigationData;
+export function Navbar({ navbarData, settingsData }: NavigationData) {
   const { columns } = navbarData || {};
-  const { logo, siteTitle } = settingsData || {};
-
-  // Show skeleton only on initial mount when no fallback data is available
-  if (isLoading && !data && !(initialNavbarData && initialSettingsData)) {
-    return <NavbarSkeleton />;
-  }
+  const { siteTitle, logo } = settingsData || {};
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-sm">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b bg-white dark:bg-black">
+      <div className="site-container">
+        <div className="flex h-10 items-center justify-between">
           {/* Desktop Navigation */}
-          <nav className="hidden flex-1 items-center gap-1 md:flex">
+          <nav className="hidden flex-1 items-center gap-6 lg:flex">
             {columns?.map((column) => {
               if (column.type === "column") {
                 return (
@@ -200,36 +124,19 @@ export function Navbar({
 
           {/* Logo */}
           <div className="flex h-10 items-center">
-            <Logo text={siteTitle} />
+            <Logo logo={logo} text={siteTitle} />
           </div>
 
           {/* Desktop Actions */}
-          <div className="hidden flex-1 items-center justify-end gap-4 md:flex">
-            <Link
-              aria-label="Search"
-              className="inline-flex size-9 items-center justify-center rounded-md transition-colors hover:text-foreground"
-              href="/search"
-            >
-              <Search className="size-4" />
-            </Link>
-            <SavedItemsToggle />
+          <div className="hidden flex-1 items-center justify-end gap-6 lg:flex">
+            <SavedItemsToggle variant="text" />
+            <SearchToggle />
             <CartToggle />
-            {/* <SanityButtons
-              buttonClassName="rounded-lg"
-              buttons={buttons || []}
-              className="flex items-center gap-2"
-            /> */}
           </div>
 
           {/* Mobile Actions */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Link
-              aria-label="Search"
-              className="inline-flex size-9 items-center justify-center rounded-md transition-colors hover:text-foreground"
-              href="/search"
-            >
-              <Search className="size-4" />
-            </Link>
+          <div className="flex items-center gap-4 lg:hidden">
+            <SearchToggle />
             <SavedItemsToggle />
             <CartToggle />
             <MobileMenu navbarData={navbarData} settingsData={settingsData} />
@@ -237,14 +144,8 @@ export function Navbar({
         </div>
       </div>
 
-      {/* Error boundary for SWR */}
-      {error && env.NODE_ENV === "development" && (
-        <div className="border-destructive/20 border-b bg-destructive/10 px-4 py-2 text-destructive text-xs">
-          Navigation data fetch error: {error.message}
-        </div>
-      )}
-
       <CartDrawer />
+      <SavedItemsDrawer />
     </header>
   );
 }
