@@ -38,7 +38,16 @@ pnpm --filter studio type           # schema extract + typegen → packages/sani
 pnpm --filter studio schema:deploy  # clean + extract + deploy (required for the Agent Context MCP)
 pnpm --filter studio seed:shopify
 pnpm --filter studio seed:ai-assistant
+pnpm --filter studio seed:faq    # 14 FAQs + a faqCategories block on home and /faq
+pnpm --filter studio seed:blog   # author, categories, 6 posts, blogIndex
 ```
+
+> `apps/studio/seed-data.tar.gz` is upstream's full dataset export
+> (`sanity dataset import seed-data.tar.gz`) and already covers `homePage`,
+> pages, navbar and footer — so there is no home-page seed script. It is a
+> staging export that predates the UI overhaul, though: it carries no
+> `category` documents and uses the old page-builder blocks, which is what
+> `seed:faq` and `seed:blog` exist to fill in.
 
 Tests are colocated in `src/**/__tests__/*.test.ts` (`apps/web/vitest.config.ts`,
 node environment, pure-logic only — no DOM/RTL).

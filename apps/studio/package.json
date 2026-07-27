@@ -23,7 +23,9 @@
     "clean": "rm -rf dist schema.json",
     "predeploy": "pnpm run clean",
     "schema:deploy": "pnpm run clean && sanity schema extract --enforce-required-fields && sanity schema deploy",
-    "seed:ai-assistant": "sanity exec scripts/seed-ai-assistant.ts --with-user-token"
+    "seed:ai-assistant": "sanity exec scripts/seed-ai-assistant.ts --with-user-token",
+    "seed:faq": "sanity exec scripts/seed-faq.ts --with-user-token",
+    "seed:blog": "sanity exec scripts/seed-blog.ts --with-user-token"
   },
   "keywords": [
     "sanity"
