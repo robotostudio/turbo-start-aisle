@@ -104,6 +104,35 @@ function jsonError(status: number, message: string) {
   });
 }
 
+/**
+ * Map a streaming failure to a message that is safe to show the user.
+ *
+ * Errors thrown mid-stream (gateway 402/429, provider outages) are the ones a
+ * user is most likely to hit, and the AI SDK masks them all as "An error
+ * occurred" by default — which leaves a retry button that can only fail the
+ * same way. We map the status code to a fixed string rather than echoing the
+ * upstream message, because AI SDK / MCP errors can carry request headers
+ * including the SANITY_API_READ_TOKEN and AI_GATEWAY_API_KEY bearer tokens.
+ */
+function streamErrorMessage(error: unknown): string {
+  const status =
+    typeof error === "object" && error !== null && "statusCode" in error
+      ? (error as { statusCode?: unknown }).statusCode
+      : undefined;
+
+  switch (status) {
+    case 402:
+      return "The AI Gateway needs a positive credit balance before it will serve requests. Top up at vercel.com/dashboard/ai-gateway.";
+    case 401:
+    case 403:
+      return "The AI Gateway rejected our credentials. Check AI_GATEWAY_API_KEY.";
+    case 429:
+      return "The AI Gateway is rate-limiting us. Wait a moment and try again.";
+    default:
+      return "The chat service didn't respond.";
+  }
+}
+
 export async function POST(req: Request) {
   // Auth gate: locally we need AI_GATEWAY_API_KEY. On Vercel, the gateway
   // uses OIDC tokens automatically, so the key is optional — presence of
@@ -146,6 +175,15 @@ export async function POST(req: Request) {
     token: env.SANITY_API_READ_TOKEN,
   });
 
+  // onFinish and onError are mutually exclusive but both can race a thrown
+  // error in the catch below, so close exactly once.
+  let mcpClosed = false;
+  const closeMcp = async () => {
+    if (mcpClosed) return;
+    mcpClosed = true;
+    await mcpClient.close();
+  };
+
   try {
     const mcpTools = await mcpClient.tools();
     const result = streamText({
@@ -184,13 +222,20 @@ export async function POST(req: Request) {
       // avoid leaking content into platform logs.
       onStepFinish:
         process.env.NODE_ENV === "development" ? logStepTrace : undefined,
-      onFinish: async () => {
-        await mcpClient.close();
+      onFinish: closeMcp,
+      // The model call happens lazily while the response streams, so a gateway
+      // failure lands here rather than in the catch below. Without this the MCP
+      // client would leak a connection on every failed request.
+      onError: async ({ error }) => {
+        console.error("/api/chat stream error", error);
+        await closeMcp();
       },
     });
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      onError: streamErrorMessage,
+    });
   } catch (error) {
-    await mcpClient.close();
+    await closeMcp();
     // Log server-side; do not echo the raw error to the client because upstream
     // errors from the AI SDK / MCP client / gateway may include header values
     // like the SANITY_API_READ_TOKEN or AI_GATEWAY_API_KEY Bearer tokens.

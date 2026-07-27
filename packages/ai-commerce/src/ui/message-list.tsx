@@ -99,9 +99,12 @@ function ErrorTile({ error, onRetry }: { error: Error; onRetry?: () => void }) {
         className="flex max-w-[85%] flex-col gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
       >
         <span className="font-medium">Something went wrong</span>
+        {/* The server sends an actionable message (top up credits, check the
+            key, wait out a rate limit), so don't tack "please try again" onto
+            failures that can only repeat. */}
         <span className="text-xs text-destructive/90">
-          {error.message || "The chat service didn't respond."} Please try
-          again.
+          {error.message ||
+            "The chat service didn't respond. Please try again."}
         </span>
         {onRetry ? (
           <button
