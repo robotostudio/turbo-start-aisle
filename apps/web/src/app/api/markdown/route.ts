@@ -38,7 +38,11 @@ const PUBLISHED = { perspective: "published", stega: false } as const;
 
 async function fetchProductMarkdown(handle: string): Promise<string | null> {
   const [sanityRes, shopifyRes] = await Promise.all([
-    sanityFetch({ query: queryProductByHandle, params: { handle }, ...PUBLISHED }),
+    sanityFetch({
+      query: queryProductByHandle,
+      params: { handle },
+      ...PUBLISHED,
+    }),
     storefrontQuery<ProductQueryResponse>(PRODUCT_QUERY, {
       variables: { handle },
     }),
@@ -59,7 +63,10 @@ async function fetchCollectionMarkdown(handle: string): Promise<string | null> {
     }),
   ]);
   if (!shopifyRes.ok || !shopifyRes.data.collection) return null;
-  return collectionToMarkdown(shopifyRes.data.collection, sanityRes.data ?? null);
+  return collectionToMarkdown(
+    shopifyRes.data.collection,
+    sanityRes.data ?? null
+  );
 }
 
 async function fetchCollectionsIndexMarkdown(): Promise<string> {
@@ -85,7 +92,10 @@ async function fetchBlogIndexMarkdown(): Promise<string | null> {
 }
 
 async function fetchHomeMarkdown(): Promise<string | null> {
-  const { data } = await sanityFetch({ query: queryHomePageData, ...PUBLISHED });
+  const { data } = await sanityFetch({
+    query: queryHomePageData,
+    ...PUBLISHED,
+  });
   return data ? pageToMarkdown(data) : null;
 }
 
@@ -106,7 +116,8 @@ async function fetchCollectionsMarkdown(
   segments: string[]
 ): Promise<string | null> {
   if (segments.length === 1) return fetchCollectionsIndexMarkdown();
-  if (segments.length === 2) return fetchCollectionMarkdown(segments[1] as string);
+  if (segments.length === 2)
+    return fetchCollectionMarkdown(segments[1] as string);
   return null;
 }
 
@@ -193,8 +204,7 @@ export async function GET(request: Request): Promise<Response> {
       const target = new URL(redirect.destination, requestUrl);
       if (target.origin === requestUrl.origin) {
         const normalized = normalizeMarkdownPath(target.pathname);
-        target.pathname =
-          normalized === "/" ? "/index.md" : `${normalized}.md`;
+        target.pathname = normalized === "/" ? "/index.md" : `${normalized}.md`;
         return new Response(null, {
           status: redirect.permanent ? 308 : 307,
           headers: { location: target.toString(), ...TEXT_HEADERS },

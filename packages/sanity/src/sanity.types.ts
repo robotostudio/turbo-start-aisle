@@ -12,8 +12,6 @@
  * ---------------------------------------------------------------------------------
  */
 
-export declare const internalGroqTypeReferenceTo: unique symbol;
-
 // Source: schema.json
 export type Link = {
   title?: string;
@@ -525,7 +523,10 @@ export type HomePageReference = {
 export type LinkInternal = {
   _type: "linkInternal";
   reference:
-    CollectionReference | HomePageReference | PageReference | ProductReference;
+    | CollectionReference
+    | HomePageReference
+    | PageReference
+    | ProductReference;
 };
 
 export type LinkExternal = {
@@ -739,7 +740,11 @@ export type ImageFeature = {
     _type: "image";
   };
   variant?:
-    string | "caption" | "callToAction" | "productHotspots" | "productTags";
+    | string
+    | "caption"
+    | "callToAction"
+    | "productHotspots"
+    | "productTags";
   caption?: string;
   callToAction?: ImageCallToAction;
   productHotspots?: ProductHotspots;
@@ -1000,6 +1005,17 @@ export type Slug = {
   _type: "slug";
   current: string;
   source?: string;
+};
+
+export type AiAssistantSettings = {
+  _id: string;
+  _type: "aiAssistantSettings";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  welcomeHeading: string;
+  welcomeSubtitle: string;
+  suggestions?: Array<string>;
 };
 
 export type PromoBanner = {
@@ -1450,6 +1466,19 @@ export type Category = {
   description?: string;
 };
 
+export type SanityAgentContext = {
+  _id: string;
+  _type: "sanity.agentContext";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  version?: string;
+  name?: string;
+  slug?: Slug;
+  instructions?: string;
+  groqFilter?: string;
+};
+
 export type SanityAssistInstructionTask = {
   _type: "sanity.assist.instructionTask";
   path?: string;
@@ -1794,6 +1823,7 @@ export type AllSanitySchemaTypes =
   | AccordionGroup
   | Redirect
   | Slug
+  | AiAssistantSettings
   | PromoBanner
   | Navbar
   | Footer
@@ -1815,6 +1845,7 @@ export type AllSanitySchemaTypes =
   | CategoryReference
   | Blog
   | Category
+  | SanityAgentContext
   | SanityAssistInstructionTask
   | SanityAssistTaskStatus
   | SanityAssistSchemaTypeAnnotations
@@ -1840,6 +1871,14 @@ export type AllSanitySchemaTypes =
   | SanityAssetSourceData
   | SanityImageAsset
   | Geopoint;
+
+export declare const internalGroqTypeReferenceTo: unique symbol;
+
+type ArrayOf<T> = Array<
+  T & {
+    _key: string;
+  }
+>;
 
 // Source: ../../packages/sanity/src/query.ts
 // Variable: queryImageType
@@ -3790,6 +3829,18 @@ export type QueryGenericPageOGDataResult =
       siteTitle: string | null;
       date: string;
     }
+  | {
+      _id: string;
+      _type: "sanity.agentContext";
+      title: null;
+      description: null;
+      image: null;
+      dominantColor: null;
+      seoImage: null;
+      logo: string | null;
+      siteTitle: string | null;
+      date: string;
+    }
   | null;
 
 // Source: ../../packages/sanity/src/query.ts
@@ -4423,6 +4474,15 @@ export type QueryAllCollectionsResult = Array<{
   seo: Seo | null;
 }>;
 
+// Source: ../../packages/sanity/src/query.ts
+// Variable: queryAiAssistantSettings
+// Query: *[_type == "aiAssistantSettings" && _id == "aiAssistantSettings"][0]{    welcomeHeading,    welcomeSubtitle,    suggestions  }
+export type QueryAiAssistantSettingsResult = {
+  welcomeHeading: string;
+  welcomeSubtitle: string;
+  suggestions: Array<string> | null;
+} | null;
+
 // Query TypeMap
 import "@sanity/client";
 declare module "@sanity/client" {
@@ -4458,5 +4518,6 @@ declare module "@sanity/client" {
     '\n  *[_type == "collection" && defined(store.slug.current)].store.slug.current\n': QueryCollectionPathsResult;
     '\n  *[_type == "collectionsIndex"][0]{\n    ...,\n    _id,\n    _type,\n    title,\n    subtitle,\n    heroTitle,\n    heroImage {\n      \n  "id": asset._ref,\n  "preview": asset->metadata.lqip,\n  "alt": coalesce(\n    alt,\n    asset->altText,\n    caption,\n    asset->originalFilename,\n    "untitled"\n  ),\n  hotspot {\n    x,\n    y\n  },\n  crop {\n    bottom,\n    left,\n    right,\n    top\n  }\n\n    },\n    \n  buttons[]{\n    text,\n    variant,\n    _key,\n    _type,\n    "openInNewTab": url.openInNewTab,\n    "href": select(\n      url.type == "internal" => coalesce(\n        url.internal->slug.current,\n        "/collections/" + url.internal->store.slug.current\n      ),\n      url.type == "external" => url.external,\n      url.type == "email" => "mailto:" + url.email,\n      url.type == "product" => "/products/" + url.product->store.slug.current,\n      url.href\n    ),\n  }\n,\n    "slug": slug.current\n  }\n': QueryCollectionsIndexPageDataResult;
     '\n  *[_type == "collection" && defined(store.slug.current)]{\n    _id,\n    _createdAt,\n    "title": store.title,\n    "slug": store.slug.current,\n    "imageUrl": store.imageUrl,\n    "description": store.descriptionHtml,\n    seo\n  }\n': QueryAllCollectionsResult;
+    '\n  *[_type == "aiAssistantSettings" && _id == "aiAssistantSettings"][0]{\n    welcomeHeading,\n    welcomeSubtitle,\n    suggestions\n  }\n': QueryAiAssistantSettingsResult;
   }
 }

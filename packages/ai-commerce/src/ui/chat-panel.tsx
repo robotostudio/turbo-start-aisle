@@ -6,6 +6,7 @@ import { XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 
+import { usePageContext } from "../context/page-context";
 import {
   capturePageContext,
   captureScreenshot,
@@ -13,6 +14,7 @@ import {
 } from "../lib/capture-context";
 import {
   CLIENT_TOOLS,
+  PRICE_BUCKETS,
   type ProductFiltersInput,
   productFiltersSchema,
 } from "../types";
@@ -23,6 +25,21 @@ import { MessageList } from "./message-list";
 interface ChatPanelProps {
   onClose: () => void;
   currencyCode: string;
+}
+
+/**
+ * Snap a numeric range onto a `filter.price` value.
+ *
+ * An exact preset match emits the preset so the collection page's Price column
+ * highlights that row. Anything else emits the same `<min>-<max>` grammar,
+ * which filter-utils.readPrice() parses identically and ActiveFilters labels as
+ * a range. Open-ended sides are empty strings ("-50", "150-").
+ */
+function toPriceParam(min?: number, max?: number): string | null {
+  if (min === undefined && max === undefined) return null;
+  const preset = PRICE_BUCKETS.find((b) => b.min === min && b.max === max);
+  if (preset) return preset.value;
+  return `${min ?? ""}-${max ?? ""}`;
 }
 
 /** Build a turbo-start-shopify collection URL with filter.* keys from the AI's input. */
@@ -37,13 +54,10 @@ function buildCollectionUrl(input: ProductFiltersInput): {
     params.set("filter.available", String(input.available));
     applied.push(`available=${input.available}`);
   }
-  if (input.priceMin !== undefined) {
-    params.set("filter.price.min", String(input.priceMin));
-    applied.push(`min=$${input.priceMin}`);
-  }
-  if (input.priceMax !== undefined) {
-    params.set("filter.price.max", String(input.priceMax));
-    applied.push(`max=$${input.priceMax}`);
+  const price = toPriceParam(input.priceMin, input.priceMax);
+  if (price) {
+    params.set("filter.price", price);
+    applied.push(`price=${price}`);
   }
   for (const v of input.vendor ?? []) {
     params.append("filter.vendor", v);
@@ -56,6 +70,10 @@ function buildCollectionUrl(input: ProductFiltersInput): {
   for (const tag of input.tag ?? []) {
     params.append("filter.tag", tag);
     applied.push(`tag=${tag}`);
+  }
+  for (const option of input.option ?? []) {
+    params.append(`filter.option.${option.name}`, option.value);
+    applied.push(`${option.name}=${option.value}`);
   }
   if (input.sort) {
     params.set("sort", input.sort);
@@ -76,11 +94,22 @@ export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
   const router = useRouter();
   const pendingScreenshotRef = useRef<string | null>(null);
 
+  // DefaultChatTransport's `body` callback is created once, so it would close
+  // over the first render's page context. Mirror it into a ref that each
+  // navigation updates, and read the ref at request time instead.
+  const pageContext = usePageContext();
+  const pageContextRef = useRef(pageContext);
+  pageContextRef.current = pageContext;
+
   const { messages, sendMessage, status, addToolOutput, error, regenerate } =
     useChat({
       transport: new DefaultChatTransport({
         api: "/api/chat",
-        body: () => ({ userContext: captureUserContext(), currencyCode }),
+        body: () => ({
+          userContext: captureUserContext(),
+          pageContext: pageContextRef.current,
+          currencyCode,
+        }),
       }),
       sendAutomaticallyWhen: ({ messages }: { messages: UIMessage[] }) =>
         pendingScreenshotRef.current === null &&
@@ -90,7 +119,7 @@ export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
         switch (toolCall.toolName) {
           case CLIENT_TOOLS.PAGE_CONTEXT: {
             try {
-              const ctx = capturePageContext();
+              const ctx = await capturePageContext();
               addToolOutput({
                 tool: CLIENT_TOOLS.PAGE_CONTEXT,
                 toolCallId: toolCall.toolCallId,

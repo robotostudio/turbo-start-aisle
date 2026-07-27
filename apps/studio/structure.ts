@@ -124,12 +124,7 @@ export const structure = (
           S.list()
             .title("AI Assistant")
             .items([
-              singleton(
-                S,
-                "aiAssistantSettings",
-                "Welcome & Suggestions",
-                Bot
-              ),
+              singleton(S, "aiAssistantSettings", "Welcome & Suggestions", Bot),
               list(S, "sanity.agentContext", "Agent Context", Bot),
             ])
         ),

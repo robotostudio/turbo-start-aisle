@@ -29,8 +29,14 @@ const linkMark: PortableTextMarkRenderer = ({ value, children }) => {
 
 /** Sanity inline image — `id`/`alt`/`caption` from the shared image fields. */
 const imageType: PortableTextTypeRenderer = ({ value }) => {
-  const image = value as { id?: string | null; alt?: string | null; caption?: string | null };
-  return sanityImageMarkdown(image) ?? (image.caption ?? image.alt ?? "").trim();
+  const image = value as {
+    id?: string | null;
+    alt?: string | null;
+    caption?: string | null;
+  };
+  return (
+    sanityImageMarkdown(image) ?? (image.caption ?? image.alt ?? "").trim()
+  );
 };
 
 /** Product-body callout block → blockquote (each line prefixed). */

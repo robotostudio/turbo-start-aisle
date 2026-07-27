@@ -38,7 +38,7 @@ export async function GET(): Promise<Response> {
     sanityFetch({ query: queryCollectionPaths, ...PUBLISHED }),
   ]);
 
-  const value = <T,>(
+  const value = <T>(
     result: PromiseSettledResult<{ data: T }>,
     label: string
   ): T | null => {

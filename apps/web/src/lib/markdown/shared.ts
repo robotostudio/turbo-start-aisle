@@ -18,7 +18,9 @@ export type SanityImageRef = {
 export type Money = { amount: string; currencyCode: string };
 
 /** Drops empty/nullish sections and joins the rest with blank lines. */
-export function joinSections(sections: Array<string | null | undefined>): string {
+export function joinSections(
+  sections: Array<string | null | undefined>
+): string {
   return sections
     .map((section) => section?.trim())
     .filter((section): section is string => Boolean(section))

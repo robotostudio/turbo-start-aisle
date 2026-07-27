@@ -45,13 +45,18 @@ export function TextPart({ text, isUser }: TextPartProps) {
     ol: ({ children }) => <ol className="list-decimal pl-4">{children}</ol>,
   };
 
+  // @tailwindcss/typography's defaults are sized for article pages; inside a
+  // 380px chat bubble the headings and list margins are far too generous, and
+  // prose sets its own text colours which would fight the bubble's foreground.
+  // Tighten the vertical rhythm and let colour inherit from the wrapper.
+  const proseClass =
+    "prose prose-sm max-w-none prose-headings:text-inherit prose-strong:text-inherit prose-a:text-inherit prose-code:text-inherit prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:mt-2 prose-headings:mb-1";
+
   return (
     <div
-      className={
-        isUser
-          ? "prose prose-sm max-w-none text-primary-foreground"
-          : "prose prose-sm max-w-none text-foreground"
-      }
+      className={`${proseClass} ${
+        isUser ? "text-primary-foreground" : "text-foreground"
+      }`}
     >
       <ReactMarkdown
         remarkPlugins={[remarkAgentDirectives]}

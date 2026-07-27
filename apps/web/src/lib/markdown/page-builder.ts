@@ -30,7 +30,9 @@ function linksToMarkdown(links: unknown, label = ""): string {
     })
     .filter((line): line is string => Boolean(line));
   if (bullets.length === 0) return "";
-  return label ? joinSections([`**${label}**`, bullets.join("\n")]) : bullets.join("\n");
+  return label
+    ? joinSections([`**${label}**`, bullets.join("\n")])
+    : bullets.join("\n");
 }
 
 function eyebrowLine(value: unknown): string | null {
@@ -94,7 +96,7 @@ function faqAccordionToMarkdown(block: Block): string {
   const link = block.link as Linkish | undefined;
   const linkLine =
     link?.href && absolutizeUrl(link.href) && text(link.title ?? link.text)
-      ? `- [${escapeMarkdown((text(link.title ?? link.text) as string))}](${absolutizeUrl(link.href)})`
+      ? `- [${escapeMarkdown(text(link.title ?? link.text) as string)}](${absolutizeUrl(link.href)})`
       : null;
   return joinSections([
     text(block.title) && heading(2, text(block.title) as string),
@@ -118,7 +120,9 @@ function editorialTwoUpToMarkdown(block: Block): string {
       const item = raw as { collectionTitle?: string; collectionHref?: string };
       const title = text(item.collectionTitle);
       if (!title) return null;
-      const href = item.collectionHref ? absolutizeUrl(item.collectionHref) : null;
+      const href = item.collectionHref
+        ? absolutizeUrl(item.collectionHref)
+        : null;
       return href
         ? `- [${escapeMarkdown(title)}](${href})`
         : `- ${escapeMarkdown(title)}`;

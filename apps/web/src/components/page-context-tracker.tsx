@@ -9,16 +9,15 @@ import { useEffect } from "react";
 function surfaceFromPathname(pathname: string): PageSurface {
   if (pathname === "/" || pathname === "") return "home";
   if (pathname.startsWith("/products/")) return "pdp";
-  if (pathname.startsWith("/collections/")) return "collection";
+  // Includes the /collections index, not just /collections/<handle>.
+  if (pathname === "/collections" || pathname.startsWith("/collections/"))
+    return "collection";
   if (pathname.startsWith("/cart")) return "cart";
+  // The search modal is an intercepted route, so the pathname is still /search.
   if (pathname.startsWith("/search")) return "search";
-  if (
-    pathname.startsWith("/blog") ||
-    pathname.startsWith("/articles") ||
-    pathname.startsWith("/pages/")
-  )
-    return "content";
-  return "other";
+  if (pathname.startsWith("/blog")) return "content";
+  // Everything else is a CMS page served by the [...slug] catch-all.
+  return "content";
 }
 
 /**

@@ -35,9 +35,28 @@ const userContextSchema = z
   .nullable()
   .optional();
 
+// Which route the user is on, written by <PageContextTracker /> on every
+// navigation. Lets the model answer "what's on this page?" without a tool call.
+const pageContextSchema = z
+  .object({
+    route: z.string().max(2000),
+    surface: z.enum([
+      "home",
+      "pdp",
+      "collection",
+      "search",
+      "cart",
+      "content",
+      "other",
+    ]),
+  })
+  .nullable()
+  .optional();
+
 const requestSchema = z.object({
   messages: z.array(z.unknown()).max(200),
   userContext: userContextSchema,
+  pageContext: pageContextSchema,
   // ISO 4217 currency code from the ChatWidget. Defaults to GBP if absent;
   // the regex blocks anything that isn't a 3-letter A-Z code so the value is
   // safe to splice into the system prompt as text.
@@ -64,9 +83,7 @@ interface StepTrace {
 function logStepTrace(step: StepTrace) {
   for (const call of step.toolCalls ?? []) {
     const input =
-      typeof call.input === "string"
-        ? call.input
-        : JSON.stringify(call.input);
+      typeof call.input === "string" ? call.input : JSON.stringify(call.input);
     console.log(`[chat] tool=${call.toolName} input=${input.slice(0, 500)}`);
   }
   for (const result of step.toolResults ?? []) {
@@ -75,7 +92,7 @@ function logStepTrace(step: StepTrace) {
         ? result.output
         : JSON.stringify(result.output);
     console.log(
-      `[chat] tool=${result.toolName} result=${output.slice(0, 500)}`,
+      `[chat] tool=${result.toolName} result=${output.slice(0, 500)}`
     );
   }
 }
@@ -122,7 +139,7 @@ export async function POST(req: Request) {
   if (!result.success) {
     return jsonError(400, "Invalid request shape.");
   }
-  const { messages, userContext, currencyCode } = result.data;
+  const { messages, userContext, pageContext, currencyCode } = result.data;
 
   const mcpClient = await createSanityAgentContextClient({
     url: env.SANITY_CONTEXT_MCP_URL,
@@ -146,6 +163,7 @@ export async function POST(req: Request) {
       },
       system: buildSystemPrompt({
         userContext: userContext ?? null,
+        pageContext: pageContext ?? null,
         currencyCode,
       }),
       messages: await convertToModelMessages(messages as never),

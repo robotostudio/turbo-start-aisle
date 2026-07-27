@@ -51,7 +51,10 @@ export type BlogListItem = {
   slug?: string | null;
 };
 
-type SanityProductDoc = { title?: string | null; body?: unknown[] | null } | null;
+type SanityProductDoc = {
+  title?: string | null;
+  body?: unknown[] | null;
+} | null;
 type SanityCollectionDoc = { title?: string | null } | null;
 
 /** `# title` followed by the description paragraph. */
@@ -145,7 +148,10 @@ function productInfoSection(product: ShopifyProduct): string {
 
 function pricingSection(variants: ShopifyVariant[]): string | null {
   const priced = variants
-    .map((variant) => ({ variant, amount: Number.parseFloat(variant.price.amount) }))
+    .map((variant) => ({
+      variant,
+      amount: Number.parseFloat(variant.price.amount),
+    }))
     .filter((entry) => Number.isFinite(entry.amount));
   if (priced.length === 0) return null;
 
@@ -158,7 +164,9 @@ function pricingSection(variants: ShopifyVariant[]): string | null {
 
   const bullets = [`- **Price**: ${price}`];
   if (min.variant.compareAtPrice) {
-    bullets.push(`- **Compare At**: ${formatMoney(min.variant.compareAtPrice)}`);
+    bullets.push(
+      `- **Compare At**: ${formatMoney(min.variant.compareAtPrice)}`
+    );
   }
 
   return joinSections([heading(2, "Pricing"), bullets.join("\n")]);
@@ -222,7 +230,10 @@ function metafieldSections(product: ShopifyProduct): string | null {
   const sections = PRODUCT_METAFIELD_KEYS.map((key) => {
     const value = metafields[key];
     return value
-      ? joinSections([heading(2, METAFIELD_LABELS[key]), formatMultiline(value)])
+      ? joinSections([
+          heading(2, METAFIELD_LABELS[key]),
+          formatMultiline(value),
+        ])
       : null;
   }).filter((section): section is string => Boolean(section));
   if (sections.length === 0) return null;

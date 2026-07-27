@@ -5,6 +5,11 @@ import { client } from "@workspace/sanity/client";
 import Link from "next/link";
 
 import { useCurrencyCode } from "../context/currency-context";
+import {
+  ADD_TO_CART_EVENT,
+  type AddToCartEventDetail,
+  type AiSelectedOption,
+} from "../types";
 
 interface ProductProps {
   id: string;
@@ -17,6 +22,7 @@ interface ProductVariantData {
   title: string;
   available: boolean;
   price: number;
+  optionValues: (string | null)[] | null;
 }
 
 interface ProductData {
@@ -27,6 +33,7 @@ interface ProductData {
   minPrice: number | null;
   maxPrice: number | null;
   isActive: boolean;
+  optionNames: (string | null)[] | null;
   variants: ProductVariantData[];
 }
 
@@ -39,15 +46,33 @@ const PRODUCT_QUERY = /* groq */ `
     "minPrice": store.priceRange.minVariantPrice,
     "maxPrice": store.priceRange.maxVariantPrice,
     "isActive": store.status == "active" && !store.isDeleted,
+    "optionNames": store.options[].name,
     "variants": store.variants[]->{
       _id,
       "gid": store.gid,
       "title": store.title,
       "available": store.inventory.isAvailable,
-      "price": store.price
+      "price": store.price,
+      "optionValues": [store.option1, store.option2, store.option3]
     }
   }
 `;
+
+/**
+ * Zips the product's option names against a variant's option1/2/3 values into
+ * the {name, value}[] shape the cart's LineMetadata expects.
+ */
+function selectedOptionsFor(
+  product: ProductData,
+  variant: ProductVariantData
+): AiSelectedOption[] {
+  return (product.optionNames ?? [])
+    .map((name, index) => ({ name, value: variant.optionValues?.[index] }))
+    .filter(
+      (option): option is AiSelectedOption =>
+        Boolean(option.name) && Boolean(option.value)
+    );
+}
 
 function formatPrice(
   min: number | null,
@@ -161,13 +186,37 @@ export function Product({ id, isInline }: ProductProps) {
         </div>
       </Link>
       {purchasable && product.variants[0] ? (
-        <AddToCartButton variantGid={product.variants[0].gid} />
+        <AddToCartButton
+          detail={{
+            variantGid: product.variants[0].gid,
+            productHandle: product.slug,
+            productTitle: product.title,
+            variantTitle: product.variants[0].title,
+            price: {
+              amount: String(product.variants[0].price),
+              currencyCode,
+            },
+            image: product.imageUrl
+              ? {
+                  url: product.imageUrl,
+                  altText: product.title,
+                  width: 0,
+                  height: 0,
+                }
+              : null,
+            selectedOptions: selectedOptionsFor(product, product.variants[0]),
+          }}
+        />
       ) : null}
     </div>
   );
 }
 
-function AddToCartButton({ variantGid }: { variantGid: string }) {
+function AddToCartButton({
+  detail,
+}: {
+  detail: Omit<AddToCartEventDetail, "quantity">;
+}) {
   return (
     <button
       type="button"
@@ -175,8 +224,8 @@ function AddToCartButton({ variantGid }: { variantGid: string }) {
       onClick={() => {
         if (typeof window === "undefined") return;
         window.dispatchEvent(
-          new CustomEvent("ai-commerce:add-to-cart", {
-            detail: { variantGid, quantity: 1 },
+          new CustomEvent<AddToCartEventDetail>(ADD_TO_CART_EVENT, {
+            detail: { ...detail, quantity: 1 },
           })
         );
       }}

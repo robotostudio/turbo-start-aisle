@@ -1,4 +1,4 @@
-import type { UserContext } from "./types";
+import type { PageContext, UserContext } from "./types";
 
 function currencySymbol(code: string): string {
   try {
@@ -207,23 +207,53 @@ Matching guidance:
 After \`set_collection_filters\` succeeds, **always emit a confirmation sentence** describing what you did — e.g. "Opened the Apparel collection sorted by price (low to high)." Ending the turn on a tool call alone shows the user an empty bubble.
 
 ## Filter control (URL mapping for set_collection_filters)
-The set_collection_filters tool maps to turbo-start-shopify's collection page searchParams:
+The set_collection_filters tool maps to the collection page's searchParams:
+- \`collection: string\` (required) — collection handle; the tool navigates to \`/collections/{collection}\` if the user isn't already there.
 - \`available: boolean\` → \`?filter.available=true\`
-- \`priceMin / priceMax: number\` → \`?filter.price.min=N&filter.price.max=M\`
+- \`priceMin / priceMax: number\` → \`?filter.price=<min>-<max>\`, a single param.
+  The UI offers four preset buckets — **prefer the bucket edges 50, 100 and 150**
+  so the Price column visibly highlights what you applied:
+  \`-50\` (Under {currencySymbol}50), \`50-100\`, \`100-150\`, \`150-\` ({currencySymbol}150+).
+  Other ranges still work (\`30-80\`) but show as a plain chip with no row highlighted.
 - \`vendor: string[]\` → \`?filter.vendor=Acme&filter.vendor=Beta\` (multi)
 - \`type: string[]\` → \`?filter.type=Apparel\` (multi)
 - \`tag: string[]\` → \`?filter.tag=sale\` (multi)
-- \`sort: string\` → Shopify ProductCollectionSortKeys: BEST_SELLING, PRICE, CREATED, TITLE, MANUAL, COLLECTION_DEFAULT
-- \`reverse: boolean\` → reverse the sort order
-- \`collection: string\` (required) — collection handle; the tool navigates to \`/collections/{collection}\` if the user isn't already there.
+- \`option: {name, value}[]\` → \`?filter.option.Color=Indigo&filter.option.Size=M\` (multi).
+  Variant facets. Names and values are merchant-defined and **case-sensitive** —
+  copy them verbatim from a GROQ result, never guess "Color" vs "Colour".
+- \`sort\` and \`reverse\` are **top-level** params, not \`filter.*\`. Sort keys:
+  COLLECTION_DEFAULT (default), BEST_SELLING, CREATED, PRICE, TITLE, MANUAL, ID, RELEVANCE.
+
+There is **no** category filter on this tool. Shopify's taxonomy filter needs an
+opaque category id you have no way to obtain — never invent one.
+
+## Site surfaces
+Real routes on this storefront. Link to these; do not invent others.
+- \`/\` — home
+- \`/collections\` — collection index; \`/collections/{handle}\` — a single collection
+- \`/products/{handle}\` — product detail
+- \`/search?q={terms}\` — free-text product search. The site opens it as a drawer
+  over the current page, so it is a cheap thing to send someone to.
+- \`/cart\` — full cart page. Adding to cart opens the cart **drawer** in place;
+  you do not need to send the user to \`/cart\` after an add.
+- \`/blog\`, \`/blog/{slug}\` — editorial content
+- Saved items live in a **drawer** opened from the header. There is no \`/saved\`
+  page — never link one.
+
+Every content page is also served as Markdown: append \`.md\` to the path, or send
+\`Accept: text/markdown\`. \`/llms.txt\` indexes them. The page_context tool already
+prefers this, so what you see is the published content, not the rendered DOM.
 `.trim();
 
 export function buildSystemPrompt(opts: {
   userContext?: UserContext | null;
+  /** Route + surface written by <PageContextTracker /> on each navigation. */
+  pageContext?: Pick<PageContext, "route" | "surface"> | null;
   /** ISO 4217 currency code for the storefront (e.g. "GBP", "USD"). Defaults to "GBP". */
   currencyCode?: string;
 }): string {
   const ctx = opts.userContext;
+  const page = opts.pageContext;
   const code = opts.currencyCode ?? "GBP";
   const symbol = currencySymbol(code);
 
@@ -232,14 +262,18 @@ export function buildSystemPrompt(opts: {
     symbol
   );
 
-  if (!ctx) return prompt;
+  if (!(ctx || page)) return prompt;
 
-  const ctxBlock = `
-## Current user context
-- Page title: ${ctx.documentTitle}
-- Page URL path: ${ctx.documentLocation}
-${ctx.documentDescription ? `- Page description: ${ctx.documentDescription}` : ""}
-`.trim();
+  const lines = [
+    "## Current user context",
+    ctx ? `- Page title: ${ctx.documentTitle}` : null,
+    ctx ? `- Page URL path: ${ctx.documentLocation}` : null,
+    ctx?.documentDescription
+      ? `- Page description: ${ctx.documentDescription}`
+      : null,
+    page ? `- Route: ${page.route}` : null,
+    page ? `- Surface: ${page.surface}` : null,
+  ].filter((line): line is string => line !== null);
 
-  return `${prompt}\n\n${ctxBlock}`;
+  return `${prompt}\n\n${lines.join("\n")}`;
 }
