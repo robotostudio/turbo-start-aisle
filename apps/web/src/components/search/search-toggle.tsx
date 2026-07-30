@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { SearchIcon } from "../icons";
+import { SEARCH_PATH } from "./paths";
 
 const TOGGLE_CLASS =
   "inline-flex items-center justify-center transition-colors hover:text-foreground";
@@ -14,7 +15,7 @@ export function SearchToggle() {
   // On the search page itself, focus the existing input instead of navigating
   // to /search again — a client nav would re-trigger the intercepting route and
   // pop the drawer over the page.
-  if (pathname === "/search") {
+  if (pathname === SEARCH_PATH) {
     return (
       <button
         aria-label="Search"
@@ -30,7 +31,7 @@ export function SearchToggle() {
   }
 
   return (
-    <Link aria-label="Search" className={TOGGLE_CLASS} href="/search">
+    <Link aria-label="Search" className={TOGGLE_CLASS} href={SEARCH_PATH}>
       <SearchIcon className="size-5" />
     </Link>
   );

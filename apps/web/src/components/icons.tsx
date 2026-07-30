@@ -23,17 +23,23 @@ export function BagIcon({ className }: { className?: string }) {
 
 export function BookmarkIcon({ className }: { className?: string }) {
   return (
+    // 18x18 box like BagIcon/SearchIcon, not the 13x16 it used to be. SVG fits a
+    // non-square viewBox to the shorter axis, so at the same `size-*` the old
+    // geometry drew ~26% taller than the bag it sits next to. The path below is
+    // the same bookmark redrawn to the bag's exact ink bounds (2.8125 -> 15.1875
+    // vertically), keeping its natural narrower width, so `size-5` now means the
+    // same thing for both.
     <svg
       className={className}
       fill="none"
-      height="16"
-      viewBox="0 0 13 16"
-      width="13"
+      height="18"
+      viewBox="0 0 18 18"
+      width="18"
       xmlns="http://www.w3.org/2000/svg"
     >
       <title>Wishlist</title>
       <path
-        d="M11.5254 14.525V0.650024H0.650391V14.525L6.08789 11.525L11.5254 14.525Z"
+        d="M13.85 15.1875V2.8125H4.15V15.1875L9 12.51L13.85 15.1875Z"
         stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="1.3"

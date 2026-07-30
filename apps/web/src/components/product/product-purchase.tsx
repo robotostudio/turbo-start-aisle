@@ -32,12 +32,18 @@ export function ProductPurchase({
 
   return (
     <div className="flex max-w-sm items-stretch gap-2">
+      {/* Soften the stepper's arrival: opacity + scale from 0.95 (never 0).
+       * The CTA's width still reflows in one frame — that's a layout change and
+       * no motion makes it free. Reserving the slot permanently was worse: it
+       * left a hole beside the full-width "Sold Out" / "Select Options" CTA. */}
       {showStepper && (
-        <QuantitySelector
-          max={quantityAvailable}
-          onChange={setQuantity}
-          value={quantity}
-        />
+        <div className="fade-in-0 zoom-in-95 animate-in duration-200 ease-out-quint">
+          <QuantitySelector
+            max={quantityAvailable}
+            onChange={setQuantity}
+            value={quantity}
+          />
+        </div>
       )}
       <div className="flex-1">
         <AddToCart

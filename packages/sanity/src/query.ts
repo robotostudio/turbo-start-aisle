@@ -599,13 +599,17 @@ export const queryNavbarData = defineQuery(`
   }
 `);
 
+// Each key is a document `_type`, which `SANITY_SITEMAP_SOURCES` in
+// apps/web/src/app/sitemap.ts is typed against — adding a source there without
+// a matching projection here is a typecheck failure rather than a page that is
+// silently missing from the sitemap.
 export const querySitemapData = defineQuery(`{
-  "slugPages": *[_type == "page" && defined(slug.current)]{
-    "slug": slug.current,
+  "page": *[_type == "page" && defined(slug.current)]{
+    "path": slug.current,
     "lastModified": _updatedAt
   },
-  "blogPages": *[_type == "blog" && defined(slug.current)]{
-    "slug": slug.current,
+  "blog": *[_type == "blog" && defined(slug.current)]{
+    "path": slug.current,
     "lastModified": _updatedAt
   }
 }`);
@@ -766,8 +770,15 @@ const collectionModulesFragment = /* groq */ `
       ${buttonsFragment}
     },
     _type == "image" => {
-      ${imageFields},
+      ${imageFields}
+    },
+    _type == "imageWithProductHotspots" => {
+      image{${imageFields}},
+      showHotspots,
       ${productHotspotsFragment}
+    },
+    _type == "instagram" => {
+      url
     }
   }
 `;

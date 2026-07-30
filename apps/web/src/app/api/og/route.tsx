@@ -112,7 +112,9 @@ const BAR_BG = "#fafafa";
 const TEXT_DARK = "#18181b";
 
 // Matches the product card's `.card-surface` (--card-surface-from/to in
-// packages/ui globals) — used behind transparent/missing product images.
+// packages/ui globals) — used behind transparent/missing product images. Those
+// tokens are oklch(); the hex here is the equivalent and has to stay hex because
+// satori (next/og) can't parse oklch() and would drop the gradient entirely.
 const CARD_GRADIENT = "linear-gradient(to bottom, #c1c6c8, #e2e5e9)";
 
 // Brand marks are rendered as inline-SVG data URIs via <img>. Satori reliably

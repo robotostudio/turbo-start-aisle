@@ -53,8 +53,8 @@
   --color-overscroll-bottom: var(--background);
   /* Card image surface: soft vertical gradient behind product/collection images
    * (transparent product shots float on this). See `card-surface` utility. */
-  --card-surface-from: #c1c6c8;
-  --card-surface-to: #e2e5e9;
+  --card-surface-from: oklch(0.823 0.006 223.471); /* #c1c6c8 */
+  --card-surface-to: oklch(0.921 0.006 255.477); /* #e2e5e9 */
 }
 
 .dark {
@@ -92,8 +92,12 @@
   --sidebar-ring: oklch(0.552 0.016 285.938);
   /* Promo bar is dark:bg-white in dark mode, so the top overscroll matches it. */
   --color-overscroll-top: oklch(1 0 0);
-  /* Card image surface stays the same light gradient in dark mode too
-   * (--card-surface-* are inherited from :root; no override). */
+  /* Card image surface in dark mode: zinc-800 -> zinc-900, per Figma node
+   * 3614:132. Note this INVERTS the light theme's direction — light goes darker
+   * at the top and lifts toward the bottom, dark does the opposite. Both stops
+   * are overridden, so nothing is inherited from :root here. */
+  --card-surface-from: oklch(0.274 0.006 286.033); /* zinc-800 */
+  --card-surface-to: oklch(0.21 0.006 285.885); /* zinc-900 */
 }
 
 @theme inline {
@@ -139,6 +143,36 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Motion curves. Four, deliberately.
+ *
+ * The built-in named curves (ease, ease-out, …) accelerate too weakly to read at
+ * UI durations, so animations built on them feel flat. Each curve below is
+ * asymmetric — fast out of the gate, long settle — which is what makes motion
+ * feel alive without a spring.
+ *
+ * There is no `--ease-in` token on purpose: ease-in starts slow, delaying the
+ * exact moment the user is watching, and should never be used on UI.
+ *
+ * Durations are deliberately NOT tokenized — Tailwind's bare `duration-<n>`
+ * already compiles to milliseconds (`duration-150`, `duration-200`). */
+@theme {
+  /* Enter/exit of small UI: chips, ghosts, indicators, press release. */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Large surfaces with real travel: the sheet, the lightbox FLIP. */
+  --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
+  /* On-screen movement of already-visible elements: accordion, icon morphs. */
+  --ease-flow: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Reversible pointer state: hover tints, hover zooms, hover-reveal bars.
+   * The pointer can leave mid-flight, so these play backwards as often as
+   * forwards and need a curve that reads sanely in both directions — unlike the
+   * three asymmetric curves above, which only make sense played forward.
+   * This is CSS's built-in `ease`. Tailwind ships no bare `ease` utility (only
+   * ease-in/out/linear/initial), so writing `ease` in a className is a silent
+   * no-op that falls through to --default-transition-timing-function. It has to
+   * be a token to be reachable at all. */
+  --ease-hover: ease;
 }
 
 /* Full-width content wrapper: responsive side gutter, no max-width. */
@@ -221,6 +255,63 @@
       animation-timeline: scroll(root y);
     }
   }
+}
+
+/* Reduced motion means gentler, not zero.
+ *
+ * tw-animate-css drives every `animate-in` / `animate-out` through registered
+ * custom properties (@property with inherits:false — hence the universal
+ * selector rather than :root). Zeroing only the movement channels strips all
+ * translate/scale/rotate/blur while leaving the opacity fade intact, so
+ * dialogs, sheets, dropdowns, the nav menu and the lightbox nav crossfade all
+ * keep a legible transition instead of snapping.
+ *
+ * Deliberately NOT the popular blanket `animation-duration: 0.01ms !important;
+ * transition-duration: 0.01ms !important` reset — that is zero, not gentler:
+ * it kills every hover colour fade, every focus-ring transition, and makes
+ * press feedback invisible. */
+/* biome-ignore-start lint/complexity/noImportantStyles: must beat the utility
+ * classes (.fade-out-0 etc.) that set these same properties inline in the
+ * cascade; specificity alone cannot, since `*` is the only selector that
+ * reaches @property vars declared with inherits:false. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    --tw-enter-translate-x: 0 !important;
+    --tw-enter-translate-y: 0 !important;
+    --tw-exit-translate-x: 0 !important;
+    --tw-exit-translate-y: 0 !important;
+    --tw-enter-scale: 1 !important;
+    --tw-exit-scale: 1 !important;
+    --tw-enter-rotate: 0 !important;
+    --tw-exit-rotate: 0 !important;
+    --tw-enter-blur: 0 !important;
+    --tw-exit-blur: 0 !important;
+  }
+}
+/* biome-ignore-end lint/complexity/noImportantStyles: end reduced-motion block */
+
+/* Keep the scrollbar gutter drawn at all times, so opening a dialog doesn't
+ * flash a 15px strip where the track was, and short/tall pages don't jump. */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+/* But stand <html> down while a dialog is open. react-remove-scroll sets
+ * `overflow: hidden` on <body>, which is only harmless when <html> is `visible`
+ * — then it propagates to the viewport. Otherwise <body> becomes a scroll
+ * container that never scrolls, and every `position: sticky` inside it (PDP
+ * details column, navbar, gallery rail) unsticks and jumps out of view. */
+html:has(body[data-scroll-locked]) {
+  overflow-y: visible;
+}
+html body[data-scroll-locked] {
+  /* Our gutter is permanent, so react-remove-scroll's margin would
+   * double-compensate and shift the page 15px left. `html body` beats its
+   * !important rule, which is injected later in source order. */
+  /* biome-ignore lint/complexity/noImportantStyles: see above */
+  margin-right: 0 !important;
 }
 
 img {

@@ -20,14 +20,7 @@ import { accordion } from "./module/accordion";
 import { callout } from "./module/callout";
 import { callToAction } from "./module/call-to-action";
 import { collectionReference } from "./module/collection-reference";
-import { gridItem } from "./module/grid-item";
-import { grid } from "./module/grid";
-import { imageCallToAction } from "./module/image-call-to-action";
-import { imageFeatures } from "./module/image-features";
-import { imageFeature } from "./module/image-feature";
 import { instagram } from "./module/instagram";
-import { productFeatures } from "./module/product-features";
-import { productReference } from "./module/product-reference";
 import { seo } from "./seo";
 import { collectionRule } from "./shopify/collection-rule";
 import { inventory } from "./shopify/inventory";
@@ -57,11 +50,6 @@ export const objects = [
   customProductOptionSizeObject,
   customProductOptionSize,
   footer,
-  gridItem,
-  grid,
-  imageCallToAction,
-  imageFeatures,
-  imageFeature,
   imageWithProductHotspots,
   instagram,
   inventory,
@@ -71,9 +59,7 @@ export const objects = [
   option,
   placeholderString,
   priceRange,
-  productFeatures,
   productHotspots,
-  productReference,
   productWithVariant,
   proxyString,
   seo,

@@ -15,10 +15,15 @@ export const instagram = defineField({
       description: "The full URL of the Instagram post to embed",
       validation: (Rule) =>
         Rule.custom((url) => {
+          // Accepts posts, reels and IGTV, with or without the username
+          // segment Instagram's share button includes:
+          //   instagram.com/p/<id>
+          //   instagram.com/<username>/p/<id>
+          //   instagram.com/<username>/reel/<id>
           const pattern =
-            /(https?:\/\/(?:www\.)?instagram\.com\/p\/([^/?#&]+)).*/g;
+            /^https?:\/\/(?:www\.)?instagram\.com\/(?:[^/?#]+\/)?(?:p|reel|tv)\/([^/?#&]+)/;
           const isValid = url?.match(pattern);
-          return isValid ? true : "Not a valid Instagram post URL";
+          return isValid ? true : "Not a valid Instagram post, reel or TV URL";
         }),
     }),
   ],

@@ -12,6 +12,8 @@ type SearchProductGridProps = {
   products: ShopifyCollectionProduct[];
   isLoading: boolean;
   skeletonCount?: number;
+  /** Forwarded to `next/link`: replace the current history entry, don't push. */
+  replace?: boolean;
 };
 
 /** Shared 4-col ProductCard grid used by both the empty and active states. */
@@ -19,6 +21,7 @@ export function SearchProductGrid({
   products,
   isLoading,
   skeletonCount = DEFAULT_SKELETON_COUNT,
+  replace,
 }: SearchProductGridProps) {
   if (isLoading) {
     return (
@@ -45,6 +48,7 @@ export function SearchProductGrid({
         <ProductCard
           key={product.id}
           {...collectionProductToCardProps(product)}
+          replace={replace}
         />
       ))}
     </div>

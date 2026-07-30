@@ -4,6 +4,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { ZoomIn } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { ShopifyImage } from "@/lib/shopify/types";
 import { ProductLightbox } from "./product-lightbox";
 import { ShopifyImage as ShopifyImageEl } from "./shopify-image";
@@ -32,6 +33,11 @@ function GalleryDesktop({
   const [active, setActive] = useState(0);
   const imageRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const prevVariantUrl = useRef(selectedVariantImageUrl);
+  // Programmatic smooth scroll is the biggest vestibular trigger here — this
+  // rail can travel several viewport heights on one thumbnail click, and there
+  // is no "gentler" version of that. Jump instead.
+  const reduced = usePrefersReducedMotion();
+  const behavior: ScrollBehavior = reduced ? "auto" : "smooth";
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -56,7 +62,7 @@ function GalleryDesktop({
 
   const scrollToIndex = (index: number) => {
     imageRefs.current[index]?.scrollIntoView({
-      behavior: "smooth",
+      behavior,
       block: "start",
     });
   };
@@ -72,11 +78,11 @@ function GalleryDesktop({
     );
     if (index >= 0) {
       imageRefs.current[index]?.scrollIntoView({
-        behavior: "smooth",
+        behavior,
         block: "start",
       });
     }
-  }, [selectedVariantImageUrl, images]);
+  }, [selectedVariantImageUrl, images, behavior]);
 
   return (
     <div className="hidden lg:flex lg:gap-1">
@@ -154,6 +160,8 @@ function GalleryMobile({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const prevVariantUrl = useRef(selectedVariantImageUrl);
+  const reduced = usePrefersReducedMotion();
+  const behavior: ScrollBehavior = reduced ? "auto" : "smooth";
 
   useEffect(() => {
     const root = scrollerRef.current;
@@ -181,7 +189,7 @@ function GalleryMobile({
 
   const scrollToIndex = (index: number) => {
     slideRefs.current[index]?.scrollIntoView({
-      behavior: "smooth",
+      behavior,
       block: "nearest",
       inline: "center",
     });
@@ -197,12 +205,12 @@ function GalleryMobile({
     );
     if (index >= 0) {
       slideRefs.current[index]?.scrollIntoView({
-        behavior: "smooth",
+        behavior,
         block: "nearest",
         inline: "center",
       });
     }
-  }, [selectedVariantImageUrl, images]);
+  }, [selectedVariantImageUrl, images, behavior]);
 
   return (
     <div className="lg:hidden">
@@ -271,6 +279,12 @@ export function ProductGallery({
   const [lightboxIndex, setLightboxIndex] = useState(0);
   // Source rect captured at click time — reliable, unlike resolving it later.
   const [sourceRect, setSourceRect] = useState<DOMRect | null>(null);
+  // Likewise for the source URL. Tagged with the index it was captured for so
+  // arrow navigation inside the lightbox can't render a stale image's URL.
+  const [sourceSrc, setSourceSrc] = useState<{
+    index: number;
+    src: string;
+  } | null>(null);
 
   // On-page image elements per `${view}:${index}`, so the lightbox can zoom
   // out of / back into whichever view is currently visible.
@@ -308,7 +322,9 @@ export function ProductGallery({
   }
 
   const openLightbox = (index: number) => {
+    const src = getSourceSrc(index);
     setSourceRect(getSourceRect(index));
+    setSourceSrc(src ? { index, src } : null);
     setLightboxIndex(index);
     setLightboxOpen(true);
   };
@@ -336,6 +352,7 @@ export function ProductGallery({
         onOpenChange={setLightboxOpen}
         open={lightboxOpen}
         sourceRect={sourceRect}
+        sourceSrc={sourceSrc}
       />
     </>
   );

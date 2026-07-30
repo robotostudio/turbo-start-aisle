@@ -9,6 +9,8 @@ import {
 } from "@workspace/ui/components/sheet";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { ProductCard } from "@/components/product/product-card";
 import { collectionProductToCardProps } from "@/lib/shopify/product-card";
@@ -20,12 +22,29 @@ export function SavedItemsDrawer() {
   const { count, isSavedOpen, closeSaved } = useSavedItems();
   const { products, isLoading } = useSavedProducts();
 
+  // Opening a product left the drawer sitting over the new page. Mirror the
+  // route into the open state rather than threading an onClick through
+  // ProductCard: the card has two separate links plus swatches that rewrite the
+  // href, so a per-link handler is easy to add and easy to miss one of.
+  const pathname = usePathname();
+  const lastPathname = useRef(pathname);
+  useEffect(() => {
+    if (pathname === lastPathname.current) return;
+    lastPathname.current = pathname;
+    closeSaved();
+  }, [pathname, closeSaved]);
+
   const isEmpty = count === 0;
 
   return (
     <Sheet onOpenChange={(open) => !open && closeSaved()} open={isSavedOpen}>
       <SheetContent
-        className="w-full gap-8 p-8 sm:max-w-[540px]"
+        // 750px at lg is the Figma width (node 1797:7613): with p-8 and the
+        // 4px grid gap that lands each card on exactly 341px, matching the
+        // design's card. Held at 540 below lg so the drawer doesn't swallow a
+        // tablet viewport whole; cards are still ~236px there, well clear of
+        // the width where the add-to-cart bar starts to crowd.
+        className="w-full gap-8 p-8 sm:max-w-[540px] lg:max-w-[750px]"
         showCloseButton={false}
         side="right"
       >
@@ -46,10 +65,13 @@ export function SavedItemsDrawer() {
           </button>
         </SheetHeader>
 
+        {/* The scroller hides its scrollbar (same idiom as cart-recommendations):
+          * it ate 8px of the grid, putting cards at 333px instead of the 341 the
+          * design specifies. */}
         {isEmpty ? (
           <SavedEmptyState />
         ) : (
-          <div className="-mx-8 flex-1 overflow-y-auto px-8">
+          <div className="-mx-8 flex-1 overflow-y-auto px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="grid grid-cols-2 gap-x-1 gap-y-6">
               {isLoading
                 ? Array.from({ length: count }).map((_, index) => (

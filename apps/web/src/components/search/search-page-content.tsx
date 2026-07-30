@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useDebounce } from "@/hooks/use-debounce";
 import type { ShopifyCollectionProduct } from "@/lib/shopify/types";
+import { readSearchQuery, searchUrlWithQuery } from "./paths";
 import { SearchEmptyState } from "./search-empty-state";
 import { SearchProductGrid } from "./search-product-grid";
 
@@ -47,10 +48,17 @@ export function SearchPageContent({
   // Keep the address bar in sync WITHOUT a router navigation — a client nav to
   // /search would re-trigger the intercepting route and open the drawer.
   useEffect(() => {
-    const url = trimmed
-      ? `/search?q=${encodeURIComponent(trimmed)}`
-      : "/search";
-    window.history.replaceState(null, "", url);
+    // Skip identical writes, and rebuild from the live URL rather than from
+    // scratch: this page is a share/ad landing target, so it routinely arrives
+    // carrying utm_* params that a from-scratch URL would silently drop.
+    if (readSearchQuery(window.location.search) === trimmed) {
+      return;
+    }
+    window.history.replaceState(
+      null,
+      "",
+      searchUrlWithQuery(trimmed, window.location.search)
+    );
   }, [trimmed]);
 
   const { data, isLoading } = useQuery({

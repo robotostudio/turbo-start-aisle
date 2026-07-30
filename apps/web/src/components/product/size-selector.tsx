@@ -24,7 +24,15 @@ export function SizeSelector({
         return (
           <button
             className={cn(
-              "border-b px-1 pb-0.5 text-xs tracking-wide transition-colors",
+              "border-b px-1 pb-0.5 text-xs tracking-wide",
+              "transition-[color,border-color,transform,opacity] duration-150 ease-hover",
+              // Press feedback only on available sizes — `active:opacity-70`
+              // would otherwise brighten a dimmed-out one on press.
+              isAvailable && "active:scale-95 active:opacity-70",
+              // Pills are ~20x18px. Grow the hit area to ~36x44 without
+              // touching layout; -inset-x-2 exactly consumes the gap-2 between
+              // pills, so adjacent targets touch but never overlap.
+              "relative before:absolute before:-inset-x-2 before:-inset-y-[13px] before:content-['']",
               isSelected
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",

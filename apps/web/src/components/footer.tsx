@@ -147,7 +147,7 @@ function HostingCredits() {
         target="_blank"
       >
         Powered by
-        <ShopifyIcon className="h-5.5 w-auto" />
+        <ShopifyIcon className="h-4 w-auto" />
       </a>
     </div>
   );
