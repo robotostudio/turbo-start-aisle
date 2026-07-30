@@ -9,9 +9,14 @@ import { useSearchDefaults } from "./use-search-defaults";
 type SearchEmptyStateProps = {
   /** Runs a search for the given term (mirrors the Related chips). */
   onSelectTerm: (term: string) => void;
+  /** Forwarded to `next/link`: replace the current history entry, don't push. */
+  replace?: boolean;
 };
 
-export function SearchEmptyState({ onSelectTerm }: SearchEmptyStateProps) {
+export function SearchEmptyState({
+  onSelectTerm,
+  replace,
+}: SearchEmptyStateProps) {
   const { collections, bestSellers, isLoading } = useSearchDefaults();
 
   return (
@@ -42,12 +47,15 @@ export function SearchEmptyState({ onSelectTerm }: SearchEmptyStateProps) {
             Best Sellers
           </h2>
           <Button asChild size="sm">
-            <Link href="/collections">Shop All</Link>
+            <Link href="/collections" replace={replace}>
+              Shop All
+            </Link>
           </Button>
         </div>
         <SearchProductGrid
           isLoading={isLoading}
           products={bestSellers}
+          replace={replace}
           skeletonCount={4}
         />
       </section>

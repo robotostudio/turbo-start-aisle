@@ -27,17 +27,73 @@ type HeroBlockProps = {
 };
 
 /**
- * Maps the Sanity content-position choice to alignment classes. `text` aligns
- * the actual text lines; `selfX` (auto margins) positions the block and the
- * w-fit buttons, which text-align alone can't move.
+ * Maps the Sanity content-position choice to its full overlay treatment.
+ *
+ * `text` aligns the actual text lines; `selfX` (auto margins) positions the
+ * block and the w-fit buttons, which text-align alone can't move.
+ *
+ * bottomCenter is the "campaign" lockup: large white copy centred over the
+ * image, per the SS26 design. The left/right positions keep the original
+ * small dark-on-light treatment.
+ *
+ * `mix-blend-plus-lighter` on the white copy matches the design and softens
+ * the glyph edges additively against the photo; it needs the `isolate` on the
+ * hero wrapper so the blend group can't escape past the image.
  */
 const CONTENT_POSITION: Record<
   HeroContentPosition,
-  { text: string; selfX: string }
+  {
+    text: string;
+    selfX: string;
+    scrim: string;
+    pad: string;
+    block: string;
+    lockup: string;
+    title: string;
+    link: string;
+    richText: string;
+  }
 > = {
-  bottomLeft: { text: "text-left", selfX: "mr-auto" },
-  bottomCenter: { text: "text-center", selfX: "mx-auto" },
-  bottomRight: { text: "text-right", selfX: "ml-auto" },
+  bottomLeft: {
+    text: "text-left",
+    selfX: "mr-auto",
+    scrim: "from-white/90 via-white/60 to-transparent lg:hidden",
+    pad: "pb-8 md:pb-12",
+    block: "max-w-md text-zinc-900",
+    lockup: "text-2xl leading-tight",
+    title: "",
+    link: "",
+    richText: "text-sm [&_p]:text-zinc-800!",
+  },
+  bottomCenter: {
+    text: "text-center",
+    selfX: "mx-auto",
+    // Mobile-only dark scrim: the tighter crop there can put white copy over
+    // light imagery, so it needs the backing. Desktop matches the design
+    // exactly — no scrim, the art direction keeps the copy over dark pixels.
+    scrim: "from-black/60 via-black/25 to-transparent lg:hidden",
+    pad: "pb-8",
+    block: "text-white",
+    lockup: "",
+    title:
+      "font-semibold text-3xl leading-[1.16] tracking-tighter mix-blend-plus-lighter md:text-5xl",
+    link: "text-base leading-6 tracking-[0.24px] mix-blend-plus-lighter",
+    // RichText hard-codes text-foreground on headings, lists, strong, code and
+    // links as well as paragraphs, so whiten every descendant - anything less
+    // leaves bold or linked words near-black over the image.
+    richText: "text-sm marker:text-white! [&_*]:text-white!",
+  },
+  bottomRight: {
+    text: "text-right",
+    selfX: "ml-auto",
+    scrim: "from-white/90 via-white/60 to-transparent lg:hidden",
+    pad: "pb-8 md:pb-12",
+    block: "max-w-md text-zinc-900",
+    lockup: "text-2xl leading-tight",
+    title: "",
+    link: "",
+    richText: "text-sm [&_p]:text-zinc-800!",
+  },
 };
 
 export function HeroBlock(props: HeroBlockProps) {
@@ -107,7 +163,7 @@ function FullBleedHero({
     CONTENT_POSITION.bottomLeft;
   return (
     <section className="relative" id="hero">
-      <div className="card-surface relative h-[92dvh] min-h-125 w-full overflow-hidden">
+      <div className="card-surface relative isolate h-[92dvh] min-h-125 w-full overflow-hidden">
         {image && (
           <SanityImage
             className="absolute inset-0 h-full min-h-full w-full rounded-none object-cover"
@@ -119,28 +175,36 @@ function FullBleedHero({
           />
         )}
 
-        {/* Bottom scrim so dark promo text stays legible over light imagery */}
+        {/* Bottom scrim so the promo text stays legible over any imagery */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-white/90 via-white/60 to-transparent lg:hidden"
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t",
+            pos.scrim
+          )}
         />
 
         {/* Promo text overlaid along the bottom (position set in Sanity) */}
         <div className="absolute inset-x-0 bottom-0">
-          <div className="site-container pb-8 md:pb-12">
+          <div className={cn("site-container", pos.pad)}>
             <div
               className={cn(
-                "flex w-full max-w-md flex-col gap-2 font-medium text-zinc-900",
+                "flex w-full flex-col gap-2 font-medium",
+                pos.block,
                 pos.text,
                 pos.selfX
               )}
             >
-              <div className="text-2xl leading-tight">
-                {title && <p>{title}</p>}
+              <div className={pos.lockup}>
+                {title && <p className={pos.title}>{title}</p>}
                 {buttons?.map((button) =>
                   button.href ? (
                     <Link
-                      className={cn("block w-fit hover:underline", pos.selfX)}
+                      className={cn(
+                        "block w-fit hover:underline",
+                        pos.link,
+                        pos.selfX
+                      )}
                       href={button.href}
                       key={button._key}
                       target={button.openInNewTab ? "_blank" : "_self"}
@@ -151,10 +215,7 @@ function FullBleedHero({
                 )}
               </div>
               {richText && (
-                <RichText
-                  className="text-sm [&_p]:text-zinc-800!"
-                  richText={richText}
-                />
+                <RichText className={pos.richText} richText={richText} />
               )}
             </div>
           </div>

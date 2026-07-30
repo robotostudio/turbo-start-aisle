@@ -67,14 +67,11 @@ const imageMember = defineArrayMember({
 const inlineMembers = {
   accordion: defineArrayMember({ type: "accordion" }),
   callout: defineArrayMember({ type: "callout" }),
-  grid: defineArrayMember({ type: "grid" }),
-  images: defineArrayMember({ type: "images" }),
   imageWithProductHotspots: defineArrayMember({
     type: "imageWithProductHotspots",
     title: "Image with Hotspots",
   }),
   instagram: defineArrayMember({ type: "instagram" }),
-  products: defineArrayMember({ type: "products" }),
 };
 
 // --- All available members ---

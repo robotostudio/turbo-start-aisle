@@ -92,6 +92,10 @@ export const collection = defineType({
         defineArrayMember({ type: "callout" }),
         defineArrayMember({ type: "callToAction" }),
         defineArrayMember({ type: "image" }),
+        defineArrayMember({
+          type: "imageWithProductHotspots",
+          title: "Image with Hotspots",
+        }),
         defineArrayMember({ type: "instagram" }),
       ],
       group: GROUP.CONTENT,

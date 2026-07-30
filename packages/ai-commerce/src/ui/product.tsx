@@ -74,6 +74,22 @@ function selectedOptionsFor(
     );
 }
 
+/**
+ * Ask the Shopify CDN for a thumbnail-sized image instead of the master.
+ * `previewImageUrl` already carries a `?v=` cache-buster, so append rather than
+ * assume we own the query string. Mirrors what `shopifyImageLoader` does in
+ * apps/web/src/lib/shopify/image-loader.ts, which this package cannot import.
+ */
+function thumbnailUrl(url: string, width: number): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("width", String(width));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function formatPrice(
   min: number | null,
   max: number | null,
@@ -96,7 +112,12 @@ function formatPrice(
 
 export function Product({ id, isInline }: ProductProps) {
   const currencyCode = useCurrencyCode();
-  const { data: product, isLoading } = useQuery({
+  const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["ai-commerce", "product", id],
     queryFn: () => client.fetch<ProductData | null>(PRODUCT_QUERY, { id }),
     staleTime: 60 * 1000,
@@ -105,9 +126,31 @@ export function Product({ id, isInline }: ProductProps) {
   if (isLoading) {
     if (isInline) return null;
     return (
-      <div className="flex animate-pulse items-center gap-3 rounded-md border border-border bg-card p-2">
-        <div className="h-12 w-12 shrink-0 rounded bg-muted" />
-        <div className="h-5 w-32 rounded bg-muted" />
+      <div className="not-prose flex animate-pulse items-center gap-3 border border-border bg-card p-2">
+        <div className="size-12 shrink-0 bg-muted" />
+        <div className="h-5 w-32 bg-muted" />
+      </div>
+    );
+  }
+
+  // A failed fetch and a missing document both leave `data` undefined, so they
+  // must be told apart. Conflating them is how a Sanity CORS rejection once
+  // presented as "product not found" against a document id that existed —
+  // pointing the investigation at the data layer, which was fine.
+  if (isError) {
+    if (isInline) {
+      return (
+        <span className="text-destructive italic" title={String(error)}>
+          [product unavailable]
+        </span>
+      );
+    }
+    return (
+      <div className="not-prose flex flex-col gap-0.5 border border-destructive/40 bg-destructive/10 p-2 text-destructive text-xs">
+        <span className="font-medium">Couldn't load this product</span>
+        <span className="text-[10px] opacity-80">
+          {error instanceof Error ? error.message : "Request failed"}
+        </span>
       </div>
     );
   }
@@ -128,8 +171,8 @@ export function Product({ id, isInline }: ProductProps) {
       );
     }
     return (
-      <div className="flex items-center gap-3 rounded-md border border-dashed border-border bg-muted/30 p-2 text-xs text-muted-foreground">
-        <div className="h-12 w-12 shrink-0 rounded bg-muted" />
+      <div className="not-prose flex items-center gap-3 border border-dashed border-border bg-muted/30 p-2 text-muted-foreground text-xs">
+        <div className="size-12 shrink-0 bg-muted" />
         <div className="flex flex-col gap-0.5">
           <span className="font-medium">Product not found</span>
           <span className="text-[10px] opacity-70">id: {id}</span>
@@ -155,34 +198,36 @@ export function Product({ id, isInline }: ProductProps) {
     product.variants[0]?.available === true;
 
   return (
-    <div className="group flex items-center gap-3 rounded-md border border-border bg-card p-2 transition-colors hover:border-primary/40 hover:bg-accent">
+    <div className="not-prose group flex items-center gap-3 border border-border bg-card p-2 transition-colors hover:border-primary/40 hover:bg-accent">
       <Link
+        className="flex min-w-0 flex-1 items-center gap-3 no-underline"
         href={`/products/${product.slug}`}
-        className="flex flex-1 items-center gap-3"
       >
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded bg-muted">
+        {/* card-surface matches the storefront's product cards: transparent
+            product shots float on a soft gradient rather than a flat grey box. */}
+        <div className="card-surface relative size-14 shrink-0 overflow-hidden border border-border/50">
           {product.imageUrl ? (
-            // biome-ignore lint/performance/noImgElement: external Shopify CDN URL
+            // biome-ignore lint/performance/noImgElement: external Shopify CDN URL, and next/image's loader lives behind the app's `@/` alias
             <img
-              src={product.imageUrl}
               alt={product.title}
-              className="h-full w-full object-cover"
+              className="size-full object-contain"
               loading="lazy"
+              src={thumbnailUrl(product.imageUrl, 112)}
             />
           ) : null}
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-medium text-foreground">
+          <span className="truncate font-medium text-foreground text-sm">
             {product.title}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-muted-foreground text-xs">
             {formatPrice(product.minPrice, product.maxPrice, currencyCode)}
           </span>
-          {!purchasable ? (
-            <span className="shrink-0 text-xs text-primary transition-colors group-hover:text-primary/70">
+          {purchasable ? null : (
+            <span className="shrink-0 text-primary text-xs transition-colors group-hover:text-primary/70">
               View options →
             </span>
-          ) : null}
+          )}
         </div>
       </Link>
       {purchasable && product.variants[0] ? (
@@ -219,8 +264,8 @@ function AddToCartButton({
 }) {
   return (
     <button
+      className="shrink-0 self-stretch border border-border bg-primary px-3 font-medium text-primary-foreground text-xs uppercase tracking-wide transition-colors hover:bg-primary/90"
       type="button"
-      className="rounded-md border border-border bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
       onClick={() => {
         if (typeof window === "undefined") return;
         window.dispatchEvent(

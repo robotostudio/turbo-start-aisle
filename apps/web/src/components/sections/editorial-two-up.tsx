@@ -34,7 +34,8 @@ function EditorialColumn({ item }: { item: EditorialItem }) {
       {collectionImage ? (
         <Image
           alt={collectionTitle ?? ""}
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          // Shared card hover language — see collection-card.tsx.
+          className="object-cover transition-[opacity,scale] duration-160 ease-hover group-hover:scale-102 group-hover:duration-240 motion-reduce:group-hover:scale-100"
           fill
           sizes="(min-width: 768px) 50vw, 100vw"
           src={collectionImage}
@@ -45,7 +46,7 @@ function EditorialColumn({ item }: { item: EditorialItem }) {
         </div>
       )}
 
-      <div className="absolute inset-x-2 bottom-2 z-10 flex items-center justify-center bg-background p-2 opacity-0 transition-opacity duration-200 md:group-hover:opacity-100">
+      <div className="pointer-events-none absolute inset-x-2 bottom-2 z-10 hidden items-center justify-center bg-background p-2 opacity-0 transition-opacity duration-140 ease-hover md:flex md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-hover:duration-200">
         <span className="font-medium text-foreground text-sm">
           View Collection
         </span>

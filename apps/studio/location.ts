@@ -19,7 +19,8 @@ export const locations = {
       ],
     }),
   }),
-  home: defineLocations({
+  // Keys must match the document `_type`, or the resolver never fires.
+  homePage: defineLocations({
     select: {
       title: "title",
       slug: "slug.current",
@@ -32,6 +33,47 @@ export const locations = {
         },
       ],
     }),
+  }),
+  // Shopify-synced documents keep their handle under `store.slug.current`, and
+  // it is a bare handle — unlike page/blog slugs, the route prefix is not
+  // baked in by `createSlug`.
+  collection: defineLocations({
+    select: {
+      title: "store.title",
+      slug: "store.slug.current",
+    },
+    resolve: (doc) =>
+      doc?.slug
+        ? {
+            locations: [
+              {
+                title: doc?.title || "Untitled",
+                href: `/collections/${doc.slug}`,
+              },
+              {
+                title: "Collections",
+                href: "/collections",
+              },
+            ],
+          }
+        : { locations: [] },
+  }),
+  product: defineLocations({
+    select: {
+      title: "store.title",
+      slug: "store.slug.current",
+    },
+    resolve: (doc) =>
+      doc?.slug
+        ? {
+            locations: [
+              {
+                title: doc?.title || "Untitled",
+                href: `/products/${doc.slug}`,
+              },
+            ],
+          }
+        : { locations: [] },
   }),
   page: defineLocations({
     select: {

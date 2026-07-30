@@ -2,7 +2,7 @@
 
 import { cn } from "@workspace/ui/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useOptimistic, useTransition } from "react";
 
 import { getOptionType } from "@/lib/shopify/options";
 import type { ShopifyProductOption, ShopifyVariant } from "@/lib/shopify/types";
@@ -34,15 +34,26 @@ export function VariantSelector({
     currentSelections[option.name] = fromUrl ?? fallback;
   }
 
+  // Selection is URL state, so `currentSelections` only catches up once the RSC
+  // round-trip commits — 200-600ms on a cold cache, during which the swatch you
+  // just clicked reads as unselected. No easing curve fixes that; the state
+  // itself is late. Overlay the click optimistically and let `useOptimistic`
+  // reconcile back to the URL when the payload lands.
+  const [, startTransition] = useTransition();
+  const [selections, setOptimistic] = useOptimistic(currentSelections);
+
   const handleSelect = useCallback(
     (optionName: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set(optionName, value);
-      router.replace(`/products/${handle}?${params.toString()}`, {
-        scroll: false,
+      startTransition(() => {
+        setOptimistic({ ...selections, [optionName]: value });
+        router.replace(`/products/${handle}?${params.toString()}`, {
+          scroll: false,
+        });
       });
     },
-    [searchParams, router, handle]
+    [searchParams, router, handle, selections, setOptimistic]
   );
 
   if (options.length === 0) return null;
@@ -50,12 +61,14 @@ export function VariantSelector({
   return (
     <div className="space-y-8">
       {options.map((option) => {
+        // `selections`, not `currentSelections`, so cross-option availability
+        // recomputes on the click too — not just the selected indicator.
         const availability = getOptionAvailability(
           variants,
           option.name,
-          currentSelections
+          selections
         );
-        const selected = currentSelections[option.name];
+        const selected = selections[option.name];
         const optionType = getOptionType(option.name);
 
         return (
@@ -88,7 +101,7 @@ export function VariantSelector({
                   return (
                     <button
                       className={cn(
-                        "border-b px-1 pb-0.5 text-xs tracking-wide transition-colors",
+                        "border-b px-1 pb-0.5 text-xs tracking-wide transition-colors duration-150 ease-hover",
                         isSelected
                           ? "border-foreground text-foreground"
                           : "border-transparent text-muted-foreground hover:text-foreground",

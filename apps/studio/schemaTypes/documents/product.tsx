@@ -57,11 +57,8 @@ export const product = defineType({
         "image",
         "accordion",
         "callout",
-        "grid",
-        "images",
         "imageWithProductHotspots",
         "instagram",
-        "products",
       ],
       {
         name: "body",

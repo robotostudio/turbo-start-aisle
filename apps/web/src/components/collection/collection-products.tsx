@@ -79,10 +79,6 @@ export function CollectionProducts({
 
   return (
     <>
-      <p className="mb-6 text-muted-foreground text-sm">
-        Showing {allProducts.length} product
-        {allProducts.length !== 1 ? "s" : ""}
-      </p>
       <ProductGrid density={density} products={allProducts} />
       <CollectionPagination
         hasNextPage={hasNextPage}

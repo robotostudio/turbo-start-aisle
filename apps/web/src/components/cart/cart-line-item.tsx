@@ -156,7 +156,10 @@ export function CartLineItem({ line }: { line: CartLine }) {
             onClick={handleMoveToWishlist}
             type="button"
           >
-            <BookmarkIcon className="size-4" />
+            {/* size-5, not size-4, to sit level with the size-4 lucide Trash2
+             * below: lucide's 24-unit box is filled ~83% by its glyph, ours
+             * ~69%, so matching the ink means not matching the box. */}
+            <BookmarkIcon className="size-5" />
             Move to wishlist
           </button>
           <button

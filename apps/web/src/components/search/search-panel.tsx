@@ -2,9 +2,10 @@
 
 import { cn } from "@workspace/ui/lib/utils";
 import { X } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
+import { SEARCH_PATH, readSearchQuery, searchUrlWithQuery } from "./paths";
 import { SearchEmptyState } from "./search-empty-state";
 import { SearchResults } from "./search-results";
 import { useProductSearch } from "./use-product-search";
@@ -15,14 +16,35 @@ type SearchPanelProps = {
   onClose?: () => void;
   /** Fill the parent height with an internal scroll area (used inside the drawer). */
   scrollable?: boolean;
+  /**
+   * Replace the current history entry when a result is opened instead of
+   * pushing. Set by the drawer so Back from a product goes to the page the
+   * search was opened over, not back into the search.
+   */
+  replace?: boolean;
 };
 
 export function SearchPanel({
   initialQuery = "",
   onClose,
   scrollable = false,
+  replace,
 }: SearchPanelProps) {
-  const router = useRouter();
+  const pathname = usePathname();
+  // The URL can carry a ?q= this render never saw: the sync below uses
+  // replaceState, which does not re-run the server component, so a Back or
+  // Forward into that entry restores the URL but replays a tree still seeded
+  // with the original (empty) initialQuery. Read the live URL once at mount to
+  // close that gap — safe on the server, where it resolves to initialQuery, and
+  // safe against hydration, because a real render always sees the same URL the
+  // server did; only client-side history replays diverge.
+  const [seedQuery] = useState(
+    () =>
+      initialQuery ||
+      (typeof window === "undefined"
+        ? ""
+        : readSearchQuery(window.location.search))
+  );
   const {
     query,
     setQuery,
@@ -32,17 +54,30 @@ export function SearchPanel({
     related,
     isSearching,
     hasQuery,
-  } = useProductSearch(initialQuery);
+  } = useProductSearch(seedQuery);
 
   // Keep the URL in sync with the query so a refresh / shared link lands on the
-  // /search page with the same term. `replace` avoids polluting history.
+  // /search page with the same term. history.replaceState, not router.replace,
+  // for the same reason as search-page-content: a router nav here costs an RSC
+  // round-trip per keystroke. The pathname check keeps a late debounce from
+  // rewriting the URL after the user has already navigated on to a product.
   useEffect(() => {
+    if (pathname !== SEARCH_PATH) {
+      return;
+    }
     const trimmed = debouncedQuery.trim();
-    router.replace(
-      trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : "/search",
-      { scroll: false }
+    // Writing an identical URL is not free: on the mount that follows a
+    // Back/Forward the state is still catching up, and an unconditional write
+    // would strip the ?q= the entry was restored with.
+    if (readSearchQuery(window.location.search) === trimmed) {
+      return;
+    }
+    window.history.replaceState(
+      null,
+      "",
+      searchUrlWithQuery(trimmed, window.location.search)
     );
-  }, [debouncedQuery, router]);
+  }, [debouncedQuery, pathname]);
 
   // Focus the input when the panel mounts.
   const inputRef = useRef<HTMLInputElement>(null);
@@ -83,9 +118,10 @@ export function SearchPanel({
             onSelectTerm={setQuery}
             products={products}
             related={related}
+            replace={replace}
           />
         ) : (
-          <SearchEmptyState onSelectTerm={setQuery} />
+          <SearchEmptyState onSelectTerm={setQuery} replace={replace} />
         )}
       </div>
     </div>

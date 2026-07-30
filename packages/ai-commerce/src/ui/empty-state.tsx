@@ -5,6 +5,7 @@ import { client } from "@workspace/sanity/client";
 import { queryAiAssistantSettings } from "@workspace/sanity/query";
 import type { QueryAiAssistantSettingsResult } from "@workspace/sanity/types";
 import { SparklesIcon } from "lucide-react";
+import { useEffect } from "react";
 
 interface EmptyStateProps {
   onSuggestion: (text: string) => void;
@@ -23,12 +24,21 @@ const FALLBACK = {
 };
 
 export function EmptyState({ onSuggestion }: EmptyStateProps) {
-  const { data } = useQuery({
+  const { data, error } = useQuery({
     queryKey: ["ai-commerce", "ai-assistant-settings"],
     queryFn: () =>
       client.fetch<QueryAiAssistantSettingsResult>(queryAiAssistantSettings),
     staleTime: 5 * 60 * 1000,
   });
+
+  // Falling back to the hardcoded copy is the right UX for a welcome panel, but
+  // doing it silently is not: a Sanity CORS rejection here is indistinguishable
+  // from an unseeded singleton. Surface it in the console so it's diagnosable.
+  useEffect(() => {
+    if (error) {
+      console.error("[ai-commerce] aiAssistantSettings fetch failed", error);
+    }
+  }, [error]);
 
   const heading = data?.welcomeHeading?.trim() || FALLBACK.heading;
   const subtitle = data?.welcomeSubtitle?.trim() || FALLBACK.subtitle;
@@ -40,7 +50,9 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-4 py-6 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+      {/* shrink-0: this is a flex item in a column that can overflow the 500px
+          panel, and without it flexbox squashes the circle into an oval. */}
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <SparklesIcon className="h-6 w-6" />
       </div>
       <div>

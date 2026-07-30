@@ -203,7 +203,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
       <div className="site-container py-8">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,600px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,760px)]">
           {/* Info column — sticky on desktop, uniform 32px rhythm */}
-          <div className="flex flex-col gap-8 self-start lg:sticky lg:top-24">
+          <div className="flex flex-col gap-8 self-start max-w-2xl  lg:sticky lg:top-24">
             {/* Season / brand eyebrow + save */}
             <div className="flex items-start justify-between gap-4">
               {vendor ? (
@@ -211,8 +211,12 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
               ) : (
                 <span />
               )}
+              {/* 44px hitbox passed from here, not baked into SavedItemButton:
+               * on a ProductCard it sits absolutely over the product link, and
+               * an invisible 44px box there would eat clicks meant for the
+               * product. */}
               <SavedItemButton
-                className="text-muted-foreground transition-colors hover:text-foreground"
+                className="relative text-muted-foreground hover:text-foreground before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']"
                 handle={handle}
               />
             </div>

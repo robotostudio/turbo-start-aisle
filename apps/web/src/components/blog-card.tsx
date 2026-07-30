@@ -1,3 +1,4 @@
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import Link from "next/link";
 
 import type { Blog } from "@/types";
@@ -99,7 +100,8 @@ export function FeaturedBlogCard({ blog }: BlogCardProps) {
         <div className="overflow-hidden bg-muted">
           <SanityImage
             alt={title ?? "Blog post image"}
-            className="aspect-video h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            // Shared card hover language — see collection-card.tsx.
+            className="aspect-video h-full w-full object-cover transition-[opacity,scale] duration-160 ease-hover group-hover:scale-102 group-hover:duration-240 motion-reduce:group-hover:scale-100"
             height={450}
             image={image}
             mode="cover"
@@ -115,10 +117,10 @@ export function BlogCard({ blog }: BlogCardProps) {
   if (!blog) {
     return (
       <div className="flex h-full flex-col gap-4 border border-border p-6">
-        <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-        <div className="h-6 w-full animate-pulse rounded bg-muted" />
-        <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-        <div className="mt-auto h-6 w-24 animate-pulse rounded bg-muted" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="mt-auto h-6 w-24" />
       </div>
     );
   }

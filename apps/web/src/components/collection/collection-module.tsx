@@ -1,5 +1,9 @@
 import type { QueryCollectionByHandleResult } from "@workspace/sanity/types";
 
+import { InstagramEmbed } from "@/components/elements/portable-text-types";
+import { SanityImage } from "@/components/elements/sanity-image";
+import { ProductHotspotsImage } from "@/components/product/product-hotspots";
+
 type CollectionModules = NonNullable<
   NonNullable<QueryCollectionByHandleResult>["modules"]
 >;
@@ -27,6 +31,35 @@ export function CollectionModuleRenderer({
           )}
         </div>
       );
+
+    case "image": {
+      if (!module.id) return null;
+
+      return (
+        <div className="my-8 overflow-hidden rounded-lg">
+          <SanityImage
+            className="h-auto w-full"
+            height={900}
+            image={module}
+            width={1600}
+          />
+        </div>
+      );
+    }
+
+    case "imageWithProductHotspots":
+      return (
+        <div className="my-8">
+          <ProductHotspotsImage
+            image={module.image}
+            productHotspots={module.productHotspots}
+            showHotspots={module.showHotspots}
+          />
+        </div>
+      );
+
+    case "instagram":
+      return <InstagramEmbed url={module.url} />;
 
     default:
       return null;

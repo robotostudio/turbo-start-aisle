@@ -3,6 +3,7 @@
 import Image, { type ImageProps } from "next/image";
 
 import {
+  isShopifyUrl,
   shopifyBlurDataURL,
   shopifyImageLoader,
 } from "@/lib/shopify/image-loader";
@@ -19,7 +20,10 @@ export function ShopifyImage({
   blurDataURL,
   ...props
 }: ImageProps) {
-  const isShopify = typeof src === "string" && src.includes("cdn.shopify.com");
+  // Share one predicate with the loader. If this said "Shopify" and the loader
+  // disagreed, the loader would return every `srcset` URL untouched and all
+  // resizing would silently stop.
+  const isShopify = typeof src === "string" && isShopifyUrl(src);
 
   return (
     <Image

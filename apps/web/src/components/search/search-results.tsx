@@ -20,14 +20,18 @@ type SearchResultsProps = {
   collections: ShopifyCollectionLite[];
   isSearching: boolean;
   onSelectTerm: (term: string) => void;
+  /** Forwarded to `next/link`: replace the current history entry, don't push. */
+  replace?: boolean;
 };
 
 function CollectionsGrid({
   collections,
   isLoading,
+  replace,
 }: {
   collections: ShopifyCollectionLite[];
   isLoading: boolean;
+  replace?: boolean;
 }) {
   if (isLoading) {
     return (
@@ -52,6 +56,7 @@ function CollectionsGrid({
         <CollectionCard
           key={collection.id}
           {...shopifyCollectionToCardProps(collection)}
+          replace={replace}
         />
       ))}
     </div>
@@ -64,6 +69,7 @@ export function SearchResults({
   collections,
   isSearching,
   onSelectTerm,
+  replace,
 }: SearchResultsProps) {
   const [tab, setTab] = useState<Tab>("products");
 
@@ -117,9 +123,17 @@ export function SearchResults({
       </div>
 
       {tab === "products" ? (
-        <SearchProductGrid isLoading={isSearching} products={products} />
+        <SearchProductGrid
+          isLoading={isSearching}
+          products={products}
+          replace={replace}
+        />
       ) : (
-        <CollectionsGrid collections={collections} isLoading={isSearching} />
+        <CollectionsGrid
+          collections={collections}
+          isLoading={isSearching}
+          replace={replace}
+        />
       )}
     </div>
   );

@@ -134,7 +134,7 @@ export default async function CollectionPage({
           <ListingControls currentReverse={reverse} currentSort={sort} />
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="mb-8 flex flex-col gap-4">
           <FilterPanel filters={availableFilters} />
           <ActiveFilters />
         </div>
