@@ -43,7 +43,19 @@ const env = createEnv({
         /^(1|\d{4}-\d{2}-\d{2})$/,
         "Use a date string in YYYY-MM-DD format, or '1' for the legacy version"
       ),
-    NEXT_PUBLIC_SANITY_STUDIO_URL: z.url().min(1),
+    /**
+     * Studio origin. Passed straight to createDataAttribute as `baseUrl` (see
+     * apps/web/src/components/pagebuilder.tsx), and @sanity/client throws
+     * "baseUrl must not end with a slash" on a trailing one — which takes down
+     * every page that renders the page builder. Sanity's own `sanity deploy`
+     * output prints the URL *with* a trailing slash, so pasting it verbatim is
+     * the obvious mistake to make. Strip it here rather than rely on whoever
+     * sets the variable.
+     */
+    NEXT_PUBLIC_SANITY_STUDIO_URL: z
+      .url()
+      .min(1)
+      .transform((url) => url.replace(/\/+$/, "")),
 
     /** ISO 4217 currency code used to format prices (e.g. in OG images). */
     NEXT_PUBLIC_STORE_CURRENCY: z.string().default("GBP"),
