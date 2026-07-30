@@ -1,7 +1,8 @@
 "use client";
 
+import { Button } from "@workspace/ui/components/button";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { SendIcon } from "lucide-react";
+import { ArrowUpIcon } from "lucide-react";
 import { type KeyboardEvent, useState } from "react";
 
 interface MessageInputProps {
@@ -35,22 +36,30 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
         handleSend();
       }}
     >
+      {/* py-1 (not the base py-2) keeps the collapsed content height under 36px
+          so min-h-9 governs, making the box exactly size-9 — the same height as
+          the send button. With py-2 the field-sizing height lands at 42px and
+          the two no longer line up. */}
       <Textarea
-        rows={1}
-        value={value}
+        className="max-h-40 min-h-9 resize-none py-1 text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        disabled={disabled}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Ask about products…"
-        disabled={disabled}
-        className="max-h-40 min-h-9 resize-none text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        rows={1}
+        value={value}
       />
-      <button
-        type="submit"
+      {/* size="icon" is size-9, matching the textarea's collapsed min-h-9 so the
+          two line up; `items-end` on the form keeps them aligned as it grows. */}
+      <Button
+        aria-label="Send message"
+        className="shrink-0"
         disabled={disabled || !value.trim()}
-        className="rounded-md bg-primary p-2 text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        size="icon"
+        type="submit"
       >
-        <SendIcon className="h-4 w-4" />
-      </button>
+        <ArrowUpIcon className="size-4" />
+      </Button>
     </form>
   );
 }

@@ -66,8 +66,8 @@ export function SavedItemsDrawer() {
         </SheetHeader>
 
         {/* The scroller hides its scrollbar (same idiom as cart-recommendations):
-          * it ate 8px of the grid, putting cards at 333px instead of the 341 the
-          * design specifies. */}
+         * it ate 8px of the grid, putting cards at 333px instead of the 341 the
+         * design specifies. */}
         {isEmpty ? (
           <SavedEmptyState />
         ) : (

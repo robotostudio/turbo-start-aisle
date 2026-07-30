@@ -54,8 +54,8 @@ function AccordionTrigger({
           <span className="pointer-events-none relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
             <span className="absolute h-px w-3 bg-current" />
             {/* motion-reduce drops the transition, not the rotation: the bar
-              * still flips flat so the plus/minus state stays legible, it just
-              * gets there instantly instead of sweeping. */}
+             * still flips flat so the plus/minus state stays legible, it just
+             * gets there instantly instead of sweeping. */}
             <span className="absolute h-px w-3 rotate-90 bg-current transition-transform duration-200 ease-flow group-data-[state=open]:rotate-0 motion-reduce:transition-none" />
           </span>
         )}

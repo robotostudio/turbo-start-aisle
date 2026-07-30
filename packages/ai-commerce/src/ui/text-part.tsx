@@ -25,8 +25,12 @@ function Document({ id, type, isInline }: DocumentDirectiveProps) {
   return null;
 }
 
+// `not-prose` because the directive renders real components, not prose. Without
+// it, @tailwindcss/typography styles their internals — underlining the anchor
+// that wraps a whole product card, and applying its own img width/margin rules,
+// which letterboxes the thumbnail inside its own box.
 function DirectivesStack({ children }: { children?: ReactNode }) {
-  return <div className="flex flex-col gap-2">{children}</div>;
+  return <div className="not-prose flex flex-col gap-2">{children}</div>;
 }
 
 type ExtendedComponents = Components & {
@@ -49,6 +53,10 @@ export function TextPart({ text, isUser }: TextPartProps) {
   // 380px chat bubble the headings and list margins are far too generous, and
   // prose sets its own text colours which would fight the bubble's foreground.
   // Tighten the vertical rhythm and let colour inherit from the wrapper.
+  //
+  // Components rendered by directives opt out via `not-prose` (see
+  // DirectivesStack and the Product card) rather than being patched here one
+  // property at a time.
   const proseClass =
     "prose prose-sm max-w-none prose-headings:text-inherit prose-strong:text-inherit prose-a:text-inherit prose-code:text-inherit prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-headings:mt-2 prose-headings:mb-1";
 

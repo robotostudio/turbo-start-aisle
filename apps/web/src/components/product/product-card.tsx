@@ -398,13 +398,13 @@ function CardImage({
   return (
     <>
       {/* The outgoing image does NOT fade. Two layers cross-fading in opposite
-        * directions only cover `a + (1-a)²` of the box, which bottoms out at
-        * 75%, so the card-surface gradient behind them bled through at the
-        * midpoint — a pale band across the card, obvious in dark mode where
-        * that gradient stays light. Instead the incoming image carries its own
-        * copy of the gradient (below) and fades in over this one, so coverage
-        * is 100% the whole way and both layers composite against an identical
-        * backdrop. Costs nothing in time — no delay, no longer duration. */}
+       * directions only cover `a + (1-a)²` of the box, which bottoms out at
+       * 75%, so the card-surface gradient behind them bled through at the
+       * midpoint — a pale band across the card, obvious in dark mode where
+       * that gradient stays light. Instead the incoming image carries its own
+       * copy of the gradient (below) and fades in over this one, so coverage
+       * is 100% the whole way and both layers composite against an identical
+       * backdrop. Costs nothing in time — no delay, no longer duration. */}
       <Image
         alt={title}
         className={cn(
