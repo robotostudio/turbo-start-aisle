@@ -423,11 +423,15 @@ export function ProductLightbox({
       >
         <DialogTitle className="sr-only">Product image viewer</DialogTitle>
 
-        {/* Backdrop — fades in/out independently of the zooming image */}
+        {/* Backdrop — fades in/out independently of the zooming image.
+         * Carries the gallery's `card-surface` gradient so the surface behind a
+         * transparent product doesn't jump from gradient to flat as the FLIP
+         * lifts the image off its card. `bg-background` stays as the opaque base
+         * layer under the gradient — the utility only sets background-image. */}
         <button
           aria-label="Close"
           className={cn(
-            "absolute inset-0 bg-background transition-opacity",
+            "card-surface absolute inset-0 bg-background transition-opacity",
             active ? "opacity-100" : "opacity-0"
           )}
           onClick={requestClose}

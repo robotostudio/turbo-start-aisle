@@ -1,9 +1,8 @@
-import { PortableText, type PortableTextReactComponents } from "next-sanity";
-import Link from "next/link";
-
 import type { QueryProductByHandleResult } from "@workspace/sanity/types";
+import Link from "next/link";
+import { PortableText, type PortableTextReactComponents } from "next-sanity";
 
-import { sharedPortableTextTypes } from "@/components/elements/portable-text-types";
+import { createSharedPortableTextTypes } from "@/components/elements/portable-text-types";
 import { SanityImage } from "@/components/elements/sanity-image";
 
 type ProductBody = NonNullable<NonNullable<QueryProductByHandleResult>["body"]>;
@@ -57,7 +56,7 @@ const productBodyComponents: Partial<PortableTextReactComponents> = {
     },
   },
   types: {
-    ...sharedPortableTextTypes,
+    ...createSharedPortableTextTypes(() => productBodyComponents),
     image: ({ value }) => {
       if (!value?.id) return null;
       return (

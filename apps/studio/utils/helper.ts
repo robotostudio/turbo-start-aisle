@@ -163,12 +163,19 @@ export function createPageTemplate() {
 
 /**
  * Determines the presentation URL based on the current environment.
- * Uses localhost:3000 for development.
+ * Uses localhost:3000 everywhere except production.
  * In production, requires SANITY_STUDIO_PRESENTATION_URL to be set.
+ *
+ * The check is `!== "production"` rather than `=== "development"` because the
+ * Sanity CLI runs the config with NODE_ENV unset. Under the stricter check,
+ * `sanity schema extract` fell through to the throw below and failed on any
+ * checkout without an env file — reported as an unhelpful
+ * "Failed to load configuration file".
+ *
  * @throws {Error} If SANITY_STUDIO_PRESENTATION_URL is not set in production
  */
 export const getPresentationUrl = () => {
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV !== "production") {
     return "http://localhost:3000";
   }
 

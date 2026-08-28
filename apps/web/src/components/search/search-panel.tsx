@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { SEARCH_PATH, readSearchQuery, searchUrlWithQuery } from "./paths";
+import { readSearchQuery, SEARCH_PATH, searchUrlWithQuery } from "./paths";
 import { SearchEmptyState } from "./search-empty-state";
 import { SearchResults } from "./search-results";
 import { useProductSearch } from "./use-product-search";
@@ -53,6 +53,7 @@ export function SearchPanel({
     collections,
     related,
     isSearching,
+    error,
     hasQuery,
   } = useProductSearch(seedQuery);
 
@@ -114,6 +115,7 @@ export function SearchPanel({
         {hasQuery ? (
           <SearchResults
             collections={collections}
+            error={error}
             isSearching={isSearching}
             onSelectTerm={setQuery}
             products={products}

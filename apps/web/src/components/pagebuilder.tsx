@@ -101,20 +101,78 @@ function UnknownBlockError({
 }
 
 /**
+ * The document shape `useOptimistic` hands the reducer: the raw document off
+ * the mutation stream, not the GROQ projection. Only `_key` order is read off
+ * it, so the blocks stay `unknown`.
+ */
+type OptimisticDocument = {
+  pageBuilder?: unknown;
+};
+
+/**
+ * Reorders the already-resolved blocks to match the raw document's `_key`
+ * sequence. Keys with no resolved block (a just-inserted one) are dropped until
+ * revalidation projects them.
+ */
+function reorderByRawKeys(
+  currentBlocks: PageBuilderBlock[],
+  rawBlocks: readonly unknown[]
+): PageBuilderBlock[] {
+  const resolved = new Map(currentBlocks.map((block) => [block._key, block]));
+  const reordered: PageBuilderBlock[] = [];
+
+  for (const raw of rawBlocks) {
+    const key = (raw as { _key?: string } | null)?._key;
+    const block = key ? resolved.get(key) : undefined;
+    if (block) {
+      reordered.push(block);
+    }
+  }
+
+  return reordered;
+}
+
+/**
  * Hook to handle optimistic updates for page builder blocks
  */
 function useOptimisticPageBuilder(
   initialBlocks: PageBuilderBlock[],
   documentId: string
 ) {
-  // biome-ignore lint/suspicious/noExplicitAny: <any is used to allow for dynamic component rendering>
-  return useOptimistic<PageBuilderBlock[], any>(
+  return useOptimistic<PageBuilderBlock[], OptimisticDocument>(
     initialBlocks,
     (currentBlocks, action) => {
-      if (action.id === documentId && action.document?.pageBuilder) {
-        return action.document.pageBuilder;
+      if (action.id !== documentId) {
+        return currentBlocks;
       }
-      return currentBlocks;
+
+      // Sanity unsets an emptied array, so an absent `pageBuilder` means every
+      // block was deleted. A truthy non-array is malformed — keep what we have
+      // rather than throwing out of `for...of` mid-render.
+      const rawBlocks = action.document?.pageBuilder ?? [];
+      if (!Array.isArray(rawBlocks)) {
+        return currentBlocks;
+      }
+
+      // The action carries the raw document, not the GROQ projection the page
+      // rendered from, so only its `_key` order is usable.
+      const reordered = reorderByRawKeys(currentBlocks, rawBlocks);
+
+      // Nothing resolved against a non-empty array means every `_key` is new at
+      // once (the whole array was replaced). Keep rendering what we have rather
+      // than blanking the page until revalidation.
+      if (!reordered.length && rawBlocks.length) {
+        return currentBlocks;
+      }
+
+      // Editing any field replays this reducer with an unchanged key order.
+      // Returning a fresh array there would reconcile every section, so hand
+      // back the same reference when nothing actually moved.
+      const unchanged =
+        reordered.length === currentBlocks.length &&
+        reordered.every((block, index) => block === currentBlocks[index]);
+
+      return unchanged ? currentBlocks : reordered;
     }
   );
 }
@@ -192,10 +250,9 @@ export function PageBuilder({
     [id, type]
   );
 
-  if (!blocks.length) {
-    return null;
-  }
-
+  // Rendered even when empty: dropping the element would take the `pageBuilder`
+  // drop target off the page, leaving an editor who deleted the last block with
+  // nothing to drag onto.
   return (
     <main className="flex flex-col" data-sanity={containerDataAttribute}>
       {blocks.map(renderBlock)}

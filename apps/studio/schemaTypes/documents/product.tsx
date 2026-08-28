@@ -44,13 +44,6 @@ export const product = defineType({
       description: "The URL slug synced from Shopify",
       options: { field: "store.slug.current" },
     }),
-    defineField({
-      name: "colorTheme",
-      type: "reference",
-      description: "Choose a color theme to style this product page",
-      to: [{ type: "colorTheme" }],
-      group: GROUP.CONTENT,
-    }),
     customRichText(
       [
         "block",

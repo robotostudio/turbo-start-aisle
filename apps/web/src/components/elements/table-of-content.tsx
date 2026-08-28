@@ -1,6 +1,7 @@
 "use client";
 import { cn } from "@workspace/ui/lib/utils";
 import Link from "next/link";
+import { stegaClean } from "next-sanity";
 import { type FC, useEffect, useMemo, useState } from "react";
 import slugify from "slugify";
 
@@ -88,8 +89,12 @@ const MIN_HEADINGS_TO_SHOW = 1;
 // TYPE GUARDS & VALIDATORS
 // ============================================================================
 
+// `style` is not on stega's denylist, so a stega-enabled fetch hands us "h2"
+// with zero-width characters embedded in it. Left as-is the key lookup misses,
+// every heading fails this guard and the table of contents renders empty on
+// preview deployments.
 function isValidHeadingStyle(style: unknown): style is HeadingStyle {
-  return typeof style === "string" && style in HEADING_STYLES;
+  return typeof style === "string" && stegaClean(style) in HEADING_STYLES;
 }
 
 function isValidTextChild(child: unknown): child is SanityTextChild {
@@ -194,7 +199,8 @@ function createProcessedHeading(
       return null;
     }
 
-    const level = HEADING_LEVELS[block.style];
+    const style = stegaClean(block.style) as HeadingStyle;
+    const level = HEADING_LEVELS[style];
     const href = `#${createSlug(text)}`;
     const id = generateUniqueId(text, index, block._key);
 
@@ -203,7 +209,7 @@ function createProcessedHeading(
       text,
       href,
       level,
-      style: block.style,
+      style,
       children: [],
       isChild: false,
       _key: block._key,

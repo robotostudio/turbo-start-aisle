@@ -213,7 +213,10 @@ function GalleryMobile({
   }, [selectedVariantImageUrl, images, behavior]);
 
   return (
-    <div className="lg:hidden">
+    /* min-w-0: as a grid item this defaults to `min-width: auto`, so the thumb
+     * row below (7 fixed-width thumbs, wider than a phone) sets a min-content
+     * floor that widens the whole PDP column past the viewport. */
+    <div className="min-w-0 lg:hidden">
       <div
         className="flex snap-x snap-mandatory overflow-x-auto"
         ref={scrollerRef}

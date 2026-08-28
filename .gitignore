@@ -41,9 +41,10 @@ npm-debug.log*
 
 # Claude
 .claude/settings.local.json
-
-# Reference clones used for porting (not part of the project)
-.research/
+.claude/worktrees/
 
 # Playwright MCP console logs
 .playwright-mcp/
+
+# Reference clones used for porting (not part of the project)
+.research/

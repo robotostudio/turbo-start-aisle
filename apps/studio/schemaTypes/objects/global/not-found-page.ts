@@ -31,11 +31,5 @@ export const notFoundPage = defineField({
         },
       ],
     }),
-    defineField({
-      name: "colorTheme",
-      type: "reference",
-      description: "Color theme applied to the 404 page",
-      to: [{ type: "colorTheme" }],
-    }),
   ],
 });

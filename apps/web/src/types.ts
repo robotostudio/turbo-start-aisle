@@ -7,12 +7,14 @@ import type {
   QueryNavbarDataResult,
 } from "@workspace/sanity/types";
 
-export type PageBuilderBlockTypes = NonNullable<
+export type PageBuilderBlock = NonNullable<
   NonNullable<QueryHomePageDataResult>["pageBuilder"]
->[number]["_type"];
+>[number];
+
+export type PageBuilderBlockTypes = PageBuilderBlock["_type"];
 
 export type PagebuilderType<T extends PageBuilderBlockTypes> = Extract<
-  NonNullable<NonNullable<QueryHomePageDataResult>["pageBuilder"]>[number],
+  PageBuilderBlock,
   { _type: T }
 >;
 

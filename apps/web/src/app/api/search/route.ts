@@ -24,8 +24,13 @@ export async function GET(request: Request) {
     { variables: { query: searchQuery, limit: LIMIT } }
   );
 
+  // 500, matching `api/search/full/route.ts`. A 200 with an empty body here was
+  // indistinguishable from a search that genuinely matched nothing, and the
+  // drawer's `if (!response.ok) throw` could never fire — so a total Storefront
+  // outage reached the shopper as "No products found." The blank-query 200 above
+  // stays: that one really is an empty result, not a failure.
   if (!result.ok) {
-    return NextResponse.json(EMPTY);
+    return NextResponse.json(EMPTY, { status: 500 });
   }
 
   const { products, collections, queries } = result.data.predictiveSearch;

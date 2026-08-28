@@ -11,6 +11,7 @@ import type {
   ShopifyCollectionProduct,
 } from "@/lib/shopify/types";
 import { SearchProductGrid } from "./search-product-grid";
+import { SearchUnavailable } from "./search-unavailable";
 
 type Tab = "products" | "collections";
 
@@ -22,6 +23,8 @@ type SearchResultsProps = {
   onSelectTerm: (term: string) => void;
   /** Forwarded to `next/link`: replace the current history entry, don't push. */
   replace?: boolean;
+  /** A failed read, kept distinct from a search that matched nothing. */
+  error?: Error | null;
 };
 
 function CollectionsGrid({
@@ -70,8 +73,21 @@ export function SearchResults({
   isSearching,
   onSelectTerm,
   replace,
+  error,
 }: SearchResultsProps) {
   const [tab, setTab] = useState<Tab>("products");
+
+  // Replaces the tab strip as well as the grid, not just the grid. On a failed
+  // read both arrays are empty, so the tabs below would read
+  // "Products [0]  Collections [0]" — the same lie the grid was telling, in a
+  // place an `error` prop on the grid cannot reach.
+  if (error) {
+    return (
+      <div className="site-container">
+        <SearchUnavailable />
+      </div>
+    );
+  }
 
   const tabClass = (active: boolean) =>
     cn(

@@ -166,6 +166,7 @@ export function MessageList({
                   if (part.type === "text") {
                     return (
                       <TextPart
+                        // biome-ignore lint/suspicious/noArrayIndexKey: a user message's parts are fixed when it is submitted — they never stream, reorder or splice, so the index is stable
                         key={`${m.id}-${partIdx}`}
                         text={part.text}
                         isUser

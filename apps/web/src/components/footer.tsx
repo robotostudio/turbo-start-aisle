@@ -1,13 +1,9 @@
-import { sanityFetch } from "@workspace/sanity/live";
-import {
-  queryFooterData,
-  queryGlobalSeoSettings,
-} from "@workspace/sanity/query";
 import type {
   QueryFooterDataResult,
   QueryGlobalSeoSettingsResult,
 } from "@workspace/sanity/types";
 import Link from "next/link";
+import { Fragment } from "react";
 
 import { NewsletterForm } from "./footer/newsletter-form";
 // import { ModeToggle } from "./mode-toggle";
@@ -27,24 +23,32 @@ type SocialLinksProps = {
 };
 
 type FooterProps = {
+  data: QueryFooterDataResult;
+  settingsData: QueryGlobalSeoSettingsResult;
+};
+
+type ResolvedFooterProps = {
   data: NonNullable<QueryFooterDataResult>;
   settingsData: NonNullable<QueryGlobalSeoSettingsResult>;
 };
 
-export async function FooterServer() {
-  const [response, settingsResponse] = await Promise.all([
-    sanityFetch({
-      query: queryFooterData,
-    }),
-    sanityFetch({
-      query: queryGlobalSeoSettings,
-    }),
-  ]);
-
-  if (!(response?.data && settingsResponse?.data)) {
-    return <FooterSkeleton />;
+/**
+ * Takes its data as props rather than fetching.
+ *
+ * The root layout awaits every Sanity read up front (`lib/navigation.ts`), so a
+ * fetch in here could not begin until that one resolved — a second serial round
+ * trip ahead of the whole document, on every route, now that there is no
+ * Suspense boundary to flush a shell first.
+ */
+export function Footer({ data, settingsData }: FooterProps) {
+  // Null data means the documents are missing or unpublished. Nothing is the
+  // honest answer: this is not a loading state, and a pulsing skeleton that
+  // will never resolve reads as a broken page. A failed *read* is a different
+  // thing and is left to propagate.
+  if (!(data && settingsData)) {
+    return null;
   }
-  return <Footer data={response.data} settingsData={settingsResponse.data} />;
+  return <FooterContent data={data} settingsData={settingsData} />;
 }
 
 function SocialLinks({ data }: SocialLinksProps) {
@@ -82,7 +86,9 @@ function SocialLinks({ data }: SocialLinksProps) {
   );
 }
 
-function FooterColumns({ columns }: Pick<FooterProps["data"], "columns">) {
+function FooterColumns({
+  columns,
+}: Pick<ResolvedFooterProps["data"], "columns">) {
   if (!(Array.isArray(columns) && columns.length > 0)) {
     return null;
   }
@@ -97,16 +103,26 @@ function FooterColumns({ columns }: Pick<FooterProps["data"], "columns">) {
           {column?.links && column.links.length > 0 && (
             <ul className="space-y-1">
               {column.links.map((link, columnIndex) => (
-                <li key={`${link?._key}-${columnIndex}-column-${column?._key}`}>
-                  <Link
-                    className="text-foreground text-sm hover:underline"
-                    href={link.href ?? "#"}
-                    rel={link.openInNewTab ? "noopener noreferrer" : undefined}
-                    target={link.openInNewTab ? "_blank" : undefined}
-                  >
-                    {link.name}
-                  </Link>
-                </li>
+                // A link whose target is archived or deleted resolves to a null
+                // href; `?? "#"` kept the row as a dead anchor.
+                <Fragment
+                  key={`${link._key}-${columnIndex}-column-${column?._key}`}
+                >
+                  {link?.href ? (
+                    <li>
+                      <Link
+                        className="text-foreground text-sm hover:underline"
+                        href={link.href}
+                        rel={
+                          link.openInNewTab ? "noopener noreferrer" : undefined
+                        }
+                        target={link.openInNewTab ? "_blank" : undefined}
+                      >
+                        {link.name}
+                      </Link>
+                    </li>
+                  ) : null}
+                </Fragment>
               ))}
             </ul>
           )}
@@ -153,32 +169,7 @@ function HostingCredits() {
   );
 }
 
-export function FooterSkeleton() {
-  return (
-    <footer className="mt-20 border-t py-9">
-      <div className="site-container">
-        <div className="flex flex-col justify-between gap-10 lg:flex-row">
-          <div className="h-32 w-full max-w-84 animate-pulse rounded bg-muted" />
-          <div className="grid grid-cols-2 gap-8 sm:flex sm:gap-14">
-            {[1, 2, 3, 4].map((col) => (
-              <div className="space-y-3" key={col}>
-                <div className="h-4 w-16 animate-pulse rounded bg-muted" />
-                {[1, 2, 3].map((item) => (
-                  <div
-                    className="h-4 w-20 animate-pulse rounded bg-muted"
-                    key={item}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
-function Footer({ data, settingsData }: FooterProps) {
+function FooterContent({ data, settingsData }: ResolvedFooterProps) {
   const { columns } = data;
   const { siteTitle, socialLinks } = settingsData;
   const year = new Date().getFullYear();
