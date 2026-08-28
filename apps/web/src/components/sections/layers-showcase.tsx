@@ -141,6 +141,12 @@ export function LayersShowcase({
     staleTime: 60_000,
   });
 
+  // The handle is null when the referenced product is archived or deleted in
+  // Shopify (`queryProductByHandle` gates it), and rendering on would leave a
+  // heading standing over four empty collage cells. After the hook, not before,
+  // so the hook order stays stable.
+  if (!productHandle) return null;
+
   const pool = product ? productImageUrls(product) : [];
   const collage = pool.length
     ? Array.from({ length: COLLAGE_CELLS }, (_, i) => pool[i % pool.length])

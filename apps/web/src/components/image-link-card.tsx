@@ -15,14 +15,14 @@ export type CTACardProps = {
 
 export function CTACard({ card, className }: CTACardProps) {
   const { image, description, title, href } = card ?? {};
-  return (
-    <Link
-      className={cn(
-        "group relative flex flex-col justify-end overflow-hidden rounded-3xl p-4 transition-colors md:p-8 xl:h-[400px]",
-        className
-      )}
-      href={href ?? "#"}
-    >
+
+  const cardClassName = cn(
+    "group relative flex flex-col justify-end overflow-hidden rounded-3xl p-4 transition-colors md:p-8 xl:h-[400px]",
+    className
+  );
+
+  const content = (
+    <>
       {image?.id && (
         <div className="absolute inset-0 z-1 mix-blend-multiply">
           <SanityImage
@@ -42,6 +42,19 @@ export function CTACard({ card, className }: CTACardProps) {
           {description}
         </p>
       </div>
+    </>
+  );
+
+  // A card whose target is archived or deleted resolves to a null href, and
+  // `?? "#"` kept the whole card clickable to nowhere. The card holds its place
+  // in the grid; it just stops being an anchor.
+  if (!href) {
+    return <div className={cardClassName}>{content}</div>;
+  }
+
+  return (
+    <Link className={cardClassName} href={href}>
+      {content}
     </Link>
   );
 }

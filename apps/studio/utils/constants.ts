@@ -1,9 +1,4 @@
-import {
-  ColorWheelIcon,
-  ComposeIcon,
-  InsertAboveIcon,
-  SearchIcon,
-} from "@sanity/icons";
+import { ComposeIcon, InsertAboveIcon, SearchIcon } from "@sanity/icons";
 import type { FieldGroupDefinition } from "sanity";
 
 import ShopifyIcon from "@/components/icons/shopify";
@@ -15,14 +10,12 @@ export const GROUP = {
   SEO: "seo",
   OG: "og",
   COMMERCE: "commerce",
-  THEME: "theme",
 } as const;
 
 export const GROUPS: FieldGroupDefinition[] = [
   { name: GROUP.CONTENT, icon: ComposeIcon, title: "Content", default: true },
   { name: GROUP.SEO, icon: SearchIcon, title: "SEO" },
   { name: GROUP.OG, icon: InsertAboveIcon, title: "Open Graph" },
-  { name: GROUP.THEME, icon: ColorWheelIcon, title: "Theme" },
   { name: GROUP.COMMERCE, icon: ShopifyIcon, title: "Shopify Sync" },
 ];
 

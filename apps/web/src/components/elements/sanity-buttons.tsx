@@ -20,9 +20,10 @@ function SanityButton({
   className,
   ...props
 }: SanityButtonProps & ComponentProps<typeof Button>) {
-  if (!href) {
-    return <Button>Link Broken</Button>;
-  }
+  // Nothing to navigate to: the target is archived, deleted or unset. A button
+  // labelled "Link Broken" put the marker in front of shoppers rather than
+  // editors, and one that goes nowhere is worse than one that is not there.
+  if (!href) return null;
 
   return (
     <Button

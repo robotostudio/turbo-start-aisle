@@ -13,7 +13,7 @@ export const collection = defineType({
   type: "document",
   icon: PackageIcon,
   groups: GROUPS,
-  description: "Shopify collection with editorial content and custom theming",
+  description: "Shopify collection with editorial content",
   fields: [
     defineField({
       name: "hidden",
@@ -41,21 +41,14 @@ export const collection = defineType({
       options: { field: "store.slug.current" },
     }),
     defineField({
-      name: "colorTheme",
-      type: "reference",
-      description: "Choose a color theme to style this collection page",
-      to: [{ type: "colorTheme" }],
-      group: GROUP.THEME,
-    }),
-    defineField({
       name: "vector",
       title: "Vector artwork",
       type: "image",
-      description: "Displayed in collection links using color theme",
+      description: "SVG artwork displayed in collection links",
       options: {
         accept: "image/svg+xml",
       },
-      group: GROUP.THEME,
+      group: GROUP.CONTENT,
       validation: (Rule) =>
         Rule.custom((image) => {
           if (!image?.asset?._ref) {

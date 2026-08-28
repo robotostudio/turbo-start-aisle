@@ -32,6 +32,15 @@ export function FaqEntry({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [rendered, setRendered] = useState(defaultOpen);
+  // Motion writes its resolved styles into the server HTML, and `initial={false}`
+  // below makes it render the `animate` target. Ungated, a closed row therefore
+  // shipped `height: 0` next to `overflow-hidden`, and the native <details>
+  // opened onto a clipped, empty body for anyone without JavaScript.
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (open) setRendered(true);
@@ -47,14 +56,13 @@ export function FaqEntry({
   return (
     <motion.div
       className={cn(
-        "group",
         card
           ? "rounded-sm bg-zinc-100 dark:bg-zinc-900"
           : "border-zinc-200 border-b first:border-t dark:border-zinc-800"
       )}
       variants={motionVariants}
     >
-      <details open={rendered}>
+      <details className="group" open={rendered}>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: <summary> is natively interactive + keyboard-operable */}
         <summary
           className={cn(
@@ -70,13 +78,19 @@ export function FaqEntry({
               card ? "text-foreground" : "text-zinc-500"
             )}
           >
-            <Plus className={cn("size-4", open && "hidden")} />
-            <Minus className={cn("size-4", !open && "hidden")} />
+            {/* Keyed off the real `[open]` attribute rather than React state:
+                with JS off the state never changes, and the glyph would sit on
+                Plus while the answer was plainly open. The JS path holds
+                `rendered` true through the 250ms collapse, so on close the flip
+                trails the click by that much — imperceptible against a panel
+                that is already animating. */}
+            <Plus className="size-4 group-open:hidden" />
+            <Minus className="hidden size-4 group-open:block" />
           </span>
         </summary>
         <motion.div
-          animate={{ height: open ? "auto" : 0 }}
-          className="overflow-hidden"
+          animate={hydrated ? { height: open ? "auto" : 0 } : undefined}
+          className={cn(hydrated && "overflow-hidden")}
           initial={false}
           onAnimationComplete={() => {
             if (!open) setRendered(false);

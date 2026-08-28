@@ -17,7 +17,7 @@ export function SearchEmptyState({
   onSelectTerm,
   replace,
 }: SearchEmptyStateProps) {
-  const { collections, bestSellers, isLoading } = useSearchDefaults();
+  const { collections, bestSellers, isLoading, error } = useSearchDefaults();
 
   return (
     <div className="flex flex-col gap-8 site-container">
@@ -53,6 +53,7 @@ export function SearchEmptyState({
           </Button>
         </div>
         <SearchProductGrid
+          error={error}
           isLoading={isLoading}
           products={bestSellers}
           replace={replace}

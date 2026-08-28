@@ -1,7 +1,7 @@
 import { orderableDocumentListDeskItem } from "@sanity/orderable-document-list";
 import {
-  Bot,
   BookMarked,
+  Bot,
   CogIcon,
   FileText,
   HomeIcon,
@@ -111,7 +111,6 @@ export const structure = (
                     ])
                 ),
               list(S, "productVariant", "Product Variants", FileText),
-              list(S, "colorTheme", "Color Themes", Settings2),
             ])
         ),
       S.divider(),

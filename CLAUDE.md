@@ -31,33 +31,27 @@ pnpm lint             # biome lint
 pnpm format           # biome format --write
 pnpm format:check     # biome format (check only)
 pnpm check-types      # tsc --noEmit across all packages
-pnpm test             # vitest (apps/web only)
 
-# Studio schema tooling
-pnpm --filter studio type           # schema extract + typegen → packages/sanity/src/sanity.types.ts
-pnpm --filter studio schema:deploy  # clean + extract + deploy (required for the Agent Context MCP)
-pnpm --filter studio seed:shopify
-pnpm --filter studio seed:ai-assistant
-pnpm --filter studio seed:faq    # 14 FAQs + a faqCategories block on home and /faq
-pnpm --filter studio seed:blog   # author, categories, 6 posts, blogIndex
+# Studio schema tooling (run from apps/studio)
+npx sanity schema extract --enforce-required-fields --force
+npx sanity typegen generate
+npx sanity deploy
+
+# Seed data (run from apps/studio)
+npx sanity dataset import ./seed-data.tar.gz production --replace
 ```
 
-> `apps/studio/seed-data.tar.gz` is upstream's full dataset export
-> (`sanity dataset import seed-data.tar.gz`) and already covers `homePage`,
-> pages, navbar and footer — so there is no home-page seed script. It is a
-> staging export that predates the UI overhaul, though: it carries no
-> `category` documents and uses the old page-builder blocks, which is what
-> `seed:faq` and `seed:blog` exist to fill in.
-
-Tests are colocated in `src/**/__tests__/*.test.ts` (`apps/web/vitest.config.ts`,
-node environment, pure-logic only — no DOM/RTL).
+Tests run with Vitest in `apps/web` (`pnpm test`, or `pnpm --filter web test`).
+Specs live in `__tests__/` directories and are `.test.ts` — components are
+exercised with `createElement` + `renderToStaticMarkup`, not JSX, because the
+config's include glob matches `.ts` only.
 
 ## Architecture
 
 ```
 apps/
   web/          → Next.js 16 (App Router, Turbopack, React Compiler, RSC)
-  studio/       → Sanity Studio v5 (custom structure, plugins, blueprints)
+  studio/       → Sanity Studio v6 (custom structure, plugins, blueprints)
 packages/
   ai-commerce/  → @workspace/ai-commerce — AI chat widget, tools, system prompt, MCP client
   env/          → @workspace/env — T3 env validation (Zod v4), client.ts + server.ts
@@ -71,8 +65,9 @@ packages/
 
 1. **GROQ queries** defined with `defineQuery` in `packages/sanity/src/query.ts` — composable fragments for images, links, rich text, page builder blocks
 2. **`sanityFetch()`** from `packages/sanity/src/live.ts` (via `next-sanity/defineLive`) — used in RSC pages for data fetching with live preview support
-3. **Page Builder** (`apps/web/src/components/pagebuilder.tsx`) — client component mapping `_type` → React section component via `BLOCK_COMPONENTS`. Uses `useOptimistic` from `@sanity/visual-editing`
-4. **Types** auto-generated: run `pnpm --filter studio type` → writes `packages/sanity/src/sanity.types.ts`
+3. **Page Builder** (`apps/web/src/components/pagebuilder.tsx`) — client component mapping `_type` → React section component via `BLOCK_COMPONENTS` record. Uses `useOptimistic` from `@sanity/visual-editing` for live editing
+4. **Section components** in `apps/web/src/components/sections/` — `hero`, `cta`, `faq-accordion`, `feature-cards-with-icon`, `subscribe-newsletter`, `image-link-cards`
+5. **Types** auto-generated: run `pnpm --filter studio type` → outputs to `packages/sanity/src/sanity.types.ts`
 
 ### Cart
 
@@ -128,26 +123,27 @@ CustomEvent (`ADD_TO_CART_EVENT`) carrying the full line metadata.
 ### Adding a New Page Builder Block
 
 1. Create Sanity schema in `apps/studio/schemaTypes/blocks/`
-2. Register it in `apps/studio/schemaTypes/blocks/index.ts`
-3. Add a thumbnail at `apps/studio/static/thumbnails/<typeName>.webp` and place it in an insert-menu group in `apps/studio/schemaTypes/definitions/pagebuilder.ts`
-4. Add GROQ fragment in `packages/sanity/src/query.ts` and include in `pageBuilderFragment`
-5. Run `pnpm --filter studio type` to regenerate types
-6. Create React component in `apps/web/src/components/sections/`
-7. Register in `BLOCK_COMPONENTS` in `apps/web/src/components/pagebuilder.tsx`
-
-Current blocks: `collectionBanner`, `cta`, `editorialTwoUp`, `exploreCategories`,
-`faqAccordion`, `faqCategories`, `featuredProducts`, `hero`, `featureCardsIcon`,
-`layersShowcase`, `subscribeNewsletter`, `imageLinkCards`.
+2. Register it in `apps/studio/schemaTypes/index.ts`
+3. Add GROQ fragment in `packages/sanity/src/query.ts` and include in `pageBuilderFragment`
+4. Run `pnpm --filter studio type` to regenerate types
+5. Create React component in `apps/web/src/components/sections/`
+6. Register in `BLOCK_COMPONENTS` map in `apps/web/src/components/pagebuilder.tsx`
+7. Add type to `PageBuilderBlockTypes` union in `apps/web/src/types.ts`
 
 ### Sanity Studio Structure
 
-- **Documents**: `blog`, `page`, `faq`, `author`, `category`, `product`, `collection`, `productVariant`, `redirect`, `colorTheme`
-- **Singletons**: `homePage`, `blogIndex`, `collectionsIndex`, `settings`, `footer`, `navbar`, `promoBanner`, `aiAssistantSettings`
+- **Documents**: `blog`, `page`, `faq`, `author`, `product`, `collection`, `productVariant`, `redirect`
+- **Singletons**: `homePage`, `blogIndex`, `settings`, `footer`, `navbar`
 - **Shopify objects**: `shopifyProduct`, `shopifyProductVariant`, `shopifyCollection`, `inventory`, `option`, `priceRange`, etc.
+- **Blueprint** (`sanity.blueprint.ts`): auto-redirect function — creates redirect documents on slug change
 
-> `apps/studio/scripts/cleanup-stale-sanity.ts` and `scripts/migrate-handoff/`
-> are upstream's demo-store tooling — `cleanup-stale-sanity` **deletes** product
-> docs whose GID isn't live in Shopify. Treat both as reference only.
+### Key Patterns
+
+- **Env validation**: `@workspace/env/client` and `@workspace/env/server` — validated imports, never raw `process.env`
+- **Path aliases**: `@/*` → `apps/web/src/*`, `@workspace/ui/*` → `packages/ui/src/*`
+- **SEO**: `getSEOMetadata()` in `apps/web/src/lib/seo.ts`, OG images via `/api/og` route
+- **Visual editing**: `VisualEditing` from `next-sanity` + `createDataAttribute` per block, draft mode via `/api/presentation-draft`
+- **Redirects**: fetched from Sanity at Next.js build time via `queryRedirects` in `next.config.ts`
 
 ## Syncing with upstream
 
@@ -162,24 +158,24 @@ above, `apps/studio/schemaTypes/documents/ai-assistant-settings.ts`,
 `seo.ts`, `query.ts`, `env/*`, `globals.css`, `turbo.json` and the studio config.
 Everything else can be taken from upstream wholesale.
 
+Last synced at upstream `4e45d2b`.
+
 ## Tooling
 
-- **Node**: >=22
-- **Package manager**: pnpm 10.28.0 (workspace protocol, catalog in `pnpm-workspace.yaml`)
-- **Formatter/Linter**: Biome 2.3.8 (config in `biome.jsonc`) — double quotes, semicolons, 2-space indent, 80 char width, trailing commas es5
+- **Node**: >=24.10
+- **Package manager**: pnpm 11.24.0 (workspace protocol, catalog for shared versions in `pnpm-workspace.yaml`)
+- **Formatter/Linter**: Biome 2.5.10 — double quotes, semicolons, 2-space indent, 80 char width, trailing commas es5
 - **Import order** (Biome): URL/Node → packages → blank line → aliases/paths
 - **TypeScript**: strict, `noUncheckedIndexedAccess`, module NodeNext, target ES2022
-- **Tailwind CSS v4**: CSS-first config via `@import "tailwindcss"`, OKLCH tokens, `--radius: 0rem`, `@tailwindcss/typography` enabled
-- **React Compiler**: enabled via `babel-plugin-react-compiler`
+- **Tailwind CSS v4**: CSS-first config via `@import "tailwindcss"`, OKLCH color tokens, dark mode via `@custom-variant`
+- **React Compiler**: enabled via `babel-plugin-react-compiler` in Next.js config
+- **Sanity Studio pins**: `sanity`, `@sanity/vision` and the seven plugins in `apps/studio/package.json` are pinned to exact versions, not ranges. The Studio is held on the `@sanity/ui` v3 line and every package crosses to v4 at a patch bump, so a caret or tilde would put a second `@sanity/ui` in the tree. What pins the whole line is `sanity-plugin-lucide-icon-picker`: 1.0.3 is its latest and last release, and it imports `Popover`/`Menu` from the `@sanity/ui` root and `TrashIcon`/`SyncIcon`/`EllipsisHorizontalIcon` from the `@sanity/icons` root — all moved to subpaths in `@sanity/ui` v4 / `@sanity/icons` v5, so `sanity build` fails with `MISSING_EXPORT` the moment the Studio crosses. Crossing means replacing that plugin (it backs the `lucide-icon` field type used by navbar, footer and the icon cards). That migration has no ticket yet — raise one and record its ROB id here and in `.github/renovate.json` so the freeze has an owner. Do not loosen them or bump a Sanity plugin to `latest` without reading the comment in `pnpm-workspace.yaml` first; after any install, `pnpm --filter studio why @sanity/ui` must show 3.x only.
 
 ## Environment Variables
 
-**Web** (`apps/web/.env`) — see `apps/web/.env.example`:
+**Web** (`apps/web/.env`):
 - `NEXT_PUBLIC_SANITY_PROJECT_ID`, `NEXT_PUBLIC_SANITY_DATASET`, `NEXT_PUBLIC_SANITY_API_VERSION`, `NEXT_PUBLIC_SANITY_STUDIO_URL`
-- `NEXT_PUBLIC_STORE_CURRENCY` — must match the Shopify store's currency; seeds the optimistic cart line
 - `SANITY_API_READ_TOKEN`, `SANITY_API_WRITE_TOKEN`
-- `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_STOREFRONT_ACCESS_TOKEN`
-- `AI_GATEWAY_API_KEY`, `SANITY_CONTEXT_MCP_URL` — `/api/chat` returns 503 until both are set (on Vercel, OIDC covers the gateway key)
 
 **Studio** (`apps/studio/.env`):
 - `SANITY_STUDIO_PROJECT_ID`, `SANITY_STUDIO_DATASET`, `SANITY_STUDIO_TITLE`, `SANITY_STUDIO_PRESENTATION_URL`

@@ -38,11 +38,17 @@ export function useProductSearch(initialQuery = "") {
   const debouncedQuery = useDebounce(query, SEARCH_DEBOUNCE_MS);
 
   const hasQuery = debouncedQuery.trim().length > 0;
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["product-search", debouncedQuery],
     queryFn: ({ signal }) => searchProducts(debouncedQuery, signal),
     enabled: hasQuery,
     staleTime: CACHE_STALE_TIME_MS,
+    // One retry, not TanStack's default three. This query is keyed on the
+    // debounced value, so every keystroke starts a fresh one: against a failing
+    // Storefront, three retries turn a six-character search into 24 requests
+    // into an upstream that is already struggling, and hold the skeletons for
+    // seven seconds before the failure state can appear.
+    retry: 1,
   });
 
   const results = data ?? EMPTY;
@@ -55,6 +61,8 @@ export function useProductSearch(initialQuery = "") {
     collections: results.collections,
     related: results.related,
     isSearching: isLoading,
+    // `error` rather than `isError`, matching `hooks/use-blog-search.ts`.
+    error,
     hasQuery: query.trim().length > 0,
   };
 }

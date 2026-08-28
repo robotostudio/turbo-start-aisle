@@ -5,6 +5,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton";
 import { ProductCard } from "@/components/product/product-card";
 import { collectionProductToCardProps } from "@/lib/shopify/product-card";
 import type { ShopifyCollectionProduct } from "@/lib/shopify/types";
+import { SearchUnavailable } from "./search-unavailable";
 
 const DEFAULT_SKELETON_COUNT = 8;
 
@@ -14,6 +15,12 @@ type SearchProductGridProps = {
   skeletonCount?: number;
   /** Forwarded to `next/link`: replace the current history entry, don't push. */
   replace?: boolean;
+  /**
+   * A failed read, kept distinct from an empty one. Without it an empty
+   * `products` array renders "No products found." either way, which reports an
+   * outage to the shopper as a search that genuinely matched nothing.
+   */
+  error?: Error | null;
 };
 
 /** Shared 4-col ProductCard grid used by both the empty and active states. */
@@ -22,6 +29,7 @@ export function SearchProductGrid({
   isLoading,
   skeletonCount = DEFAULT_SKELETON_COUNT,
   replace,
+  error,
 }: SearchProductGridProps) {
   if (isLoading) {
     return (
@@ -36,6 +44,12 @@ export function SearchProductGrid({
         ))}
       </div>
     );
+  }
+
+  // Ahead of the empty check, and behind the loading one: a retry in flight
+  // should show skeletons rather than hold a failure that may not survive it.
+  if (error) {
+    return <SearchUnavailable />;
   }
 
   if (products.length === 0) {

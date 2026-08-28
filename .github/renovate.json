@@ -1,0 +1,52 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Sanity ecosystem presets, then Roboto policy LAST so it wins - preset packageRules are appended in order and the last matching rule sets each option. The packageRules below are local to this repo and resolve after the org preset.",
+  "extends": [
+    "github>sanity-io/renovate-config",
+    "github>sanity-io/renovate-config:automerge",
+    "local>robotostudio/.github"
+  ],
+  "ignorePresets": [
+    "github>sanity-io/renovate-config:schedule",
+    "github>sanity-io/renovate-config:lock-file-maintenance"
+  ],
+  "packageRules": [
+    {
+      "description": "Pinned exact to hold the Studio on the @sanity/ui v3 line (#70). Renovate reads an exact version as a pin to keep current, so it would propose bumps that drag v4 back in. `sanity` is here because the catalog pins it at 6.9.1; `sanity-plugin-lucide-icon-picker` is the package that pins the whole line and has no v4-compatible release. Drop when the Studio moves to v4 - TODO: that migration has no ticket yet, record its ROB id here once it is raised.",
+      "matchPackageNames": [
+        "sanity",
+        "@sanity/assist",
+        "@sanity/color-input",
+        "@sanity/orderable-document-list",
+        "@sanity/vision",
+        "sanity-plugin-asset-source-unsplash",
+        "sanity-plugin-hotspot-array",
+        "sanity-plugin-lucide-icon-picker",
+        "sanity-plugin-media"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "@sanity/ui and @sanity/icons are on carets and free to move inside v3; v4 is what the pins above exist to keep out - the icon picker imports Popover/Menu from the @sanity/ui root and TrashIcon/SyncIcon/EllipsisHorizontalIcon from the @sanity/icons root, both moved to subpaths in v4. Capping beats disabling so security and bug fixes still land.",
+      "matchPackageNames": [
+        "@sanity/ui",
+        "@sanity/icons"
+      ],
+      "allowedVersions": "<4"
+    },
+    {
+      "description": "Aisle-only. Pinned exact and disabled. @sanity/agent-context is deprecated upstream (npm notice: renamed to @sanity/context), but the successor cannot be adopted here: @sanity/context peers @sanity/icons ^5, which pulls @sanity/ui v4 - exactly what the pins above exclude. Verified: schema extract fails because ./Copy is not exported from @sanity/icons, and forcing icons back to v3 moves the same error onto the sanity package itself. Adopting the successor needs sanity-plugin-lucide-icon-picker replaced first (ROB-2794).",
+      "matchPackageNames": [
+        "@sanity/agent-context"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Held at 7 to match the catalog: next-sanity 13.3.3 imports `unstable__adapter`, which @sanity/client 8 removed. Lift when next-sanity ships a v8-compatible release.",
+      "matchPackageNames": [
+        "@sanity/client"
+      ],
+      "allowedVersions": "<8"
+    }
+  ]
+}

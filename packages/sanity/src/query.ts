@@ -20,29 +20,97 @@ const imageFields = /* groq */ `
     right,
     top
   }
-`;
+` as const;
 // Base fragments for reusable query parts
 const imageFragment = /* groq */ `
   image {
     ${imageFields}
   }
-`;
+` as const;
+
+/**
+ * Shopify keeps archived and deleted items in Sanity, so a reference to one still
+ * resolves — but `/products/[handle]` only renders products matching this same
+ * predicate (`queryProductByHandle`), and `/collections/[handle]` 404s once Shopify
+ * stops serving the collection. Every link surface has to gate its dereference on
+ * these, or it renders a link straight into a `notFound()`.
+ *
+ * Generic parameters and `as const` throughout this file, never `(ref: string) =>
+ * string`. `sanityFetch` resolves its result type by matching the query's string
+ * *literal* type against the `SanityQueries` keys typegen generates; a fragment
+ * typed as plain `string` widens every query embedding it to a `${string}` pattern,
+ * the lookup misses, and `ClientReturn` falls back to `any`. Typegen and lint both
+ * still pass — the only symptom is an `any` far away at the call site. A template
+ * literal folds to a literal type on its own when every hole is already literal,
+ * but a *call* in a hole widens it, so any fragment interpolating one of these
+ * helpers needs its own `as const`.
+ */
+const visibleProduct = <const R extends string>(ref: R) =>
+  /* groq */ `${ref}->store.status == "active" && ${ref}->store.isDeleted != true` as const;
+
+const visibleCollection = <const R extends string>(ref: R) =>
+  /* groq */ `${ref}->store.isDeleted != true` as const;
+
+/**
+ * `customUrl` resolves to a path the same way in eight places — navbar, footer,
+ * promo banner, buttons, image-link cards, the FAQ accordion link and `customLink`
+ * marks — so the guard belongs here rather than at each of them. `at` is the dotted
+ * path to the link object: "url." for buttons and links, "link." for the promo
+ * banner, "" inside a `customLink{...}` spread where the fields sit at the root.
+ * `fallback` is the expression used when no link type matches; both parameters are
+ * required, because defaulting one would need an assertion typegen cannot resolve.
+ *
+ * Each catalog arm wraps its own inner `select()` rather than gating the outer
+ * branch. The outer branch still matches, so a hidden target yields a null `href`
+ * and never falls through to `fallback` — a null field on an array item that keeps
+ * its place, which is what every consumer already handles for a dangling weak
+ * reference. `buttons[]`, footer `links[]` and `markDefs[]` keep their length.
+ *
+ * The catalog clauses sit inside the second arm of the coalesce, never above it.
+ * `internal` accepts `page`, `blog` and `blogIndex` as well as the catalog, and an
+ * editorial document has no `store` at all, so a guard hoisted over the coalesce
+ * reads `store.isDeleted` as null on every one of them and takes the editorial half
+ * of the navbar down with it.
+ *
+ * That arm branches on the target's `_type`. Coalescing straight onto
+ * `store.slug.current` sent an `internal` reference to a *product* off to
+ * `/collections/<product-handle>`, which 404s whatever the flags say, and gated it
+ * on the collection predicate so an archived product still emitted a live href.
+ *
+ * The predicates are spelled out rather than calling `visibleProduct` /
+ * `visibleCollection`: typegen's extractor only substitutes *literal* arguments
+ * into a helper, and `visibleProduct(`${at}product`)` leaves it unable to bind
+ * `at`. Keep them in step with those two helpers.
+ */
+const customUrlHrefFragment = <const A extends string, const F extends string>(
+  at: A,
+  fallback: F
+) =>
+  /* groq */ `select(
+      ${at}type == "internal" => coalesce(
+        ${at}internal->slug.current,
+        select(
+          ${at}internal->_type == "product" && ${at}internal->store.status == "active" && ${at}internal->store.isDeleted != true =>
+            "/products/" + ${at}internal->store.slug.current,
+          ${at}internal->_type == "collection" && ${at}internal->store.isDeleted != true =>
+            "/collections/" + ${at}internal->store.slug.current
+        )
+      ),
+      ${at}type == "external" => ${at}external,
+      ${at}type == "email" => "mailto:" + ${at}email,
+      ${at}type == "product" => select(
+        ${at}product->store.status == "active" && ${at}product->store.isDeleted != true =>
+          "/products/" + ${at}product->store.slug.current
+      ),
+      ${fallback}
+    )` as const;
 
 const customLinkFragment = /* groq */ `
   ...customLink{
     openInNewTab,
-    "href": select(
-      type == "internal" => coalesce(
-        internal->slug.current,
-        "/collections/" + internal->store.slug.current
-      ),
-      type == "external" => external,
-      type == "email" => "mailto:" + email,
-      type == "product" => "/products/" + product->store.slug.current,
-      "#"
-    ),
+    "href": ${customUrlHrefFragment("", '"#"')},
   }
-`;
+` as const;
 
 const markDefsFragment = /* groq */ `
   markDefs[]{
@@ -59,21 +127,122 @@ const markDefsFragment = /* groq */ `
       "href": "mailto:" + email,
     },
   }
-`;
+` as const;
+
+const productWithVariantFragment = /* groq */ `
+  productWithVariant{
+    "product": select(${visibleProduct("product")} => product->{
+      _id,
+      "slug": store.slug.current,
+      store{
+        title,
+        priceRange,
+        previewImageUrl,
+        gid
+      }
+    }),
+    variant->{
+      _id,
+      store{
+        title,
+        price,
+        previewImageUrl,
+        gid
+      }
+    }
+  }
+` as const;
+
+const productHotspotsFragment = /* groq */ `
+  productHotspots[]{
+    _key,
+    x,
+    y,
+    ${productWithVariantFragment}
+  }
+` as const;
+
+// ── Portable Text members ──
+//
+// One fragment per member the registered `richText` type permits
+// (apps/studio/schemaTypes/definitions/rich-text.ts).
+
+const blockMemberFragment = /* groq */ `
+  _type == "block" => {
+    ...,
+    ${markDefsFragment}
+  }
+` as const;
+
+const imageMemberFragment = /* groq */ `
+  _type == "image" => {
+    ${imageFields},
+    "caption": caption
+  }
+` as const;
+
+const imageWithProductHotspotsMemberFragment = /* groq */ `
+  _type == "imageWithProductHotspots" => {
+    _type,
+    _key,
+    image{${imageFields}},
+    showHotspots,
+    ${productHotspotsFragment}
+  }
+` as const;
+
+const accordionMemberFragment = /* groq */ `
+  _type == "accordion" => {
+    _type,
+    _key,
+    groups[]{
+      _key,
+      title,
+      body[]{
+        ...,
+        ${blockMemberFragment}
+      }
+    }
+  }
+` as const;
+
+const calloutMemberFragment = /* groq */ `
+  _type == "callout" => {
+    _type,
+    _key,
+    text
+  }
+` as const;
+
+const instagramMemberFragment = /* groq */ `
+  _type == "instagram" => {
+    _type,
+    _key,
+    url
+  }
+` as const;
+
+/**
+ * An unhandled member still comes back from the bare `...` spread as raw stored
+ * data, so a missing branch fails silently: the query returns something, and
+ * the component gets a `_ref` it cannot render. Shared so the blog's `richText`
+ * and the product's `body` cannot drift apart again.
+ */
+const portableTextMembersFragment = /* groq */ `
+  ...,
+  ${blockMemberFragment},
+  ${imageMemberFragment},
+  ${imageWithProductHotspotsMemberFragment},
+  ${accordionMemberFragment},
+  ${calloutMemberFragment},
+  ${instagramMemberFragment}
+` as const;
 
 const richTextFragment = /* groq */ `
   richText[]{
-    ...,
-    _type == "block" => {
-      ...,
-      ${markDefsFragment}
-    },
-    _type == "image" => {
-      ${imageFields},
-      "caption": caption
-    }
+    ${portableTextMembersFragment}
   }
-`;
+` as const;
 
 const blogAuthorFragment = /* groq */ `
   authors[0]->{
@@ -82,7 +251,7 @@ const blogAuthorFragment = /* groq */ `
     position,
     ${imageFragment}
   }
-`;
+` as const;
 
 const blogCardFragment = /* groq */ `
   _type,
@@ -95,7 +264,7 @@ const blogCardFragment = /* groq */ `
   publishedAt,
   "category": category->{ _id, title, "slug": slug.current },
   ${blogAuthorFragment}
-`;
+` as const;
 
 const buttonsFragment = /* groq */ `
   buttons[]{
@@ -104,18 +273,9 @@ const buttonsFragment = /* groq */ `
     _key,
     _type,
     "openInNewTab": url.openInNewTab,
-    "href": select(
-      url.type == "internal" => coalesce(
-        url.internal->slug.current,
-        "/collections/" + url.internal->store.slug.current
-      ),
-      url.type == "external" => url.external,
-      url.type == "email" => "mailto:" + url.email,
-      url.type == "product" => "/products/" + url.product->store.slug.current,
-      url.href
-    ),
+    "href": ${customUrlHrefFragment("url.", "url.href")},
   }
-`;
+` as const;
 
 // Page builder block fragments
 const collectionBannerBlock = /* groq */ `
@@ -124,7 +284,7 @@ const collectionBannerBlock = /* groq */ `
     ${imageFragment},
     ${buttonsFragment}
   }
-`;
+` as const;
 
 const ctaBlock = /* groq */ `
   _type == "cta" => {
@@ -132,7 +292,7 @@ const ctaBlock = /* groq */ `
     ${richTextFragment},
     ${buttonsFragment},
   }
-`;
+` as const;
 const imageLinkCardsBlock = /* groq */ `
   _type == "imageLinkCards" => {
     ...,
@@ -141,20 +301,11 @@ const imageLinkCardsBlock = /* groq */ `
     "cards": array::compact(cards[]{
       ...,
       "openInNewTab": url.openInNewTab,
-      "href": select(
-        url.type == "internal" => coalesce(
-          url.internal->slug.current,
-          "/collections/" + url.internal->store.slug.current
-        ),
-        url.type == "external" => url.external,
-        url.type == "email" => "mailto:" + url.email,
-        url.type == "product" => "/products/" + url.product->store.slug.current,
-        url.href
-      ),
+      "href": ${customUrlHrefFragment("url.", "url.href")},
       ${imageFragment},
     })
   }
-`;
+` as const;
 
 const heroBlock = /* groq */ `
   _type == "hero" => {
@@ -163,7 +314,7 @@ const heroBlock = /* groq */ `
     ${buttonsFragment},
     ${richTextFragment}
   }
-`;
+` as const;
 
 const faqFragment = /* groq */ `
   "faqs": array::compact(faqs[]->{
@@ -172,7 +323,7 @@ const faqFragment = /* groq */ `
     _type,
     ${richTextFragment}
   })
-`;
+` as const;
 
 const faqAccordionBlock = /* groq */ `
   _type == "faqAccordion" => {
@@ -181,19 +332,10 @@ const faqAccordionBlock = /* groq */ `
     link{
       ...,
       "openInNewTab": url.openInNewTab,
-      "href": select(
-        url.type == "internal" => coalesce(
-          url.internal->slug.current,
-          "/collections/" + url.internal->store.slug.current
-        ),
-        url.type == "external" => url.external,
-        url.type == "email" => "mailto:" + url.email,
-        url.type == "product" => "/products/" + url.product->store.slug.current,
-        url.href
-      )
+      "href": ${customUrlHrefFragment("url.", "url.href")}
     }
   }
-`;
+` as const;
 
 const faqCategoriesBlock = /* groq */ `
   _type == "faqCategories" => {
@@ -204,7 +346,7 @@ const faqCategoriesBlock = /* groq */ `
       ${faqFragment}
     }
   }
-`;
+` as const;
 
 const subscribeNewsletterBlock = /* groq */ `
   _type == "subscribeNewsletter" => {
@@ -219,20 +361,20 @@ const subscribeNewsletterBlock = /* groq */ `
     },
     ${imageFragment}
   }
-`;
+` as const;
 
 const exploreCategoriesBlock = /* groq */ `
   _type == "exploreCategories" => {
     ...,
     ${buttonsFragment},
-    "collections": *[_type == "collection" && defined(store.slug.current)][0...4]{
+    "collections": *[_type == "collection" && defined(store.slug.current) && store.isDeleted != true][0...4]{
       _id,
       "title": store.title,
       "slug": store.slug.current,
       "imageUrl": store.imageUrl,
     }
   }
-`;
+` as const;
 
 const featureCardsIconBlock = /* groq */ `
   _type == "featureCardsIcon" => {
@@ -243,41 +385,48 @@ const featureCardsIconBlock = /* groq */ `
       ${richTextFragment},
     })
   }
-`;
+` as const;
 
 const editorialTwoUpBlock = /* groq */ `
   _type == "editorialTwoUp" => {
     ...,
+    // The clause replaces defined(collection) rather than joining it. A weak
+    // reference whose target is gone reads store.isDeleted as null, null != true
+    // is true, and the deref then yields null — which is what defined(collection)
+    // was there to produce, and what the block already renders as an unlinked
+    // card. The card keeps the title and image the last sync wrote: a stale name
+    // is a smaller lie than a link that 404s, and dropping the item would leave
+    // one column in a layout the schema validates as exactly two.
     "items": array::compact(items[]{
       ...,
       swatchColor,
       "collectionTitle": collection->store.title,
       "collectionImage": collection->store.imageUrl,
       "collectionHref": select(
-        defined(collection) => "/collections/" + collection->store.slug.current,
+        ${visibleCollection("collection")} => "/collections/" + collection->store.slug.current,
         null
       ),
     })
   }
-`;
+` as const;
 
 const layersShowcaseBlock = /* groq */ `
   _type == "layersShowcase" => {
     ...,
     heading,
     description,
-    "productHandle": product->store.slug.current,
-    "productTitle": product->store.title,
+    "productHandle": select(${visibleProduct("product")} => product->store.slug.current),
+    "productTitle": select(${visibleProduct("product")} => product->store.title),
   }
-`;
+` as const;
 
 const featuredProductsBlock = /* groq */ `
   _type == "featuredProducts" => {
     ...,
     heading,
-    "productHandles": array::compact(products[]->store.slug.current)
+    "productHandles": array::compact(products[${visibleProduct("@")}]->store.slug.current)
   }
-`;
+` as const;
 
 const pageBuilderFragment = /* groq */ `
   pageBuilder[]{
@@ -296,7 +445,7 @@ const pageBuilderFragment = /* groq */ `
     ${subscribeNewsletterBlock},
     ${imageLinkCardsBlock}
   }
-`;
+` as const;
 
 /**
  * Query to extract a single image from a page document
@@ -404,7 +553,7 @@ const ogFieldsFragment = /* groq */ `
   "logo": *[_type == "settings"][0].logo.asset->url + "?w=80&h=40&dpr=3&fit=max&q=100",
   "siteTitle": *[_type == "settings"][0].siteTitle,
   "date": coalesce(date, _createdAt)
-`;
+` as const;
 
 export const queryHomePageOGData = defineQuery(`
   *[_type == "homePage" && _id == $id][0]{
@@ -491,16 +640,7 @@ export const queryPromoBannerData = defineQuery(`
     enabled,
     text,
     "openInNewTab": link.openInNewTab,
-    "href": select(
-      link.type == "internal" => coalesce(
-        link.internal->slug.current,
-        "/collections/" + link.internal->store.slug.current
-      ),
-      link.type == "external" => link.external,
-      link.type == "email" => "mailto:" + link.email,
-      link.type == "product" => "/products/" + link.product->store.slug.current,
-      link.href
-    ),
+    "href": ${customUrlHrefFragment("link.", "link.href")},
   }
 `);
 
@@ -518,16 +658,7 @@ export const queryFooterData = defineQuery(`
         _key,
         name,
         "openInNewTab": url.openInNewTab,
-        "href": select(
-          url.type == "internal" => coalesce(
-            url.internal->slug.current,
-            "/collections/" + url.internal->store.slug.current
-          ),
-          url.type == "external" => url.external,
-          url.type == "email" => "mailto:" + url.email,
-          url.type == "product" => "/products/" + url.product->store.slug.current,
-          url.href
-        ),
+        "href": ${customUrlHrefFragment("url.", "url.href")},
       }
     }
   }
@@ -547,16 +678,7 @@ export const queryNavbarData = defineQuery(`
           icon,
           description,
           "openInNewTab": url.openInNewTab,
-          "href": select(
-            url.type == "internal" => coalesce(
-              url.internal->slug.current,
-              "/collections/" + url.internal->store.slug.current
-            ),
-            url.type == "external" => url.external,
-            url.type == "email" => "mailto:" + url.email,
-            url.type == "product" => "/products/" + url.product->store.slug.current,
-            url.href
-          )
+          "href": ${customUrlHrefFragment("url.", "url.href")}
         }
       },
       _type == "navbarLink" => {
@@ -564,35 +686,26 @@ export const queryNavbarData = defineQuery(`
         name,
         description,
         "openInNewTab": url.openInNewTab,
-        "href": select(
-          url.type == "internal" => coalesce(
-            url.internal->slug.current,
-            "/collections/" + url.internal->store.slug.current
-          ),
-          url.type == "external" => url.external,
-          url.type == "email" => "mailto:" + url.email,
-          url.type == "product" => "/products/" + url.product->store.slug.current,
-          url.href
-        )
+        "href": ${customUrlHrefFragment("url.", "url.href")}
       },
       _type == "collectionGroup" => {
         "type": "collectionGroup",
         title,
-        "collectionLinks": collectionLinks[]->{
+        "collectionLinks": array::compact(collectionLinks[${visibleCollection("@")}]->{
           _id,
           "slug": store.slug.current,
           store{
             title,
             imageUrl
           }
-        },
-        "collectionProducts": collectionProducts->{
+        }),
+        "collectionProducts": select(${visibleCollection("collectionProducts")} => collectionProducts->{
           _id,
           "slug": store.slug.current,
           store{
             title
           }
-        }
+        })
       }
     },
     ${buttonsFragment},
@@ -662,98 +775,25 @@ export const queryRedirectBySource = defineQuery(`
 
 // ── Product fragments ──
 
-const productWithVariantFragment = /* groq */ `
-  productWithVariant{
-    product->{
-      _id,
-      "slug": store.slug.current,
-      store{
-        title,
-        priceRange,
-        previewImageUrl,
-        gid
-      }
-    },
-    variant->{
-      _id,
-      store{
-        title,
-        price,
-        previewImageUrl,
-        gid
-      }
-    }
-  }
-`;
-
-const productHotspotsFragment = /* groq */ `
-  productHotspots[]{
-    _key,
-    x,
-    y,
-    ${productWithVariantFragment}
-  }
-`;
-
 const productBodyFragment = /* groq */ `
   body[]{
-    ...,
-    _type == "block" => {
-      ...,
-      ${markDefsFragment}
-    },
-    _type == "image" => {
-      ${imageFields}
-    },
-    _type == "imageWithProductHotspots" => {
-      _type,
-      _key,
-      image{${imageFields}},
-      showHotspots,
-      ${productHotspotsFragment}
-    },
-    _type == "accordion" => {
-      _type,
-      _key,
-      groups[]{
-        _key,
-        title,
-        body[]{
-          ...,
-          _type == "block" => {
-            ...,
-            ${markDefsFragment}
-          }
-        }
-      }
-    },
-    _type == "callout" => {
-      _type,
-      _key,
-      text
-    }
+    ${portableTextMembersFragment}
   }
-`;
+` as const;
 
 export const queryProductByHandle = defineQuery(`
-  *[_type == "product" && store.slug.current == $handle && store.status == "active"][0]{
+  *[_type == "product" && store.slug.current == $handle && store.status == "active" && store.isDeleted != true][0]{
     _id,
     _type,
     "slug": store.slug.current,
     "title": store.title,
-    colorTheme->{
-      _id,
-      title,
-      background,
-      text
-    },
     ${productBodyFragment},
     seo
   }
 `);
 
 export const queryProductPaths = defineQuery(`
-  *[_type == "product" && defined(store.slug.current) && store.status == "active"].store.slug.current
+  *[_type == "product" && defined(store.slug.current) && store.status == "active" && store.isDeleted != true].store.slug.current
 `);
 
 // ── Collection fragments ──
@@ -781,10 +821,10 @@ const collectionModulesFragment = /* groq */ `
       url
     }
   }
-`;
+` as const;
 
 export const queryCollectionByHandle = defineQuery(`
-  *[_type == "collection" && store.slug.current == $handle][0]{
+  *[_type == "collection" && store.slug.current == $handle && store.isDeleted != true][0]{
     _id,
     _type,
     "title": store.title,
@@ -796,18 +836,12 @@ export const queryCollectionByHandle = defineQuery(`
       ${richTextFragment}
     },
     ${collectionModulesFragment},
-    colorTheme->{
-      _id,
-      title,
-      background,
-      text
-    },
     seo
   }
 `);
 
 export const queryCollectionPaths = defineQuery(`
-  *[_type == "collection" && defined(store.slug.current)].store.slug.current
+  *[_type == "collection" && defined(store.slug.current) && store.isDeleted != true].store.slug.current
 `);
 
 export const queryCollectionsIndexPageData = defineQuery(`
@@ -827,7 +861,7 @@ export const queryCollectionsIndexPageData = defineQuery(`
 `);
 
 export const queryAllCollections = defineQuery(`
-  *[_type == "collection" && defined(store.slug.current)]{
+  *[_type == "collection" && defined(store.slug.current) && store.isDeleted != true]{
     _id,
     _createdAt,
     "title": store.title,
