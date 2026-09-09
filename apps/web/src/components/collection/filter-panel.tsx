@@ -1,16 +1,9 @@
 "use client";
 
 import { cn } from "@workspace/ui/lib/utils";
-import {
-  type ReadonlyURLSearchParams,
-  usePathname,
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
-import { useCallback } from "react";
 
-import { useListingControls } from "@/components/collection/listing-controls";
 import { PRICE_BUCKETS } from "@/components/collection/filter-utils";
+import { useListingControls } from "@/components/collection/listing-controls";
 import { getColorHex } from "@/lib/shopify/color";
 import type { ShopifyFilter } from "@/lib/shopify/types";
 
@@ -86,42 +79,31 @@ function filterRank(label: string): number {
 }
 
 export function FilterPanel({ filters }: FilterPanelProps) {
-  const { filterOpen } = useListingControls();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { filterOpen, params: searchParams, pushParams } = useListingControls();
 
-  const toggleMulti = useCallback(
-    (key: string, value: string, add: boolean) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("after");
-      if (add) {
-        params.append(key, value);
-      } else {
-        const all = params.getAll(key).filter((v) => v !== value);
-        params.delete(key);
-        for (const v of all) params.append(key, v);
-      }
-      const qs = params.toString();
-      router.push(qs ? `?${qs}` : pathname, { scroll: false });
-    },
-    [router, pathname, searchParams]
-  );
+  const toggleMulti = (key: string, value: string, add: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("after");
+    if (add) {
+      params.append(key, value);
+    } else {
+      const all = params.getAll(key).filter((v) => v !== value);
+      params.delete(key);
+      for (const v of all) params.append(key, v);
+    }
+    pushParams(params);
+  };
 
-  const setSingle = useCallback(
-    (key: string, value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("after");
-      if (value === null) {
-        params.delete(key);
-      } else {
-        params.set(key, value);
-      }
-      const qs = params.toString();
-      router.push(qs ? `?${qs}` : pathname, { scroll: false });
-    },
-    [router, pathname, searchParams]
-  );
+  const setSingle = (key: string, value: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("after");
+    if (value === null) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    pushParams(params);
+  };
 
   if (filters.length === 0) return null;
 
@@ -238,7 +220,7 @@ function PriceColumn({
   searchParams,
   onSelect,
 }: {
-  searchParams: ReadonlyURLSearchParams;
+  searchParams: URLSearchParams;
   onSelect: (key: string, value: string | null) => void;
 }) {
   const current = searchParams.get("filter.price");

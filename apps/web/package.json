@@ -11,9 +11,12 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check-types": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^3.0.112",
+    "@ai-sdk/react": "^3.0.0",
     "@number-flow/react": "^0.6.2",
     "@portabletext/markdown": "^2.0.0",
     "@sanity/asset-utils": "^2.3.0",
@@ -22,14 +25,12 @@
     "@sanity/visual-editing": "^6.1.1",
     "@shopify/storefront-api-client": "^2.0.0",
     "@tanstack/react-query": "^5.102.4",
-    "@ai-sdk/gateway": "^3.0.112",
-    "@ai-sdk/react": "^3.0.0",
-    "ai": "^6.0.0",
     "@workspace/ai-commerce": "workspace:*",
     "@workspace/env": "workspace:*",
     "@workspace/logger": "workspace:*",
     "@workspace/sanity": "workspace:*",
     "@workspace/ui": "workspace:*",
+    "ai": "^6.0.0",
     "babel-plugin-react-compiler": "1.0.0",
     "embla-carousel-react": "^8.6.0",
     "fuse.js": "^7.5.0",
@@ -54,8 +55,10 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@types/sanitize-html": "^2.16.1",
+    "@vitest/coverage-v8": "catalog:",
     "@workspace/typescript-config": "workspace:*",
     "baseline-browser-mapping": "^2.11.19",
+    "jsdom": "catalog:",
     "vitest": "catalog:"
   }
 }

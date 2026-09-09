@@ -91,10 +91,10 @@ export function SubscribeNewsletter({
             <label className="sr-only" htmlFor={inputId}>
               Email address
             </label>
-            <div className="flex items-stretch overflow-hidden bg-white dark:bg-white">
+            <div className="flex items-stretch bg-white dark:bg-white">
               <input
                 aria-invalid={failed}
-                className="flex-1 rounded-none bg-transparent px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-900"
+                className="flex-1 rounded-none bg-transparent px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:text-zinc-900"
                 defaultValue={failed ? (state.email ?? "") : ""}
                 id={inputId}
                 name="email"

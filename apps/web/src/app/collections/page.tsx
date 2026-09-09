@@ -6,7 +6,7 @@ import {
 
 import { CollectionsContent } from "@/components/collections/collections-content";
 import { BreadcrumbJsonLd, CollectionJsonLd } from "@/components/json-ld";
-import { getSEOMetadata } from "@/lib/seo";
+import { seoFromDocument } from "@/lib/seo";
 import { getBaseUrl } from "@/utils";
 
 export async function generateMetadata() {
@@ -14,12 +14,18 @@ export async function generateMetadata() {
     query: queryCollectionsIndexPageData,
   });
 
-  return getSEOMetadata({
-    title: data?.seoTitle ?? data?.title ?? "Collections",
-    description:
-      data?.seoDescription ?? data?.subtitle ?? "Browse all collections",
-    slug: "/collections",
-  });
+  // Rolled by hand, this dropped the doc's `ogFields` and passed no
+  // `contentId`, so the page fell back to the static OG image.
+  // `collectionsIndex` carries `subtitle`, not `description`, so it has to be
+  // mapped across or the page falls back to the site-wide description.
+  return await seoFromDocument(
+    {
+      ...data,
+      title: data?.title ?? "Collections",
+      description: data?.subtitle ?? "Browse all collections",
+    },
+    { slug: "/collections" }
+  );
 }
 
 export default async function CollectionsPage() {

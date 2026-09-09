@@ -1,7 +1,15 @@
 import { isPortableTextTextBlock, type StringOptions } from "sanity";
 
+// Kept in step with apps/web/src/utils.ts. A leading `//` (or `/\`) navigates
+// off-site, and the WHATWG parser strips tabs before parsing, so
+// `/\t/evil.example` resolves as `//evil.example`.
+const PROTOCOL_RELATIVE = /^\/[/\\]/;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
+const CONTROL_CHARS = /[\u0000-\u0020\u007f]/;
+
 export const isRelativeUrl = (url: string) =>
-  url.startsWith("/") || url.startsWith("#") || url.startsWith("?");
+  !(PROTOCOL_RELATIVE.test(url) || CONTROL_CHARS.test(url)) &&
+  (url.startsWith("/") || url.startsWith("#") || url.startsWith("?"));
 
 export const isValidUrl = (url: string) => {
   try {

@@ -1,9 +1,5 @@
 import { client } from "@workspace/sanity/client";
-import {
-  queryCollectionPaths,
-  queryProductPaths,
-  querySitemapData,
-} from "@workspace/sanity/query";
+import { querySitemapData } from "@workspace/sanity/query";
 import type { QuerySitemapDataResult } from "@workspace/sanity/types";
 import type { MetadataRoute } from "next";
 
@@ -34,30 +30,23 @@ type SitemapSource = SitemapRank & { readonly pathPrefix: string };
 const SANITY_SITEMAP_SOURCES = [
   { key: "page", pathPrefix: "", priority: 0.8, changeFrequency: "weekly" },
   { key: "blog", pathPrefix: "", priority: 0.5, changeFrequency: "weekly" },
-] as const satisfies readonly (SitemapSource & {
-  key: keyof QuerySitemapDataResult;
-})[];
-
-/**
- * Shopify-backed routes. These reuse the path queries that also drive
- * `generateStaticParams` and llms.txt rather than being folded into
- * `querySitemapData`. Results are fetched by mapping over this array, so they
- * stay index-aligned with it.
- */
-const SHOPIFY_SITEMAP_SOURCES = [
+  // A singleton, so neither a `page` nor a `blog` — it was absent entirely.
+  { key: "blogIndex", pathPrefix: "", priority: 0.6, changeFrequency: "daily" },
   {
-    query: queryProductPaths,
+    key: "product",
     pathPrefix: "/products/",
     priority: 0.7,
     changeFrequency: "weekly",
   },
   {
-    query: queryCollectionPaths,
+    key: "collection",
     pathPrefix: "/collections/",
     priority: 0.6,
     changeFrequency: "weekly",
   },
-] as const satisfies readonly (SitemapSource & { query: string })[];
+] as const satisfies readonly (SitemapSource & {
+  key: keyof QuerySitemapDataResult;
+})[];
 
 /** Routes with no backing document. */
 const STATIC_SITEMAP_ENTRIES = [
@@ -68,8 +57,9 @@ const STATIC_SITEMAP_ENTRIES = [
 const baseUrl = getBaseUrl();
 
 /**
- * Sanity sources carry `_updatedAt`; Shopify handles have no timestamp, so
- * they fall back to now — matching what each branch emitted previously.
+ * Every source projects `_updatedAt`, so `lastModified` is a real edit time.
+ * Products and collections fell back to `Date.now()`, telling crawlers the whole
+ * catalogue changed on every build.
  */
 function toEntry(
   path: string,
@@ -85,26 +75,17 @@ function toEntry(
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [sanityDocs, shopifyPaths] = await Promise.all([
-    client.fetch(querySitemapData),
-    Promise.all(
-      SHOPIFY_SITEMAP_SOURCES.map((source) => client.fetch(source.query))
-    ),
-  ]);
+  const sanityDocs = await client.fetch(querySitemapData);
 
   return [
     ...STATIC_SITEMAP_ENTRIES.map(({ path, ...rank }) => toEntry(path, rank)),
 
     ...SANITY_SITEMAP_SOURCES.flatMap(({ key, pathPrefix, ...rank }) =>
-      sanityDocs[key].map((doc) =>
-        toEntry(`${pathPrefix}${doc.path}`, rank, doc.lastModified)
-      )
-    ),
-
-    ...SHOPIFY_SITEMAP_SOURCES.flatMap(({ pathPrefix, ...rank }, index) =>
-      (shopifyPaths[index] ?? [])
-        .filter((handle): handle is string => handle !== null)
-        .map((handle) => toEntry(`${pathPrefix}${handle}`, rank))
+      sanityDocs[key]
+        .filter((doc) => doc.path !== null)
+        .map((doc) =>
+          toEntry(`${pathPrefix}${doc.path}`, rank, doc.lastModified)
+        )
     ),
   ];
 }

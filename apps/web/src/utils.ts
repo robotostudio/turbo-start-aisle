@@ -2,11 +2,22 @@ import { env } from "@workspace/env/client";
 import type { PortableTextBlock } from "next-sanity";
 import slugify from "slugify";
 
+/**
+ * Canonical origin, no trailing slash. `NEXT_PUBLIC_SITE_URL` first: the
+ * `VERCEL_*` vars are Vercel-only, so elsewhere they fall through to their
+ * `localhost:3000` defaults and every canonical and sitemap entry ships as
+ * localhost. It also wins on Vercel, where `*.vercel.app` is rarely canonical.
+ */
 export const getBaseUrl = () => {
+  if (env.NEXT_PUBLIC_SITE_URL) {
+    return env.NEXT_PUBLIC_SITE_URL;
+  }
+
   if (env.NEXT_PUBLIC_VERCEL_ENV === "production") {
     return env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL;
   }
 
+  // Preview deploys stay on their own generated url so each one self-references.
   if (env.NEXT_PUBLIC_VERCEL_ENV === "preview") {
     return env.NEXT_PUBLIC_VERCEL_URL;
   }
@@ -14,8 +25,20 @@ export const getBaseUrl = () => {
   return "http://localhost:3000";
 };
 
+// A leading `//` — or `/\`, which browsers normalise to it — looks like a path
+// but navigates off-site, so it must not read as relative.
+const PROTOCOL_RELATIVE = /^\/[/\\]/;
+
+// The WHATWG parser strips tabs and newlines before parsing, so
+// `/\t/evil.example` passes the check above then resolves as `//evil.example`.
+// Rejected outright rather than stripped — guessing intent is how an open
+// redirect ships.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
+const CONTROL_CHARS = /[\u0000-\u0020\u007f]/;
+
 export const isRelativeUrl = (url: string) =>
-  url.startsWith("/") || url.startsWith("#") || url.startsWith("?");
+  !(PROTOCOL_RELATIVE.test(url) || CONTROL_CHARS.test(url)) &&
+  (url.startsWith("/") || url.startsWith("#") || url.startsWith("?"));
 
 export const isValidUrl = (url: string) => {
   try {
@@ -28,6 +51,13 @@ export const isValidUrl = (url: string) => {
 
 export const capitalize = (str: string) =>
   str.charAt(0).toUpperCase() + str.slice(1);
+
+/**
+ * Display title from a Shopify handle, for `generateMetadata` on a doc-less
+ * collection or product where the real title costs a second storefront call.
+ */
+export const titleFromHandle = (handle: string) =>
+  handle.split("-").filter(Boolean).map(capitalize).join(" ");
 
 export const getTitleCase = (name: string) => {
   const titleTemp = name.replace(/([A-Z])/g, " $1");

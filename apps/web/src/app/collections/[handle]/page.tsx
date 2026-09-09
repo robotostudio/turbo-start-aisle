@@ -22,7 +22,7 @@ import { getSEOMetadata } from "@/lib/seo";
 import { storefrontQuery } from "@/lib/shopify/client";
 import { COLLECTION_QUERY } from "@/lib/shopify/queries";
 import type { CollectionQueryResponse } from "@/lib/shopify/types";
-import { getBaseUrl } from "@/utils";
+import { getBaseUrl, titleFromHandle } from "@/utils";
 
 type PageProps = {
   params: Promise<{ handle: string }>;
@@ -43,14 +43,16 @@ export async function generateMetadata({ params }: PageProps) {
     params: { handle },
   });
 
-  if (!collection) return {};
-
-  return getSEOMetadata({
-    title: collection.seo?.title || collection.title || "",
-    description: collection.seo?.description ?? "",
+  // A Shopify-only collection still renders indexable, so `{}` would ship no
+  // canonical, robots or OG tags. The handle is the only title available
+  // without a second storefront call per render.
+  return await getSEOMetadata({
+    title:
+      collection?.seo?.title || collection?.title || titleFromHandle(handle),
+    description: collection?.seo?.description ?? "",
     slug: `/collections/${handle}`,
-    contentId: collection._id,
-    contentType: collection._type,
+    contentId: collection?._id,
+    contentType: collection?._type,
   });
 }
 
@@ -109,7 +111,7 @@ export default async function CollectionPage({
   const baseUrl = getBaseUrl();
 
   return (
-    <div className="site-container py-8">
+    <main className="site-container py-8">
       <BreadcrumbJsonLd
         items={[
           { name: "Home", url: baseUrl },
@@ -131,7 +133,7 @@ export default async function CollectionPage({
           <h1 className="min-w-0 text-balance font-medium text-2xl tracking-tight md:text-[32px]">
             {shopifyCollection.title}
           </h1>
-          <ListingControls currentReverse={reverse} currentSort={sort} />
+          <ListingControls />
         </div>
 
         <div className="mb-8 flex flex-col gap-4">
@@ -162,6 +164,6 @@ export default async function CollectionPage({
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }

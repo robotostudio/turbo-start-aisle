@@ -34,6 +34,36 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async headers() {
+    // `frame-ancestors` names the Studio because Presentation iframes this site.
+    // No `script-src`: the inline JSON-LD and Next bootstrap need nonces first.
+    const csp = [
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+      `frame-ancestors 'self' ${env.NEXT_PUBLIC_SANITY_STUDIO_URL} https://*.sanity.studio`,
+    ].join("; ");
+
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: csp },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Skipped in dev: HSTS on `localhost` pins every local project to
+          // https for two years.
+          ...(process.env.NODE_ENV === "development"
+            ? []
+            : [
+                {
+                  key: "Strict-Transport-Security",
+                  value: "max-age=63072000; includeSubDomains; preload",
+                },
+              ]),
+        ],
+      },
+    ];
+  },
   async redirects() {
     const redirects = await client.fetch(queryRedirects);
     return redirects.map((redirect) => ({

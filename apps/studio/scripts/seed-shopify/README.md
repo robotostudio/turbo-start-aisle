@@ -8,10 +8,10 @@ Add Shopify credentials to `apps/studio/.env`:
 
 ```env
 SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
-SHOPIFY_ADMIN_ACCESS_TOKEN=shpat_...
+SHOPIFY_ADMIN_ACCESS_TOKEN=...
 ```
 
-The access token needs these Admin API scopes: `write_products`, `read_products`, `read_locations`, `write_discounts`, `read_discounts`.
+The token comes from a Dev Dashboard app via the client credentials grant (see step 2 of the root README) and expires after 24 hours. It needs these Admin API scopes: `write_products`, `read_products`, `read_locations`, `write_inventory`, `read_publications`, `write_publications`, `write_discounts`, `read_discounts`.
 
 ## Usage
 

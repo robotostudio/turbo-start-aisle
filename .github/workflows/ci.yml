@@ -55,7 +55,7 @@ jobs:
         run: pnpm run check-types
 
       - name: Unit Tests
-        run: pnpm run test
+        run: pnpm run test:coverage
 
       - name: Build Studio
         # apps/web is built by Vercel on every PR; apps/studio is not, so a

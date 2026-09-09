@@ -35,7 +35,7 @@ You'll also need `apps/studio/.env` for the Sanity Studio. Both files are gitign
 
 ### 2. Deploy the schema & Studio
 
-This has to happen **before** Sanity Connect for Shopify can sync products — Connect needs the `product` / `productVariant` schemas to exist in your dataset, and the AI assistant needs the deployed Studio (Studio v5.1.0+) before it can host an Agent Context document.
+This has to happen **before** Sanity Connect for Shopify can sync products — Connect needs the `product` / `productVariant` schemas to exist in your dataset, and the AI assistant needs the deployed Studio (Studio v6) before it can host an Agent Context document.
 
 ```bash
 # Deploy schema and Studio (Studio hostname will be prompted on first run).
@@ -51,7 +51,9 @@ The CLI prints an Application ID after a successful first deploy and suggests pa
 
 ### 3. Sync Shopify products into Sanity
 
-Now that the schema is live, install the [Sanity Connect for Shopify](https://apps.shopify.com/sanity-connect) app on your Shopify dev store. Point it at your Sanity project + dataset (matching `NEXT_PUBLIC_SANITY_PROJECT_ID` / `NEXT_PUBLIC_SANITY_DATASET`) and trigger an initial sync.
+You need a Shopify store with the [Headless](https://apps.shopify.com/headless) channel installed and a storefront public access token — create a **Dev** store in the [Dev Dashboard](https://dev.shopify.com/dashboard/) under **Stores > Create store**, enabling generated test data if you want a catalogue to talk to. Dev stores are permanent and cannot be converted to a live store, so use one for testing only. To seed products instead, `pnpm seed:shopify` needs a 24-hour Admin token from the client-credentials grant; note that `pnpm seed:shopify -- --clean` deletes **every** product, collection and discount in the store.
+
+Now that the schema is live, install the [Sanity Connect for Shopify](https://apps.shopify.com/sanity-connect) app on your Shopify store. Point it at your Sanity project + dataset (matching `NEXT_PUBLIC_SANITY_PROJECT_ID` / `NEXT_PUBLIC_SANITY_DATASET`) and trigger an initial sync.
 
 ### 4. Publish an Agent Context document
 
@@ -86,7 +88,25 @@ SANITY_CONTEXT_MCP_URL=https://api.sanity.io/v2026-04-30/agent-context/<projectI
 AI_GATEWAY_API_KEY=<from https://vercel.com/dashboard/ai-gateway>
 ```
 
-### 7. Boot
+Two optional storefront variables are worth knowing about:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_STORE_CURRENCY` | No | ISO 4217 code used to format prices (default: `GBP`). Must match the Shopify store's currency — the optimistic cart line is seeded from it before Shopify responds |
+| `NEXT_PUBLIC_SITE_URL` | Off Vercel | Canonical origin, no trailing slash. On Vercel it is inferred; anywhere else, canonicals, OG URLs and the sitemap fall back to `localhost:3000` without it |
+
+### 7. Seed the Studio singletons
+
+The site title, description and Twitter handle come from the Sanity `settings` document, and the chat's welcome screen comes from `aiAssistantSettings`. On a fresh dataset both are empty — every `<title>` falls back to the bare hostname — so seed them:
+
+```bash
+pnpm --filter studio seed:settings      # site title, description, twitter
+pnpm --filter studio seed:ai-assistant  # chat welcome heading, subtitle, suggestions
+```
+
+Both are idempotent. `seed:settings` merges rather than replaces, so it never clobbers a logo or contact email set in the Studio.
+
+### 8. Boot
 
 ```bash
 pnpm dev
@@ -141,7 +161,7 @@ Turbo Start Aisle stands on the shoulders of two excellent projects. **Big thank
 
 The entire AI-commerce experience hinges on tooling Sanity has been quietly shipping over the past year:
 
-- **[Sanity Studio v5](https://www.sanity.io/)** — the editing surface, schema layer, and visual editing primitives that make headless feel ergonomic.
+- **[Sanity Studio v6](https://www.sanity.io/)** — the editing surface, schema layer, and visual editing primitives that make headless feel ergonomic.
 - **[Sanity Connect for Shopify](https://apps.shopify.com/sanity-connect)** — the bridge that mirrors Shopify's product catalog into Sanity so it can be enriched, queried, and exposed to AI agents.
 - **[Agent Actions](https://www.sanity.io/docs/agent-actions) and the Agent Context MCP** — a schema-aware MCP endpoint that gives any AI client structured, read-only access to a dataset. The chat assistant in this project would not exist without it.
 - **[`@sanity/agent-context`](https://www.npmjs.com/package/@sanity/agent-context) and [`@sanity/agent-directives`](https://www.npmjs.com/package/@sanity/agent-directives)** — the Studio plugin and directive parser that let authors define what the AI sees and let assistants reference Sanity documents inline.

@@ -24,6 +24,7 @@
     "verify:shopify": "tsx scripts/verify-shopify.ts",
     "seed:ai-assistant": "sanity exec scripts/seed-ai-assistant.ts --with-user-token",
     "seed:faq": "sanity exec scripts/seed-faq.ts --with-user-token",
+    "seed:settings": "sanity exec scripts/seed-settings.ts --with-user-token",
     "seed:blog": "sanity exec scripts/seed-blog.ts --with-user-token",
     "postinstall": "sanity exec scripts/cli-alert-for-data.ts"
   },

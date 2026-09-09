@@ -118,9 +118,11 @@ function ClassicHero({
           <div className="grid h-full grid-rows-[auto_1fr_auto] items-center justify-items-center gap-4 text-center lg:items-start lg:justify-items-start lg:text-left">
             {badge && <Badge variant="secondary">{badge}</Badge>}
             <div className="grid gap-4">
-              <h1 className="text-balance font-bold text-4xl lg:text-6xl">
-                {title}
-              </h1>
+              {title && (
+                <h1 className="text-balance font-bold text-4xl lg:text-6xl">
+                  {title}
+                </h1>
+              )}
               <RichText
                 className="font-normal text-base md:text-lg"
                 richText={richText}
@@ -196,7 +198,7 @@ function FullBleedHero({
               )}
             >
               <div className={pos.lockup}>
-                {title && <p className={pos.title}>{title}</p>}
+                {title && <h1 className={pos.title}>{title}</h1>}
                 {buttons?.map((button) =>
                   button.href ? (
                     <Link

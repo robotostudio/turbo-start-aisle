@@ -82,7 +82,7 @@ export function CartLineVariantSelect({
       ) : (
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="inline-flex items-center gap-1 text-muted-foreground outline-none transition-opacity hover:opacity-70 disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-muted-foreground outline-none transition-opacity hover:opacity-70 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
             disabled={disabled}
           >
             {type === "color" && <Swatch hex={selected?.hex} selected />}

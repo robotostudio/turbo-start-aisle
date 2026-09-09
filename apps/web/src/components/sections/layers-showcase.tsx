@@ -10,12 +10,10 @@ import { useState } from "react";
 import { useCartActions } from "@/components/cart/cart-context";
 import type { CardVariant } from "@/components/product/product-card";
 import { buildLineMetadata } from "@/lib/cart/metadata";
+import { fetchProduct } from "@/lib/shopify/fetch-product";
 import { formatMoney } from "@/lib/shopify/money";
 import { collectionProductToCardProps } from "@/lib/shopify/product-card";
-import type {
-  ProductByHandleResponse,
-  ShopifyCollectionProduct,
-} from "@/lib/shopify/types";
+import type { ShopifyCollectionProduct } from "@/lib/shopify/types";
 
 type LayersShowcaseProps = {
   _key: string;
@@ -24,6 +22,15 @@ type LayersShowcaseProps = {
   description?: string | null;
   productHandle?: string | null;
   productTitle?: string | null;
+  /**
+   * The product, resolved server-side by the page and injected by
+   * `pagebuilder.tsx` keyed on this block's `_key`. It seeds the query below,
+   * so the images, link and price are in the server HTML rather than behind a
+   * browser fetch — which is what a visitor with JavaScript off keeps. `null`
+   * is a read that failed, or a route that resolves nothing; the browser fetch
+   * then takes over exactly as before.
+   */
+  product?: ShopifyCollectionProduct | null;
 };
 
 const COLLAGE_CELLS = 4;
@@ -41,15 +48,6 @@ function resolveVariant(
       (!color || values.includes(color)) && (!size || values.includes(size))
     );
   });
-}
-
-async function fetchProduct(
-  handle: string
-): Promise<ShopifyCollectionProduct | null> {
-  const res = await fetch(`/api/products/${handle}`);
-  if (!res.ok) return null;
-  const data: ProductByHandleResponse = await res.json();
-  return data.product;
 }
 
 /** Ordered, de-duplicated list of the product's image URLs (featured first). */
@@ -133,12 +131,24 @@ export function LayersShowcase({
   description,
   productHandle,
   productTitle,
+  product,
 }: LayersShowcaseProps) {
-  const { data: product, isLoading } = useQuery({
+  const { data: resolved, isLoading } = useQuery({
     queryKey: ["product", productHandle],
     queryFn: () => (productHandle ? fetchProduct(productHandle) : null),
     enabled: Boolean(productHandle),
     staleTime: 60_000,
+    // A seed makes the first render a success rather than a fetch, so no
+    // skeleton reaches the server HTML. It is stamped as already stale: the
+    // home page is prerendered and cached until a tag revalidation, so the
+    // seed can be hours old by the time it hydrates, and TanStack would
+    // otherwise date it to the moment the browser created the query and let
+    // `staleTime` skip the mount refetch. Stale, it refetches on mount as the
+    // block always did — with the seeded product on screen meanwhile, and kept
+    // there if the read fails, since `fetchProduct` throws rather than
+    // resolving `null`.
+    initialData: product ?? undefined,
+    initialDataUpdatedAt: 0,
   });
 
   // The handle is null when the referenced product is archived or deleted in
@@ -147,12 +157,12 @@ export function LayersShowcase({
   // so the hook order stays stable.
   if (!productHandle) return null;
 
-  const pool = product ? productImageUrls(product) : [];
+  const pool = resolved ? productImageUrls(resolved) : [];
   const collage = pool.length
     ? Array.from({ length: COLLAGE_CELLS }, (_, i) => pool[i % pool.length])
     : [];
   const largeImage = pool[0] ?? null;
-  const alt = product?.title ?? productTitle ?? "";
+  const alt = resolved?.title ?? productTitle ?? "";
 
   return (
     <section className="site-container py-12 md:py-20">
@@ -198,10 +208,10 @@ export function LayersShowcase({
         {/* Right: large product image with live add-to-cart on hover */}
         <div className="group card-surface relative aspect-4/5 overflow-hidden md:aspect-auto md:h-full md:min-h-125">
           {isLoading && <Skeleton className="absolute inset-0" />}
-          {largeImage && product && (
+          {largeImage && resolved && (
             <Link
               className="relative block size-full"
-              href={`/products/${product.handle}`}
+              href={`/products/${resolved.handle}`}
             >
               <Image
                 alt={alt}
@@ -212,7 +222,7 @@ export function LayersShowcase({
               />
             </Link>
           )}
-          {product && <PurchaseBar product={product} />}
+          {resolved && <PurchaseBar product={resolved} />}
         </div>
       </div>
     </section>

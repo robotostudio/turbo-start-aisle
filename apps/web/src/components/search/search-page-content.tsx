@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@workspace/ui/components/button";
 import { useEffect, useRef, useState } from "react";
 
 import { useDebounce } from "@/hooks/use-debounce";
@@ -43,7 +44,7 @@ export function SearchPageContent({
   const [query, setQuery] = useState(initialQuery);
   const debouncedQuery = useDebounce(query, SEARCH_DEBOUNCE_MS);
   const trimmed = debouncedQuery.trim();
-  const hasQuery = trimmed.length > 0;
+  const hasQuery = query.trim().length > 0 && trimmed.length > 0;
 
   // Keep the address bar in sync WITHOUT a router navigation — a client nav to
   // /search would re-trigger the intercepting route and open the drawer.
@@ -83,7 +84,7 @@ export function SearchPageContent({
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-4 border-b px-4 py-4 md:px-8">
+      <div className="flex items-center border-b px-4 py-4 md:px-8">
         <input
           className="flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
           id="search-page-input"
@@ -99,6 +100,19 @@ export function SearchPageContent({
           // from `initialQuery`, so the mount value is unchanged.
           value={query}
         />
+        {query && (
+          <Button
+            className="h-auto py-0 text-muted-foreground hover:bg-transparent hover:text-foreground dark:hover:bg-transparent"
+            onClick={() => {
+              setQuery("");
+              inputRef.current?.focus();
+            }}
+            size="sm"
+            variant="ghost"
+          >
+            Clear
+          </Button>
+        )}
       </div>
 
       <div className="bg-muted/30">
