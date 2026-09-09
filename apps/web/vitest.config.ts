@@ -7,17 +7,7 @@ export default defineConfig({
     include: ["src/**/__tests__/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      // SonarQube Cloud reads the lcov (see sonar-project.properties) and
-      // resolves its paths against the repo root, but Vitest runs from
-      // apps/web, so without projectRoot every SF: line points at a file that
-      // does not exist from there and the whole report counts as zero.
-      reporter: [
-        "text",
-        [
-          "lcovonly",
-          { projectRoot: fileURLToPath(new URL("../..", import.meta.url)) },
-        ],
-      ],
+      reporter: ["text", "lcovonly"],
       // Without an explicit include, v8 only reports files a test imported,
       // so untested modules would silently count as full coverage.
       include: ["src/**/*.{ts,tsx}"],
