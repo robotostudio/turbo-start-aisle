@@ -3,7 +3,7 @@
 import { cn } from "@workspace/ui/lib/utils";
 import { Minus, Plus } from "lucide-react";
 import { motion, type Variants } from "motion/react";
-import { type MouseEvent, useEffect, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 
 import type { SanityRichTextProps } from "@/types";
 import { RichText } from "../elements/rich-text";
@@ -37,8 +37,20 @@ export function FaqEntry({
   // shipped `height: 0` next to `overflow-hidden`, and the native <details>
   // opened onto a clipped, empty body for anyone without JavaScript.
   const [hydrated, setHydrated] = useState(false);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
+    // A visitor on a slow connection can open the row natively before the
+    // bundle lands: the browser sets `open` on the <details> while React is not
+    // running. Adopting that state here, in the same batch as the `hydrated`
+    // flip, makes the motion target below `auto` for a row that is visibly
+    // open — rather than the `0` React would otherwise still hold, which
+    // snapped the answer shut the moment scripting arrived.
+    const nativeOpen = detailsRef.current?.open;
+    if (nativeOpen !== undefined) {
+      setOpen(nativeOpen);
+      setRendered(nativeOpen);
+    }
     setHydrated(true);
   }, []);
 
@@ -62,7 +74,7 @@ export function FaqEntry({
       )}
       variants={motionVariants}
     >
-      <details className="group" open={rendered}>
+      <details className="group" open={rendered} ref={detailsRef}>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: <summary> is natively interactive + keyboard-operable */}
         <summary
           className={cn(

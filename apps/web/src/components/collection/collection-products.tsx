@@ -4,6 +4,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 
 import { CollectionPagination } from "@/components/collection/collection-pagination";
+import { useListingControls } from "@/components/collection/listing-controls";
 import { ProductGrid } from "@/components/collection/product-grid";
 import type { ShopifyCollectionProduct } from "@/lib/shopify/types";
 
@@ -76,10 +77,17 @@ export function CollectionProducts({
     });
 
   const allProducts = data?.pages.flatMap((page) => page.products) ?? [];
+  const { pending } = useListingControls();
 
   return (
     <>
-      <ProductGrid density={density} products={allProducts} />
+      <div
+        className={
+          pending ? "opacity-50 transition-opacity" : "transition-opacity"
+        }
+      >
+        <ProductGrid density={density} products={allProducts} />
+      </div>
       <CollectionPagination
         hasNextPage={hasNextPage}
         isLoading={isFetchingNextPage}

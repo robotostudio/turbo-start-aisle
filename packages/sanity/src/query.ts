@@ -259,7 +259,6 @@ const blogCardFragment = /* groq */ `
   title,
   description,
   "slug":slug.current,
-  orderRank,
   ${imageFragment},
   publishedAt,
   "category": category->{ _id, title, "slug": slug.current },
@@ -548,7 +547,6 @@ const ogFieldsFragment = /* groq */ `
     description
   ),
   "image": image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
-  "dominantColor": image.asset->metadata.palette.dominant.background,
   "seoImage": seoImage.asset->url + "?w=1200&h=630&dpr=2&fit=max",
   "logo": *[_type == "settings"][0].logo.asset->url + "?w=80&h=40&dpr=3&fit=max&q=100",
   "siteTitle": *[_type == "settings"][0].siteTitle,
@@ -591,14 +589,17 @@ export const queryProductOGData = defineQuery(`
       defined(seo.description) => seo.description,
       store.descriptionHtml
     ),
+    // Height only, so the full portrait survives for the card to letterbox.
+    // A raw Shopify url is the original -- 3058x4096, 12.8MB here -- pulled
+    // whole by the edge renderer every request. 1260 is 2x the card height.
+    // Joined with & because Shopify CDN urls always carry a v= cache-buster.
     "image": select(
       defined(seo.image.asset) => seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
-      defined(store.previewImageUrl) => store.previewImageUrl
+      defined(store.previewImageUrl) => store.previewImageUrl + "&height=1260"
     ),
     "price": store.priceRange.minVariantPrice,
     "colors": store.options[]{ name, values },
     "variants": store.variants[]->store{ price, compareAtPrice },
-    "dominantColor": seo.image.asset->metadata.palette.dominant.background,
     "seoImage": seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=max",
     "logo": *[_type == "settings"][0].logo.asset->url + "?w=80&h=40&dpr=3&fit=max&q=100",
     "siteTitle": *[_type == "settings"][0].siteTitle,
@@ -621,11 +622,7 @@ export const queryCollectionOGData = defineQuery(`
     "image": select(
       defined(seo.image.asset) => seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
       defined(hero.image.asset) => hero.image.asset->url + "?w=1200&h=630&dpr=2&fit=crop",
-      defined(store.imageUrl) => store.imageUrl
-    ),
-    "dominantColor": coalesce(
-      seo.image.asset->metadata.palette.dominant.background,
-      hero.image.asset->metadata.palette.dominant.background
+      defined(store.imageUrl) => store.imageUrl + "&height=1260"
     ),
     "seoImage": seo.image.asset->url + "?w=1200&h=630&dpr=2&fit=max",
     "logo": *[_type == "settings"][0].logo.asset->url + "?w=80&h=40&dpr=3&fit=max&q=100",
@@ -647,10 +644,6 @@ export const queryPromoBannerData = defineQuery(`
 export const queryFooterData = defineQuery(`
   *[_type == "footer" && _id == "footer"][0]{
     _id,
-    subtitle,
-    backgroundImage {
-      ${imageFields}
-    },
     columns[]{
       _key,
       title,
@@ -717,12 +710,27 @@ export const queryNavbarData = defineQuery(`
 // a matching projection here is a typecheck failure rather than a page that is
 // silently missing from the sitemap.
 export const querySitemapData = defineQuery(`{
-  "page": *[_type == "page" && defined(slug.current)]{
+  "page": *[_type == "page" && defined(slug.current) && seoNoIndex != true]{
     "path": slug.current,
     "lastModified": _updatedAt
   },
-  "blog": *[_type == "blog" && defined(slug.current)]{
+  "blog": *[_type == "blog" && defined(slug.current) && seoNoIndex != true]{
     "path": slug.current,
+    "lastModified": _updatedAt
+  },
+  "blogIndex": *[_type == "blogIndex"]{
+    // Literal, not the stored slug: this singleton saves it bare ("blog", no
+    // leading slash) and the sitemap joins path straight onto the origin, so
+    // the stored value emits "https://siteblog".
+    "path": "/blog",
+    "lastModified": _updatedAt
+  },
+  "product": *[_type == "product" && defined(store.slug.current) && store.status == "active" && store.isDeleted != true]{
+    "path": store.slug.current,
+    "lastModified": _updatedAt
+  },
+  "collection": *[_type == "collection" && defined(store.slug.current) && store.isDeleted != true]{
+    "path": store.slug.current,
     "lastModified": _updatedAt
   }
 }`);
@@ -734,6 +742,11 @@ export const queryGlobalSeoSettings = defineQuery(`
     logo {
       ${imageFields}
     },
+    favicon {
+      "svg": svg.asset->url,
+      "ico": ico.asset->url
+    },
+    "ogImage": ogImage.asset->url + "?w=1200&h=630&dpr=2&fit=max",
     siteDescription,
     socialLinks{
       linkedin,
@@ -751,6 +764,11 @@ export const querySettingsData = defineQuery(`
     _type,
     siteTitle,
     siteDescription,
+    favicon {
+      "svg": svg.asset->url,
+      "ico": ico.asset->url
+    },
+    "ogImage": ogImage.asset->url + "?w=1200&h=630&dpr=2&fit=max",
     "logo": logo.asset->url + "?w=80&h=40&dpr=3&fit=max",
     "socialLinks": socialLinks,
     "contactEmail": contactEmail,
@@ -851,10 +869,6 @@ export const queryCollectionsIndexPageData = defineQuery(`
     _type,
     title,
     subtitle,
-    heroTitle,
-    heroImage {
-      ${imageFields}
-    },
     ${buttonsFragment},
     "slug": slug.current
   }

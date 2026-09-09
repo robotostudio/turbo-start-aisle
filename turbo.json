@@ -60,6 +60,10 @@
       "dependsOn": ["transit"],
       "outputs": []
     },
+    "test:coverage": {
+      "dependsOn": ["transit"],
+      "outputs": ["coverage/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

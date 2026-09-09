@@ -9,7 +9,7 @@ import { BlogShare } from "@/components/blog-share";
 import { RichText } from "@/components/elements/rich-text";
 import { TableOfContent } from "@/components/elements/table-of-content";
 import { ArticleJsonLd, BreadcrumbJsonLd } from "@/components/json-ld";
-import { getSEOMetadata } from "@/lib/seo";
+import { seoFromDocument } from "@/lib/seo";
 import { getBaseUrl } from "@/utils";
 
 const logger = new Logger("BlogSlug");
@@ -23,10 +23,11 @@ function formatBlogDate(date: string | null | undefined) {
   });
 }
 
-async function fetchBlogSlugPageData(slug: string) {
+async function fetchBlogSlugPageData(slug: string, stega = true) {
   return await sanityFetch({
     query: queryBlogSlugPageData,
     params: { slug: `/blog/${slug}` },
+    stega,
   });
 }
 
@@ -57,19 +58,14 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { data } = await fetchBlogSlugPageData(slug);
-  return getSEOMetadata(
-    data
-      ? {
-          title: data?.title ?? data?.seoTitle ?? "",
-          description: data?.description ?? data?.seoDescription ?? "",
-          slug: data?.slug,
-          contentId: data?._id,
-          contentType: data?._type,
-          pageType: "article",
-        }
-      : {}
-  );
+  // `stega: false`: these values land in `<title>` and `og:title`, which no
+  // visual-editing overlay decodes, so the markers would ship as-is. The render
+  // read below keeps stega on so Presentation still works.
+  const { data } = await fetchBlogSlugPageData(slug, false);
+  return await seoFromDocument(data, {
+    slug: data?.slug ?? `/blog/${slug}`,
+    pageType: "article",
+  });
 }
 
 export async function generateStaticParams() {

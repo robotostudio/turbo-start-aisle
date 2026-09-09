@@ -6,7 +6,10 @@ import type { QueryHomePageDataResult } from "@workspace/sanity/types";
 import { createDataAttribute } from "next-sanity";
 import { useCallback, useMemo } from "react";
 
-import type { FeaturedProduct } from "@/lib/shopify/types";
+import type {
+  FeaturedProduct,
+  ShopifyCollectionProduct,
+} from "@/lib/shopify/types";
 import { CollectionBanner } from "./sections/collection-banner";
 import { CTABlock } from "./sections/cta";
 import { EditorialTwoUp } from "./sections/editorial-two-up";
@@ -35,6 +38,24 @@ export type PageBuilderProps = {
    * Shopify themselves since this is a client component.
    */
   readonly featuredProductsByKey?: Record<string, FeaturedProduct[]>;
+  /**
+   * The product each `layersShowcase` block shows, fetched server-side in the
+   * page and keyed by block `_key`, for the same reason. It has to be here for
+   * the block to paint without JavaScript: left to fetch from the browser, the
+   * server HTML was five skeleton cells with nothing behind them. `null` is a
+   * read that failed; the block then fetches from the browser as it used to.
+   */
+  readonly layersShowcaseProductByKey?: Record<
+    string,
+    ShopifyCollectionProduct | null
+  >;
+  /**
+   * Fallback `<h1>` for a page whose blocks supply none. Omit on a page that
+   * renders its own `<h1>` outside the builder, or it ships two.
+   */
+  readonly title?: string | null;
+  /** `div` for the blog routes, which nest this inside their own `<main>`. */
+  readonly as?: "main" | "div";
 };
 
 type SanityDataAttributeConfig = {
@@ -183,7 +204,8 @@ function useOptimisticPageBuilder(
 function useBlockRenderer(
   id: string,
   type: string,
-  featuredProductsByKey?: Record<string, FeaturedProduct[]>
+  featuredProductsByKey?: Record<string, FeaturedProduct[]>,
+  layersShowcaseProductByKey?: Record<string, ShopifyCollectionProduct | null>
 ) {
   const createBlockDataAttribute = useCallback(
     (blockKey: string) =>
@@ -210,12 +232,21 @@ function useBlockRenderer(
         );
       }
 
-      // `featuredProducts` blocks receive their Shopify data (fetched
-      // server-side) injected here, since a client block can't fetch it.
-      const injectedProps =
-        block._type === "featuredProducts"
-          ? { products: featuredProductsByKey?.[block._key] ?? [] }
-          : {};
+      // Blocks that read Shopify receive their data (fetched server-side)
+      // injected here, since a client block can't fetch it. A block absent
+      // from its map — rendered by a route that resolves nothing — gets the
+      // empty value, which is each block's own signal to render nothing or to
+      // fetch from the browser.
+      let injectedProps: Record<string, unknown> = {};
+      if (block._type === "featuredProducts") {
+        injectedProps = {
+          products: featuredProductsByKey?.[block._key] ?? [],
+        };
+      } else if (block._type === "layersShowcase") {
+        injectedProps = {
+          product: layersShowcaseProductByKey?.[block._key] ?? null,
+        };
+      }
 
       return (
         <div
@@ -227,7 +258,11 @@ function useBlockRenderer(
         </div>
       );
     },
-    [createBlockDataAttribute, featuredProductsByKey]
+    [
+      createBlockDataAttribute,
+      featuredProductsByKey,
+      layersShowcaseProductByKey,
+    ]
   );
 
   return { renderBlock };
@@ -241,9 +276,30 @@ export function PageBuilder({
   id,
   type,
   featuredProductsByKey,
+  layersShowcaseProductByKey,
+  title,
+  as: Wrapper = "main",
 }: PageBuilderProps) {
   const blocks = useOptimisticPageBuilder(initialBlocks, id);
-  const { renderBlock } = useBlockRenderer(id, type, featuredProductsByKey);
+
+  // `hero` is the only block that renders an `<h1>`; the rest open at `<h2>`.
+  // Keyed on the hero having a title, not on the block existing — `title` is
+  // optional, and an image-led full-bleed hero routinely has none.
+  const hasHeroHeading = useMemo(
+    () =>
+      blocks.some(
+        (block) =>
+          block._type === "hero" && Boolean((block as { title?: string }).title)
+      ),
+    [blocks]
+  );
+
+  const { renderBlock } = useBlockRenderer(
+    id,
+    type,
+    featuredProductsByKey,
+    layersShowcaseProductByKey
+  );
 
   const containerDataAttribute = useMemo(
     () => createSanityDataAttribute({ id, type, path: "pageBuilder" }),
@@ -254,8 +310,10 @@ export function PageBuilder({
   // drop target off the page, leaving an editor who deleted the last block with
   // nothing to drag onto.
   return (
-    <main className="flex flex-col" data-sanity={containerDataAttribute}>
+    <Wrapper className="flex flex-col" data-sanity={containerDataAttribute}>
+      {/* Restores exactly one `<h1>` without touching layout, as `/search` does. */}
+      {!hasHeroHeading && title && <h1 className="sr-only">{title}</h1>}
       {blocks.map(renderBlock)}
-    </main>
+    </Wrapper>
   );
 }

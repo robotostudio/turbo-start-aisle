@@ -24,9 +24,9 @@ export function Logo({ text, logo }: LogoProps) {
         />
       ) : (
         text && (
-          <h1 className="whitespace-nowrap text-xl tracking-[1.68px] font-medium uppercase ">
+          <span className="whitespace-nowrap text-xl tracking-[1.68px] font-medium uppercase ">
             {text}
-          </h1>
+          </span>
         )
       )}
     </Link>

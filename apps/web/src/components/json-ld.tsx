@@ -1,5 +1,4 @@
-import { client, urlFor } from "@workspace/sanity/client";
-import { querySettingsData } from "@workspace/sanity/query";
+import { urlFor } from "@workspace/sanity/client";
 import type {
   QueryBlogSlugPageDataResult,
   QuerySettingsDataResult,
@@ -23,7 +22,8 @@ import type {
   WithContext,
 } from "schema-dts";
 
-import { getBaseUrl, handleErrors } from "@/utils";
+import { getSettings } from "@/lib/seo";
+import { getBaseUrl } from "@/utils";
 
 type RichTextChild = {
   _type: string;
@@ -88,37 +88,47 @@ export function JsonLdScript<T>({ data, id }: { data: T; id: string }) {
 // FAQ JSON-LD Component
 type FaqJsonLdProps = {
   faqs: FlexibleFaq[];
+  /**
+   * Required per block: `pageBuilder` allows two FAQ blocks on a page, and a
+   * fixed id gave them a duplicate DOM id and two competing `FAQPage` entities.
+   */
+  id: string;
 };
 
-export function FaqJsonLd({ faqs }: FaqJsonLdProps) {
+export function FaqJsonLd({ faqs, id }: FaqJsonLdProps) {
   if (!faqs?.length) {
     return null;
   }
 
-  const validFaqs = stegaClean(
-    faqs.filter((faq) => faq?.title && faq?.richText)
-  );
+  // Resolve before validating: a non-empty `richText` still yields "" when it
+  // holds only images, and a text-less `Answer` invalidates the whole FAQPage.
+  const entries = stegaClean(faqs.filter((faq) => faq?.title && faq?.richText))
+    .map((faq: FlexibleFaq) => ({
+      name: faq.title,
+      text: extractPlainTextFromRichText(faq.richText),
+    }))
+    .filter((entry) => entry.text);
 
-  if (!validFaqs.length) {
+  if (!entries.length) {
     return null;
   }
 
   const faqJsonLd: WithContext<FAQPage> = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: validFaqs.map(
-      (faq: FlexibleFaq): Question => ({
+    mainEntity: entries.map(
+      (entry): Question => ({
         "@type": "Question",
-        name: faq.title,
+        name: entry.name,
         acceptedAnswer: {
           "@type": "Answer",
-          text: extractPlainTextFromRichText(faq.richText),
+          text: entry.text,
         } as Answer,
       })
     ),
   };
 
-  return <JsonLdScript data={faqJsonLd} id="faq-json-ld" />;
+  return <JsonLdScript data={faqJsonLd} id={id} />;
 }
 
 const IMAGE_SIZE_WIDTH = 1920;
@@ -140,16 +150,21 @@ function buildSafeImageUrl(image?: { id?: string | null }) {
 // Article JSON-LD Component
 type ArticleJsonLdProps = {
   article: QueryBlogSlugPageDataResult;
-  settings?: QuerySettingsDataResult;
 };
-export function ArticleJsonLd({
+
+/**
+ * Read here, not passed in: as an optional prop no caller ever set it, so every
+ * article published `publisher.name: "Website"`. `getSettings` is also
+ * request-cached and `stega: false`, which the prop path never was.
+ */
+export async function ArticleJsonLd({
   article: rawArticle,
-  settings,
 }: ArticleJsonLdProps) {
   if (!rawArticle) {
     return null;
   }
   const article = stegaClean(rawArticle);
+  const settings = await getSettings();
 
   const baseUrl = getBaseUrl();
   const articleUrl = `${baseUrl}${article.slug}`;
@@ -166,7 +181,8 @@ export function ArticleJsonLd({
           {
             "@type": "Person",
             name: article.authors.name,
-            url: `${baseUrl}`,
+            // No `url`: there is no author route, and pointing every author at
+            // the homepage is worse than omitting it.
             image: article.authors.image
               ? ({
                   "@type": "ImageObject",
@@ -178,7 +194,7 @@ export function ArticleJsonLd({
       : [],
     publisher: {
       "@type": "Organization",
-      name: settings?.siteTitle || "Website",
+      name: settings?.siteTitle ?? undefined,
       logo: settings?.logo
         ? ({
             "@type": "ImageObject",
@@ -338,6 +354,9 @@ export function CollectionJsonLd({
 }: CollectionJsonLdProps) {
   // stegaClean strips Sanity visual-editing markers from CMS-sourced strings;
   // no-op on plain strings (e.g. Shopify product titles).
+  // Dropped before numbering, since `position` has to stay contiguous.
+  const listed = items.filter((entry) => Boolean(entry.name));
+
   const collectionJsonLd: WithContext<CollectionPage> = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -346,8 +365,8 @@ export function CollectionJsonLd({
     url: url || undefined,
     mainEntity: {
       "@type": "ItemList",
-      numberOfItems: items.length,
-      itemListElement: items.map(
+      numberOfItems: listed.length,
+      itemListElement: listed.map(
         (entry, index): ListItem => ({
           "@type": "ListItem",
           position: index + 1,
@@ -374,9 +393,7 @@ export async function CombinedJsonLd({
   includeWebsite = false,
   includeOrganization = false,
 }: CombinedJsonLdProps) {
-  const [res] = await handleErrors(client.fetch(querySettingsData));
-
-  const cleanSettings = stegaClean(res);
+  const cleanSettings = await getSettings();
   return (
     <>
       {includeWebsite && cleanSettings && (

@@ -1,18 +1,31 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { createContext, useContext, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  createContext,
+  useContext,
+  useOptimistic,
+  useState,
+  useTransition,
+} from "react";
 
 import { SortSelector } from "@/components/collection/sort-selector";
 
 type ListingControlsContextType = {
   filterOpen: boolean;
   toggleFilter: () => void;
+  params: URLSearchParams;
+  pushParams: (next: URLSearchParams) => void;
+  pending: boolean;
 };
 
 const ListingControlsContext = createContext<ListingControlsContextType>({
   filterOpen: false,
   toggleFilter: () => {},
+  params: new URLSearchParams(),
+  pushParams: () => {},
+  pending: false,
 });
 
 export function useListingControls() {
@@ -25,10 +38,29 @@ export function ListingControlsProvider({
   children: React.ReactNode;
 }) {
   const [filterOpen, setFilterOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [params, setParams] = useOptimistic<URLSearchParams>(searchParams);
+  const [pending, startTransition] = useTransition();
+
+  const pushParams = (next: URLSearchParams) => {
+    const qs = next.toString();
+    startTransition(() => {
+      setParams(next);
+      router.push(qs ? `?${qs}` : pathname, { scroll: false });
+    });
+  };
 
   return (
     <ListingControlsContext
-      value={{ filterOpen, toggleFilter: () => setFilterOpen((p) => !p) }}
+      value={{
+        filterOpen,
+        toggleFilter: () => setFilterOpen((p) => !p),
+        params,
+        pushParams,
+        pending,
+      }}
     >
       {children}
     </ListingControlsContext>
@@ -67,17 +99,9 @@ export function ListingControlsProvider({
  */
 
 const controlTextClass =
-  "flex shrink-0 items-center gap-1 whitespace-nowrap text-base text-zinc-900 tracking-[0.24px] transition-colors hover:text-zinc-500 focus-visible:outline-none dark:text-zinc-100 dark:hover:text-zinc-400";
+  "flex shrink-0 items-center gap-1 whitespace-nowrap text-base text-zinc-900 tracking-[0.24px] transition-colors hover:text-zinc-500 focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:text-zinc-100 dark:hover:text-zinc-400";
 
-type ListingControlsProps = {
-  currentSort: string;
-  currentReverse: boolean;
-};
-
-export function ListingControls({
-  currentSort,
-  currentReverse,
-}: ListingControlsProps) {
+export function ListingControls() {
   const { filterOpen, toggleFilter } = useListingControls();
 
   // Grid density toggle disabled for now (see brutalist note above).
@@ -151,7 +175,7 @@ export function ListingControls({
       </button>
 
       {/* Sort */}
-      <SortSelector currentReverse={currentReverse} currentSort={currentSort} />
+      <SortSelector />
     </div>
   );
 }

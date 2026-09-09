@@ -10,7 +10,7 @@ import { BlogFilterSidebar } from "@/components/blog-filter-sidebar";
 import { BlogList } from "@/components/blog-list";
 import { BlogPagination } from "@/components/blog-pagination";
 import { BlogSearchResults } from "@/components/blog-search-results";
-import { PageBuilder } from "@/components/pagebuilder";
+import { PageBuilder, type PageBuilderProps } from "@/components/pagebuilder";
 import { useBlogSearch } from "@/hooks/use-blog-search";
 import type { Blog } from "@/types";
 import type { PaginationMetadata } from "@/utils";
@@ -21,6 +21,12 @@ type BlogPageContentProps = {
   categories: QueryBlogCategoriesResult;
   activeCategory: string;
   paginationMetadata: PaginationMetadata;
+  /**
+   * Shopify data for the product-backed blocks, resolved by the route — this
+   * is a client component and cannot read it. See `resolvePageBuilderProducts`.
+   */
+  featuredProductsByKey: PageBuilderProps["featuredProductsByKey"];
+  layersShowcaseProductByKey: PageBuilderProps["layersShowcaseProductByKey"];
 };
 
 export function BlogPageContent({
@@ -29,6 +35,8 @@ export function BlogPageContent({
   categories,
   activeCategory,
   paginationMetadata,
+  featuredProductsByKey,
+  layersShowcaseProductByKey,
 }: BlogPageContentProps) {
   const {
     title,
@@ -117,7 +125,14 @@ export function BlogPageContent({
       </div>
 
       {pageBuilder && pageBuilder.length > 0 && (
-        <PageBuilder id={_id} pageBuilder={pageBuilder} type={_type} />
+        <PageBuilder
+          as="div"
+          featuredProductsByKey={featuredProductsByKey}
+          id={_id}
+          layersShowcaseProductByKey={layersShowcaseProductByKey}
+          pageBuilder={pageBuilder}
+          type={_type}
+        />
       )}
     </main>
   );

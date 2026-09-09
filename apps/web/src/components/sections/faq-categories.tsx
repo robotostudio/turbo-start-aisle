@@ -1,13 +1,17 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { PagebuilderType } from "@/types";
 import { FaqJsonLd } from "../json-ld";
 import { FaqEntry } from "./faq-entry";
 
 type FaqCategoriesProps = PagebuilderType<"faqCategories">;
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const listVariants = {
   hidden: {},
@@ -52,7 +56,9 @@ function switcherStyles(scope: string, count: number) {
       // unresolved var made the whole outline invalid, and since the inputs are
       // `sr-only` this is the switcher's only focus affordance.
       `${input}:focus-visible ~ * [data-faq-tab="${index}"]` +
-        "{outline:2px solid var(--ring);outline-offset:3px}"
+        "{outline:2px solid var(--ring);outline-offset:3px}",
+      `@media (width < 48rem){${input}:focus-visible ~ * [data-faq-tab="${index}"]{outline:none;box-shadow:0 0 0 3px var(--background),0 0 0 5px var(--ring)}}`,
+      `@media (width < 48rem){fieldset:not([data-hydrated]) ${input}:checked ~ * [data-faq-tab="${index}"]{background:var(--muted)}}`
     );
   }
   return rules.join("");
@@ -79,6 +85,9 @@ export function FaqCategories({ _key, title, categories }: FaqCategoriesProps) {
   // may well have switched category before the bundle landed.
   const [activeIndex, setActiveIndex] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const railRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
+  const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
     const checked = document.querySelector<HTMLInputElement>(
@@ -90,9 +99,29 @@ export function FaqCategories({ _key, title, categories }: FaqCategoriesProps) {
     setHydrated(true);
   }, [scope]);
 
+  useIsomorphicLayoutEffect(() => {
+    const measure = () => {
+      const rail = railRef.current;
+      const indicator = indicatorRef.current;
+      const tab = rail?.querySelector<HTMLElement>(
+        `[data-faq-tab="${activeIndex}"]`
+      );
+      if (!rail || !indicator || !tab) return;
+
+      indicator.style.left = `${tab.offsetLeft}px`;
+      indicator.style.width = `${tab.offsetWidth}px`;
+      indicator.style.height = `${tab.offsetHeight}px`;
+    };
+
+    measure();
+    const breakpoint = window.matchMedia("(width >= 48rem)");
+    breakpoint.addEventListener("change", measure);
+    return () => breakpoint.removeEventListener("change", measure);
+  }, [activeIndex]);
+
   return (
     <section className="py-12 md:py-20" id="faq">
-      <FaqJsonLd faqs={allFaqs} />
+      <FaqJsonLd faqs={allFaqs} id={`faq-json-ld-${_key}`} />
       <div className="site-container">
         <h2 className="mb-8 font-medium text-2xl md:mb-12 md:text-3xl">
           {title}
@@ -101,7 +130,10 @@ export function FaqCategories({ _key, title, categories }: FaqCategoriesProps) {
         {/* A fieldset so the radio group carries a programmatic name; the
             legend is first, so the inputs are still preceding siblings of the
             grid and the `~` selectors above keep working. */}
-        <fieldset className="min-w-0 [--faq-tab-active:var(--color-zinc-900)] dark:[--faq-tab-active:var(--color-zinc-100)]">
+        <fieldset
+          className="min-w-0 [--faq-tab-active:var(--color-zinc-900)] dark:[--faq-tab-active:var(--color-zinc-100)]"
+          data-hydrated={hydrated ? "" : undefined}
+        >
           <legend className="sr-only">{title ?? "FAQ categories"}</legend>
 
           {/* `href` + `precedence` hand the sheet to React, which hoists it
@@ -119,10 +151,20 @@ export function FaqCategories({ _key, title, categories }: FaqCategoriesProps) {
             <input
               className="sr-only"
               defaultChecked={index === 0}
+              style={{ position: "fixed" }}
               id={`${scope}-input-${index}`}
               key={category?._key ? `key-${category._key}` : `index-${index}`}
               name={scope}
-              onChange={() => setActiveIndex(index)}
+              onChange={() => {
+                setActiveIndex(index);
+                document
+                  .getElementById(`${scope}-label-${index}`)
+                  ?.scrollIntoView({
+                    behavior: reduced ? "auto" : "smooth",
+                    block: "nearest",
+                    inline: "nearest",
+                  });
+              }}
               type="radio"
               value={index}
             />
@@ -130,10 +172,18 @@ export function FaqCategories({ _key, title, categories }: FaqCategoriesProps) {
 
           <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-16">
             {/* Left rail — category labels, styled active by the CSS above */}
-            <div className="flex flex-col gap-2 self-start md:sticky md:top-24">
+            <div
+              className="-my-2 -mx-4 flex overflow-x-auto px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden relative md:m-0 md:flex-col md:gap-2 md:self-start md:sticky md:top-24 md:overflow-visible md:p-0"
+              ref={railRef}
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 w-0 -translate-y-1/2 rounded-full bg-muted duration-300 ease-out motion-safe:transition-[left,width] md:hidden"
+                ref={indicatorRef}
+              />
               {groups.map((category, index) => (
                 <label
-                  className="cursor-pointer text-left text-muted-foreground text-sm tracking-wide transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
+                  className="relative shrink-0 cursor-pointer whitespace-nowrap rounded-full px-3 py-1.5 text-left text-muted-foreground text-sm tracking-wide transition-colors hover:text-zinc-900 md:whitespace-normal md:p-0 dark:hover:text-zinc-100"
                   data-faq-tab={index}
                   htmlFor={`${scope}-input-${index}`}
                   id={`${scope}-label-${index}`}

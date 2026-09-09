@@ -5,6 +5,13 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/__tests__/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcovonly"],
+      // Without an explicit include, v8 only reports files a test imported,
+      // so untested modules would silently count as full coverage.
+      include: ["src/**/*.{ts,tsx}"],
+    },
   },
   // Components under test are .tsx, and the web tsconfig sets `jsx: preserve`
   // for Next. Vite 8 (which Vitest now runs on) honours that and hands the JSX

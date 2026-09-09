@@ -27,12 +27,7 @@ export function SavedEmptyState() {
           Collapses to allow scroll when the section is tall. */}
       <div className="min-h-12 flex-1" />
 
-      <div className="flex flex-col gap-6">
-        <h3 className="font-medium text-foreground text-xl tracking-[0.24px]">
-          Must haves
-        </h3>
-        <CartRecommendations />
-      </div>
+      <CartRecommendations />
     </div>
   );
 }

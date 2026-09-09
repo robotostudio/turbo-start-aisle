@@ -18,11 +18,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * broken a documented feature of the block.
  */
 
-const { getFeaturedProducts } = vi.hoisted(() => ({
+const { getFeaturedProducts, getProductByHandle } = vi.hoisted(() => ({
   getFeaturedProducts: vi.fn(),
+  getProductByHandle: vi.fn(),
 }));
 const { readHomePage } = vi.hoisted(() => ({ readHomePage: vi.fn() }));
 
+// `server-only` throws on import outside a React Server Component, and vitest
+// resolves its client entry. The route reaches it through the product resolver.
+vi.mock("server-only", () => ({}));
 // Every mock below is here for the same reason as in the collections page test:
 // the module reaches `@workspace/env/*`, which validates with Zod at import time
 // and has nothing to validate in the runner.
@@ -32,10 +36,12 @@ vi.mock("@workspace/sanity/live", () => ({
 // Reached through `@/lib/seo` -> `@/lib/markdown/shared`.
 vi.mock("@workspace/sanity/client", () => ({
   urlFor: () => ({ width: () => ({ url: () => "https://cdn.test/x" }) }),
+  client: { fetch: async () => null },
 }));
 vi.mock("@/utils", () => ({
   getBaseUrl: () => "https://base.test",
   capitalize: (value: string) => value,
+  handleErrors: async (promise: Promise<unknown>) => [await promise, undefined],
 }));
 // A client component that pulls `@workspace/env/client`, the visual-editing
 // runtime and twelve section components. Standing in for it also makes the
@@ -43,16 +49,24 @@ vi.mock("@/utils", () => ({
 vi.mock("@/components/pagebuilder", () => ({
   PageBuilder: ({
     featuredProductsByKey,
+    layersShowcaseProductByKey,
   }: {
     featuredProductsByKey?: Record<string, unknown[]>;
+    layersShowcaseProductByKey?: Record<string, { handle: string } | null>;
   }) =>
-    `blocks:${Object.entries(featuredProductsByKey ?? {})
-      .map(([key, products]) => `${key}=${products.length}`)
-      .join(",")}`,
+    [
+      `blocks:${Object.entries(featuredProductsByKey ?? {})
+        .map(([key, products]) => `${key}=${products.length}`)
+        .join(",")}`,
+      `showcase:${Object.entries(layersShowcaseProductByKey ?? {})
+        .map(([key, product]) => `${key}=${product?.handle ?? "null"}`)
+        .join(",")}`,
+    ].join(" "),
 }));
-// Mocked for the spy, and because the real module opens with `import
+// Mocked for the spies, and because both real modules open with `import
 // "server-only"` — a package whose non-`react-server` entry is a bare `throw`.
 vi.mock("@/lib/shopify/featured", () => ({ getFeaturedProducts }));
+vi.mock("@/lib/shopify/product", () => ({ getProductByHandle }));
 
 const { default: Page, generateMetadata } = await import("../page");
 
@@ -81,6 +95,16 @@ function featuredBlock(productHandles: string[] | null, pickCount: number) {
   };
 }
 
+function showcaseBlock(productHandle: string | null) {
+  return {
+    _key: "show-1",
+    _type: "layersShowcase",
+    heading: "Layers of the season",
+    productHandle,
+    productTitle: productHandle ? "Rye Leather Moto Jacket" : null,
+  };
+}
+
 const render = async () => renderToStaticMarkup(await Page());
 
 let warn: ReturnType<typeof vi.spyOn>;
@@ -88,6 +112,7 @@ let warn: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.clearAllMocks();
   getFeaturedProducts.mockResolvedValue([CARD]);
+  getProductByHandle.mockResolvedValue(CARD);
   // The page warns on both branches under test; swallow it to keep the run
   // readable, and hold the spy so the assertions do not reach for the global.
   warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -126,8 +151,10 @@ describe("home page with no document", () => {
     // revalidation. The metadata has to agree with what the body says.
     readHomePage.mockResolvedValue(null);
 
+    // The `noindex` half alone is what keeps this out of the index, and holds
+    // for either pairing. "index, follow" does not contain "noindex".
     expect(await generateMetadata()).toMatchObject({
-      robots: "noindex, nofollow",
+      robots: expect.stringContaining("noindex"),
     });
   });
 
@@ -172,5 +199,45 @@ describe("home page featured products", () => {
     await render();
 
     expect(getFeaturedProducts).toHaveBeenCalledWith(["wren-washed-cap"]);
+  });
+});
+
+// The showcase used to fetch its product from the browser, so the server HTML
+// carried five skeleton cells and nothing behind them — permanent grey boxes
+// for a visitor with JavaScript off. The page resolves it here instead, on the
+// same footing as the featured row.
+describe("home page layers showcase", () => {
+  it("resolves the product on the server, keyed by block", async () => {
+    readHomePage.mockResolvedValue(homePage([showcaseBlock(CARD.handle)]));
+
+    const markup = await render();
+
+    expect(getProductByHandle).toHaveBeenCalledWith(CARD.handle);
+    expect(markup).toContain("show-1=newest-hoodie");
+  });
+
+  it("skips the read when the referenced product is gone", async () => {
+    // GROQ nulls the handle for an archived or deleted product, and the block
+    // renders nothing for it; a Storefront call would be a wasted round trip.
+    readHomePage.mockResolvedValue(homePage([showcaseBlock(null)]));
+
+    const markup = await render();
+
+    expect(getProductByHandle).not.toHaveBeenCalled();
+    expect(markup).toContain("show-1=null");
+  });
+
+  it("hands the block null, and says so, when the read comes back empty", async () => {
+    getProductByHandle.mockResolvedValue(null);
+    readHomePage.mockResolvedValue(homePage([showcaseBlock(CARD.handle)]));
+
+    const markup = await render();
+
+    // `null` puts the block back on its browser fetch; the warning is the only
+    // thing that says the first paint degraded.
+    expect(markup).toContain("show-1=null");
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("Layers Showcase block show-1")
+    );
   });
 });

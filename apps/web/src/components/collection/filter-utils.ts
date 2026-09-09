@@ -130,6 +130,7 @@ export function parseFilterParams(sp: ParamSource): ProductFilter[] {
 export type ActiveFilter = {
   key: string;
   label: string;
+  facet: string;
   paramKey: string;
   paramValue: string;
   invalid?: boolean;
@@ -155,11 +156,19 @@ function buildFilterLabel(key: string, value: string): string {
   if (key === "filter.category") return value.split("|")[1] ?? value;
   if (key === "filter.price.min" || key === "filter.price.max") {
     const prefix = key === "filter.price.min" ? "Min" : "Max";
-    if (Number.isNaN(Number(value))) return `${prefix}: invalid`;
-    return `${prefix}: ${value}`;
+    if (Number.isNaN(Number(value))) return `${prefix} invalid`;
+    return `${prefix} ${value}`;
   }
   // Variant options / vendor / type / tag: the value is already the label.
   return value;
+}
+
+/** "Size" for filter.option.size, "Price" for any price key, "Availability" for filter.available. */
+function buildFilterFacet(key: string): string {
+  if (key === "filter.available") return "Availability";
+  if (key.startsWith("filter.price")) return "Price";
+  const facet = key.split(".").at(-1) ?? "";
+  return facet.charAt(0).toUpperCase() + facet.slice(1);
 }
 
 function isInvalidFilter(key: string, value: string): boolean {
@@ -183,6 +192,7 @@ export function getActiveFilters(sp: URLSearchParams): ActiveFilter[] {
     active.push({
       key: buildFilterKey(key, value),
       label: buildFilterLabel(key, value),
+      facet: buildFilterFacet(key),
       paramKey: key,
       paramValue: value,
       invalid: isInvalidFilter(key, value),

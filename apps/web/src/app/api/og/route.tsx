@@ -156,6 +156,15 @@ const CreditDivider = () => (
   />
 );
 
+/**
+ * Sanity images arrive pre-cropped to this card's aspect (`fit=crop` honours
+ * the hotspot), so they cover cleanly. Shopify art is the raw 3:4 portrait, and
+ * covering that into a 1.9:1 card drops ~61% of the height — every anchor
+ * either beheads the model or loses the garment. Letterboxed instead.
+ */
+const objectFitFor = (image?: Maybe<string>) =>
+  image?.includes("cdn.shopify.com") ? "contain" : "cover";
+
 const FullBleed = ({
   image,
   children,
@@ -181,7 +190,11 @@ const FullBleed = ({
         alt=""
         height={630}
         src={image}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: objectFitFor(image),
+        }}
         width={1200}
       />
     ) : null}

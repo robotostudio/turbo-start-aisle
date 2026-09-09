@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@workspace/ui/components/button";
 import {
   Sheet,
   SheetContent,
@@ -55,14 +56,15 @@ export function SavedItemsDrawer() {
           <SheetDescription className="sr-only">
             Your saved items
           </SheetDescription>
-          <button
-            className="inline-flex items-center gap-1 text-base text-foreground tracking-[0.24px] transition-opacity hover:opacity-70"
+          <Button
+            className="size-6 hover:bg-transparent hover:opacity-70 dark:hover:bg-transparent"
             onClick={closeSaved}
-            type="button"
+            size="icon"
+            variant="ghost"
           >
-            Close
-            <X className="size-[18px]" />
-          </button>
+            <span className="sr-only">Close</span>
+            <X className="size-5" />
+          </Button>
         </SheetHeader>
 
         {/* The scroller hides its scrollbar (same idiom as cart-recommendations):

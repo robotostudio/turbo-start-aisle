@@ -5,13 +5,8 @@ import { Button } from "@workspace/ui/components/button";
 import Link from "next/link";
 
 import { PageBuilder } from "@/components/pagebuilder";
-import {
-  isFeaturedProductsBlock,
-  resolveFeaturedPicks,
-} from "@/lib/featured-blocks";
-import { getSEOMetadata } from "@/lib/seo";
-import { getFeaturedProducts } from "@/lib/shopify/featured";
-import type { FeaturedProduct } from "@/lib/shopify/types";
+import { resolvePageBuilderProducts } from "@/lib/page-builder-products";
+import { getSEOMetadata, seoFromDocument } from "@/lib/seo";
 
 const logger = new Logger("HomePage");
 
@@ -23,24 +18,17 @@ async function fetchHomePageData() {
 
 export async function generateMetadata() {
   const { data: homePageData } = await fetchHomePageData();
-  return getSEOMetadata(
-    homePageData
-      ? {
-          title: homePageData?.title ?? homePageData?.seoTitle ?? "",
-          description:
-            homePageData?.description ?? homePageData?.seoDescription ?? "",
-          slug: homePageData?.slug,
-          contentId: homePageData?._id,
-          contentType: homePageData?._type,
-        }
-      : // Same failed read the render path answers with HomePageUnavailable, so
+  return homePageData
+    ? await seoFromDocument(homePageData, { slug: homePageData.slug ?? "/" })
+    : await getSEOMetadata(
+        // Same failed read the render path answers with HomePageUnavailable, so
         // the metadata has to agree with it. Without this the unavailable state
         // ships `robots: index, follow` under the site title, canonical `/` and
         // the OG image — and because the route prerenders and next-sanity caches
         // at `revalidate: false`, one failed build-time read pins an indexable
         // "couldn't be loaded" as the home page until a tag revalidation.
         { seoNoIndex: true }
-  );
+      );
 }
 
 /**
@@ -92,43 +80,11 @@ export default async function Page() {
   const { _id, _type, pageBuilder } = homePageData ?? {};
   const blocks = pageBuilder ?? [];
 
-  // Featured Products blocks can't fetch Shopify themselves (they render inside
-  // the client PageBuilder), so resolve their products here, keyed by block.
-  const featuredBlocks = blocks.filter(isFeaturedProductsBlock);
-  const featuredEntries = await Promise.all(
-    featuredBlocks.map(async (block) => {
-      const { handles, pickedCount, droppedCount, allDropped } =
-        resolveFeaturedPicks(block);
-
-      if (allDropped) {
-        // Every pick is gone, and no handles is precisely the input that makes
-        // the resolver answer with best-sellers. Showing an editor four products
-        // they did not choose, under their own heading, is worse than showing
-        // none — the same call `a0ecbeb` made for the layers showcase. Nothing
-        // is on screen either way, so the log is the only thing that can say so.
-        //
-        // `_key` leads and `heading` trails: stega encoding is on for every read
-        // on a preview deploy, and `heading` is not on @sanity/client's denylist,
-        // so it arrives carrying invisible markers. `_key` is denylisted.
-        logger.warn(
-          `Featured Products block ${block._key} has ${pickedCount} pick(s) and not one resolved — rendering nothing rather than best-sellers (heading: ${block.heading ?? "untitled"})`
-        );
-        return [block._key, [] as FeaturedProduct[]] as const;
-      }
-
-      if (droppedCount > 0) {
-        // Still renders the survivors: a short row is a smaller lie than a
-        // substituted one, and the block has no way to say "and three more".
-        logger.warn(
-          `Featured Products block ${block._key} lost ${droppedCount} of ${pickedCount} pick(s) to deleted or archived products`
-        );
-      }
-
-      return [block._key, await getFeaturedProducts(handles)] as const;
-    })
-  );
-  const featuredProductsByKey: Record<string, FeaturedProduct[]> =
-    Object.fromEntries(featuredEntries);
+  // Product-backed blocks can't fetch Shopify themselves (they render inside
+  // the client PageBuilder), so the route resolves their products, keyed by
+  // block, and hands them down. Shared with the slug and blog routes.
+  const { featuredProductsByKey, layersShowcaseProductByKey } =
+    await resolvePageBuilderProducts(blocks);
 
   // One PageBuilder over the whole array. Splitting the hero into a second
   // instance gave both the same document id, so each optimistic reducer only
@@ -137,7 +93,9 @@ export default async function Page() {
     <PageBuilder
       featuredProductsByKey={featuredProductsByKey}
       id={_id}
+      layersShowcaseProductByKey={layersShowcaseProductByKey}
       pageBuilder={blocks}
+      title={homePageData.title}
       type={_type}
     />
   );

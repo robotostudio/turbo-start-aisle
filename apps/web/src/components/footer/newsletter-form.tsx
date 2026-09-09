@@ -25,7 +25,7 @@ export function NewsletterForm() {
           </label>
           <input
             aria-invalid={failed}
-            className="w-full border-border border-b bg-transparent pb-1 text-foreground text-sm placeholder:text-muted-foreground focus:outline-none aria-invalid:border-destructive"
+            className="w-full border-border border-b bg-transparent pb-1 text-foreground text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
             defaultValue={failed ? (state.email ?? "") : ""}
             id="newsletter-email"
             name="email"

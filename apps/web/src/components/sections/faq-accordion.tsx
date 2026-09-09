@@ -7,10 +7,10 @@ import { FaqEntry } from "./faq-entry";
 
 type FaqAccordionProps = PagebuilderType<"faqAccordion">;
 
-export function FaqAccordion({ title, faqs, link }: FaqAccordionProps) {
+export function FaqAccordion({ _key, title, faqs, link }: FaqAccordionProps) {
   return (
     <section className="py-12 md:py-20" id="faq">
-      <FaqJsonLd faqs={faqs} />
+      <FaqJsonLd faqs={faqs} id={`faq-json-ld-${_key}`} />
       <div className="site-container">
         <div className="flex flex-col items-center">
           <h2 className="mb-10 font-normal text-3xl md:text-4xl">{title}</h2>

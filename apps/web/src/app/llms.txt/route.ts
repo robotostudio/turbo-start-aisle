@@ -1,22 +1,18 @@
 import { Logger } from "@workspace/logger";
 import { sanityFetch } from "@workspace/sanity/live";
-import {
-  queryBlogPaths,
-  queryCollectionPaths,
-  queryProductPaths,
-  querySlugPagePaths,
-} from "@workspace/sanity/query";
+import { querySitemapData } from "@workspace/sanity/query";
 
 import { toMarkdownHref } from "@/lib/markdown/shared";
+import { getSiteConfig } from "@/lib/seo";
 import { getBaseUrl } from "@/utils";
 
 const logger = new Logger("LlmsTxt");
 
 const PUBLISHED = { perspective: "published", stega: false } as const;
 
-const SITE_TITLE = "Turbo Start Aisle";
-const SITE_DESCRIPTION =
-  "Headless commerce storefront. Append .md to any URL, or send Accept: text/markdown, to get a structured Markdown view of a page.";
+/** How to reach the `.md` representation; the name comes from Settings. */
+const FORMAT_NOTE =
+  "Append .md to any URL, or send Accept: text/markdown, to get a structured Markdown view of a page.";
 
 /** Absolute `.md` URL for an internal path. */
 function mdUrl(base: string, path: string): string {
@@ -31,54 +27,35 @@ function section(title: string, links: string[]): string | null {
 export async function GET(): Promise<Response> {
   const base = getBaseUrl();
 
-  const [pages, blogs, products, collections] = await Promise.allSettled([
-    sanityFetch({ query: querySlugPagePaths, ...PUBLISHED }),
-    sanityFetch({ query: queryBlogPaths, ...PUBLISHED }),
-    sanityFetch({ query: queryProductPaths, ...PUBLISHED }),
-    sanityFetch({ query: queryCollectionPaths, ...PUBLISHED }),
+  // `querySitemapData` already excludes `seoNoIndex` docs, so a page the site
+  // asks crawlers to skip is no longer handed to model crawlers instead.
+  const [siteConfig, docs] = await Promise.all([
+    getSiteConfig(base),
+    sanityFetch({ query: querySitemapData, ...PUBLISHED })
+      .then((res) => res.data)
+      .catch((error) => {
+        logger.error("Failed to load documents for llms.txt", error);
+        return null;
+      }),
   ]);
 
-  const value = <T>(
-    result: PromiseSettledResult<{ data: T }>,
-    label: string
-  ): T | null => {
-    if (result.status === "fulfilled") return result.value.data;
-    logger.error(`Failed to load ${label} for llms.txt`, result.reason);
-    return null;
-  };
-
-  const pagePaths = (value(pages, "pages") ?? []).filter(
-    (slug): slug is string => Boolean(slug)
-  );
-  const blogPaths = (value(blogs, "blogs") ?? []).filter(
-    (slug): slug is string => Boolean(slug)
-  );
-  const productHandles = (value(products, "products") ?? []).filter(
-    (handle): handle is string => Boolean(handle)
-  );
-  const collectionHandles = (value(collections, "collections") ?? []).filter(
-    (handle): handle is string => Boolean(handle)
-  );
+  const paths = (key: keyof NonNullable<typeof docs>, prefix = "") =>
+    (docs?.[key] ?? [])
+      .map((doc) => doc.path)
+      .filter((path): path is string => Boolean(path))
+      .map((path) => mdUrl(base, `${prefix}${path}`));
 
   const body = [
-    `# ${SITE_TITLE}`,
-    `> ${SITE_DESCRIPTION}`,
-    section("Pages", [
-      mdUrl(base, "/"),
-      ...pagePaths.map((path) => mdUrl(base, path)),
+    `# ${siteConfig.title}`,
+    `> ${siteConfig.description ? `${siteConfig.description} ` : ""}${FORMAT_NOTE}`,
+    section("Pages", [mdUrl(base, "/"), ...paths("page")]),
+    section("Collections", [
+      // Has a markdown handler and sitemap entry but no `querySitemapData` key.
+      mdUrl(base, "/collections"),
+      ...paths("collection", "/collections/"),
     ]),
-    section(
-      "Collections",
-      collectionHandles.map((handle) => mdUrl(base, `/collections/${handle}`))
-    ),
-    section(
-      "Products",
-      productHandles.map((handle) => mdUrl(base, `/products/${handle}`))
-    ),
-    section("Blog", [
-      mdUrl(base, "/blog"),
-      ...blogPaths.map((path) => mdUrl(base, path)),
-    ]),
+    section("Products", paths("product", "/products/")),
+    section("Blog", [...paths("blogIndex"), ...paths("blog")]),
   ]
     .filter((part): part is string => Boolean(part))
     .join("\n\n");
