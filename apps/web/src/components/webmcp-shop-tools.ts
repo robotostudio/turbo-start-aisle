@@ -19,6 +19,8 @@ import type {
 /** What the tools need from the page. Getters, so a tool reads live state. */
 export type ShopToolDeps = {
   getCart: () => Cart | null;
+  /** True until the first cart read answers: a null cart is not yet "empty". */
+  isCartLoading: () => boolean;
   getSaved: () => string[];
   setSaved: (handle: string, saved: boolean) => void;
   addLine: (
@@ -30,8 +32,8 @@ export type ShopToolDeps = {
   removeLine: (lineId: string) => void;
   openCart: () => void;
   settle: () => Promise<Cart | null>;
-  /** Client-side navigation to a path on this site. */
-  push: (href: string) => void;
+  /** Client-side navigation to a path on this site. `keepScroll` is for filters. */
+  push: (href: string, keepScroll?: boolean) => void;
   /** Full navigation, for the Shopify checkout URL. */
   leave: (url: string) => void;
 };
@@ -46,6 +48,11 @@ const handle = z
 
 const money = ({ amount, currencyCode }: MoneyV2) =>
   `${amount} ${currencyCode}`;
+
+const CART_LOADING = "The cart is still loading. Call this again in a moment.";
+
+const NOTHING_TO_CHECK_OUT =
+  "The cart is empty, so there is nothing to check out.";
 
 const invalid = (error: z.ZodError) =>
   JSON.stringify({
@@ -108,7 +115,7 @@ export function shopPath(path: string): string | undefined {
 
 /**
  * The shopping tools a visitor's own agent gets through WebMCP. Built only in
- * a browser with WebMCP, so other visitors never pay for the JSON schemas.
+ * a browser with WebMCP, so other visitors never pay for this file.
  */
 export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
   const addInput = addToCartSchema.extend({
@@ -202,6 +209,9 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
       },
       z.object({}),
       () => {
+        if (deps.isCartLoading()) {
+          return CART_LOADING;
+        }
         const cart = deps.getCart();
         const lines = cart?.lines.edges.map(({ node }) => node) ?? [];
         if (!cart || lines.length === 0) {
@@ -263,7 +273,7 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
       productFiltersSchema,
       (filters) => {
         const { href, applied } = buildCollectionUrl(filters);
-        deps.push(href);
+        deps.push(href, true);
         return `Opened ${href}. Applied: ${applied.join(", ") || "no filters"}.`;
       }
     ),
@@ -311,7 +321,7 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
         const notes = warnings.map((warning) => warning.message).join(" ");
         return ok
           ? `Added ${named}. ${notes}`.trim()
-          : `The cart refused ${named}. ${notes} Tell your user nothing was added.`;
+          : `The cart refused ${named}. Tell your user nothing was added. ${notes}`.trim();
       }
     ),
     tool(
@@ -325,19 +335,34 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
         lineId: z.string().min(1).max(500),
         quantity: z.number().int().min(0).max(MAX_LINE_QUANTITY),
       }),
-      ({ lineId, quantity }) => {
+      // No abort signal, and the answer waits for Shopify: the cart shows a
+      // change before Shopify accepts it, and a refused one is rolled back.
+      async ({ lineId, quantity }) => {
+        if (deps.isCartLoading()) {
+          return CART_LOADING;
+        }
         const line = deps
           .getCart()
           ?.lines.edges.find(({ node }) => node.id === lineId)?.node;
         if (!line) {
           return "The cart has no line with that lineId. Call get_cart for the current lines.";
         }
+        const title = line.merchandise.product.title;
         if (quantity === 0) {
           deps.removeLine(lineId);
-          return `Removed ${line.merchandise.product.title} from the cart.`;
+        } else {
+          deps.updateLine(lineId, quantity);
         }
-        deps.updateLine(lineId, quantity);
-        return `Set ${line.merchandise.product.title} to ${quantity}. Call get_cart to check the result.`;
+        const confirmed = await deps.settle();
+        const now =
+          confirmed?.lines.edges.find(({ node }) => node.id === lineId)?.node
+            .quantity ?? 0;
+        if (now === quantity) {
+          return quantity === 0
+            ? `Removed ${title} from the cart.`
+            : `Set ${title} to ${quantity}.`;
+        }
+        return `The cart did not accept that: ${title} is at ${now}, not ${quantity}. Tell your user.`;
       }
     ),
     tool(
@@ -370,10 +395,17 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
       },
       z.object({}),
       async () => {
+        if (deps.isCartLoading()) {
+          return CART_LOADING;
+        }
         if (!deps.getCart()?.totalQuantity) {
-          return "The cart is empty, so there is nothing to check out.";
+          return NOTHING_TO_CHECK_OUT;
         }
         const confirmed = await deps.settle();
+        // A pending add Shopify refused leaves a confirmed cart with nothing in it.
+        if (confirmed?.totalQuantity === 0) {
+          return NOTHING_TO_CHECK_OUT;
+        }
         if (!confirmed?.checkoutUrl) {
           return "The cart could not be confirmed. Ask your user to open the cart and try again.";
         }

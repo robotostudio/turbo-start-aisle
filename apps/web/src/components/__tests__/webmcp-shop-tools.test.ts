@@ -59,6 +59,17 @@ const cart = {
   },
 } as unknown as NonNullable<ReturnType<ShopToolDeps["getCart"]>>;
 
+/** The cart with its one line at `quantity`; 0 leaves no lines. */
+const withQuantity = (quantity: number) =>
+  ({
+    ...cart,
+    lines: {
+      edges: quantity
+        ? [{ node: { ...cart.lines.edges[0]?.node, quantity } }]
+        : [],
+    },
+  }) as typeof cart;
+
 function setup(found: unknown = product) {
   vi.stubGlobal(
     "fetch",
@@ -66,6 +77,7 @@ function setup(found: unknown = product) {
   );
   const deps = {
     getCart: vi.fn(() => cart),
+    isCartLoading: vi.fn(() => false),
     getSaved: vi.fn(() => []),
     setSaved: vi.fn(),
     addLine: vi.fn(async () => ({ ok: true, warnings: [] })),
@@ -159,12 +171,75 @@ describe("shopTools", () => {
 
   it("removes a line at quantity 0 and refuses an unknown line", async () => {
     const { deps, call } = setup();
-    await call("update_cart_line", { lineId: "line-1", quantity: 0 });
+    deps.settle.mockResolvedValue(withQuantity(0));
+    expect(
+      await call("update_cart_line", { lineId: "line-1", quantity: 0 })
+    ).toContain("Removed Tee");
     expect(deps.removeLine).toHaveBeenCalledWith("line-1");
-    await call("update_cart_line", { lineId: "line-1", quantity: 3 });
-    expect(deps.updateLine).toHaveBeenCalledWith("line-1", 3);
     await call("update_cart_line", { lineId: "other", quantity: 3 });
-    expect(deps.updateLine).toHaveBeenCalledTimes(1);
+    expect(deps.updateLine).not.toHaveBeenCalled();
+  });
+
+  it("reports a quantity change only once Shopify has confirmed it", async () => {
+    const { deps, call } = setup();
+    deps.settle.mockResolvedValue(withQuantity(3));
+    expect(
+      await call("update_cart_line", { lineId: "line-1", quantity: 3 })
+    ).toBe("Set Tee to 3.");
+    expect(deps.updateLine).toHaveBeenCalledWith("line-1", 3);
+
+    // Shopify clamped the line to its stock: the tool must not claim 5.
+    deps.settle.mockResolvedValue(withQuantity(2));
+    expect(
+      await call("update_cart_line", { lineId: "line-1", quantity: 5 })
+    ).toContain("is at 2, not 5");
+  });
+
+  it("says the cart is loading instead of calling it empty", async () => {
+    const { deps, call } = setup();
+    deps.isCartLoading.mockReturnValue(true);
+    deps.getCart.mockReturnValue(null as never);
+    for (const [name, input] of [
+      ["get_cart", {}],
+      ["update_cart_line", { lineId: "line-1", quantity: 1 }],
+      ["go_to_checkout", {}],
+    ] as const) {
+      expect(await call(name, input)).toContain("still loading");
+    }
+    expect(deps.settle).not.toHaveBeenCalled();
+  });
+
+  it("tells the agent when the cart refuses an add", async () => {
+    const { deps, call } = setup();
+    deps.addLine.mockResolvedValue({ ok: false, warnings: [] });
+    expect(
+      await call("add_to_cart", { handle: "tee", variantGid: GID })
+    ).toContain("nothing was added");
+  });
+
+  it("lists search results with their handles", async () => {
+    const { call } = setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          products: [
+            {
+              ...product,
+              priceRange: { minVariantPrice: price },
+            },
+          ],
+          collections: [{ handle: "tees", title: "Tees" }],
+        })
+      )
+    );
+    const found = JSON.parse(await call("search_products", { query: "tee" }));
+    expect(found.products[0]).toMatchObject({
+      handle: "tee",
+      from: "20.0 GBP",
+      path: "/products/tee",
+    });
+    expect(found.collections[0].path).toBe("/collections/tees");
   });
 
   it("sends the visitor to the confirmed cart's checkout", async () => {
@@ -181,6 +256,13 @@ describe("shopTools", () => {
     expect(deps.leave).not.toHaveBeenCalled();
   });
 
+  it("does not check out when Shopify refused the only pending add", async () => {
+    const { deps, call } = setup();
+    deps.settle.mockResolvedValue({ ...cart, totalQuantity: 0 });
+    await call("go_to_checkout", {});
+    expect(deps.leave).not.toHaveBeenCalled();
+  });
+
   it("opens a filtered collection", async () => {
     const { deps, call } = setup();
     await call("set_collection_filters", {
@@ -188,7 +270,8 @@ describe("shopTools", () => {
       available: true,
     });
     expect(deps.push).toHaveBeenCalledWith(
-      "/collections/tees?filter.available=true"
+      "/collections/tees?filter.available=true",
+      true
     );
   });
 

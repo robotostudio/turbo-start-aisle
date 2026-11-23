@@ -10,17 +10,17 @@ import { registerWebMcpTools } from "@/lib/webmcp";
 /**
  * Registers the shopping tools with WebMCP (ROB-6902), so a visitor's own
  * browser agent can search, fill the cart and reach checkout by calling tools
- * instead of reading the page. The tools, their schemas and Zod load only in a
- * browser with WebMCP, so the page weighs what it did for every other visitor.
+ * instead of reading the page. The tools file loads only in a browser with
+ * WebMCP, so the page weighs what it did for every other visitor.
  */
 export function WebMcpTools() {
-  const { cart } = useCartState();
+  const { cart, isLoading } = useCartState();
   const actions = useCartActions();
   const { items, add, remove } = useSavedItems();
   const router = useRouter();
 
   // The tools are registered once and read whatever is current through this.
-  const page = { cart, items, add, remove, router, ...actions };
+  const page = { cart, isLoading, items, add, remove, router, ...actions };
   const live = useRef(page);
   useEffect(() => {
     live.current = page;
@@ -39,6 +39,7 @@ export function WebMcpTools() {
         }
         const tools = shopTools({
           getCart: () => live.current.cart,
+          isCartLoading: () => live.current.isLoading,
           getSaved: () => live.current.items,
           setSaved: (handle, saved) =>
             saved ? live.current.add(handle) : live.current.remove(handle),
@@ -47,7 +48,8 @@ export function WebMcpTools() {
           removeLine: (lineId) => live.current.removeLine(lineId),
           openCart: () => live.current.openCart(),
           settle: () => live.current.settle(),
-          push: (href) => live.current.router.push(href, { scroll: false }),
+          push: (href, keepScroll) =>
+            live.current.router.push(href, { scroll: !keepScroll }),
           leave: (url) => window.location.assign(url),
         });
         registerWebMcpTools(modelContext, tools, controller.signal);

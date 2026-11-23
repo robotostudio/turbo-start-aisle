@@ -106,7 +106,6 @@ export default async function RootLayout({
           <PageContextTracker />
           <AiCartBridge />
           <WebMcpTools />
-          <WebMcpTools />
           <ChatWidget currencyCode={env.NEXT_PUBLIC_STORE_CURRENCY} />
         </Providers>
       </body>
