@@ -59,6 +59,7 @@
     "@workspace/typescript-config": "workspace:*",
     "baseline-browser-mapping": "^2.11.19",
     "jsdom": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "webmcp-types": "0.1.10"
   }
 }

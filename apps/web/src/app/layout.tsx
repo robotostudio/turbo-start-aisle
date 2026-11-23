@@ -19,6 +19,7 @@ import { PageContextTracker } from "@/components/page-context-tracker";
 import { PreviewBar } from "@/components/preview-bar";
 import { PromoBanner } from "@/components/promo-banner";
 import { Providers } from "@/components/providers";
+import { WebMcpTools } from "@/components/webmcp-tools";
 import { getLayoutData } from "@/lib/navigation";
 import { getSEOMetadata, SITE_LANG } from "@/lib/seo";
 
@@ -104,6 +105,8 @@ export default async function RootLayout({
               ChatWidget's product cards query Sanity via react-query. */}
           <PageContextTracker />
           <AiCartBridge />
+          <WebMcpTools />
+          <WebMcpTools />
           <ChatWidget currencyCode={env.NEXT_PUBLIC_STORE_CURRENCY} />
         </Providers>
       </body>
