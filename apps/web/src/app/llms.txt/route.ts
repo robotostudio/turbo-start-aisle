@@ -18,6 +18,10 @@ const FORMAT_NOTE =
 const AGENT_TOOLS =
   "In a browser with WebMCP, every page registers shopping tools: search_products, get_product, get_cart, get_saved_items, open_page, set_collection_filters, add_to_cart, update_cart_line, set_saved_item, go_to_checkout. Checkout is a hand-off: the shopper pays.";
 
+/** The remote MCP server at `app/mcp`, for chat apps that connect to a URL. */
+const mcpServer = (base: string) =>
+  `MCP server (Streamable HTTP, no key): ${base}/mcp. Tools: search_products, get_product, list_collection_products, get_add_to_cart_link. It cannot change a cart: it returns a link the shopper opens.`;
+
 /** Absolute `.md` URL for an internal path. */
 function mdUrl(base: string, path: string): string {
   return `${base}${toMarkdownHref(path)}`;
@@ -52,7 +56,7 @@ export async function GET(): Promise<Response> {
   const body = [
     `# ${siteConfig.title}`,
     `> ${siteConfig.description ? `${siteConfig.description} ` : ""}${FORMAT_NOTE}`,
-    section("Agents", [AGENT_TOOLS]),
+    section("Agents", [mcpServer(base), AGENT_TOOLS]),
     section("Pages", [mdUrl(base, "/"), ...paths("page")]),
     section("Collections", [
       // Has a markdown handler and sitemap entry but no `querySitemapData` key.
