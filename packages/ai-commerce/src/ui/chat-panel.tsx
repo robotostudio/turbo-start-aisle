@@ -19,8 +19,6 @@ import {
   captureUserContext,
 } from "../lib/capture-context";
 import {
-  ADD_TO_CART_EVENT,
-  type AddToCartEventDetail,
   addToCartSchema,
   CLIENT_TOOLS,
   PRICE_BUCKETS,
@@ -218,18 +216,20 @@ export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
                 reply(detail);
                 return;
               }
-              // Picked up by the app's <AiCartBridge />, which owns the cart.
-              window.dispatchEvent(
-                new CustomEvent<AddToCartEventDetail>(ADD_TO_CART_EVENT, {
+              // Not added yet: MessageList renders this as a confirm card and
+              // the shopper's click on it is what reaches the cart.
+              addToolOutput({
+                tool: CLIENT_TOOLS.ADD_TO_CART,
+                toolCallId: toolCall.toolCallId,
+                output: {
+                  status:
+                    "Shown to the shopper with an Add to cart button. Not in the cart until they press it.",
                   detail,
-                })
-              );
-              reply(
-                `Added ${detail.quantity} × ${detail.productTitle} (${detail.variantTitle}) to your cart.`
-              );
+                },
+              });
             } catch (err) {
               console.error("add_to_cart failed", err);
-              reply("I couldn't add that to your cart. Please try again.");
+              reply("I couldn't look that item up. Please try again.");
             }
             return;
           }

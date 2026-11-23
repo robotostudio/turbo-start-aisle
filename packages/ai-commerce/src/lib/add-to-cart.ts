@@ -1,4 +1,36 @@
-import type { AddToCartEventDetail, AiSelectedOption } from "../types";
+import {
+  ADD_TO_CART_EVENT,
+  type AddToCartEventDetail,
+  type AiSelectedOption,
+} from "../types";
+
+/**
+ * Output of the add_to_cart tool when the variant can be added. Nothing is in
+ * the cart yet: the chat renders `detail` as a card and the shopper's click on
+ * its button is what adds the line.
+ */
+export interface AddToCartConfirmation {
+  detail: AddToCartEventDetail;
+}
+
+export function isAddToCartConfirmation(
+  output: unknown
+): output is AddToCartConfirmation {
+  return (
+    typeof output === "object" &&
+    output !== null &&
+    "detail" in output &&
+    typeof (output as AddToCartConfirmation).detail?.variantGid === "string"
+  );
+}
+
+/** Hands a line to the app's <AiCartBridge />, which owns the cart. */
+export function dispatchAddToCart(detail: AddToCartEventDetail): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<AddToCartEventDetail>(ADD_TO_CART_EVENT, { detail })
+  );
+}
 
 /** A variant plus the parent-product fields the cart line needs. */
 export interface CartVariantData {

@@ -3,7 +3,12 @@
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
 import { useEffect, useRef } from "react";
 
+import {
+  type AddToCartConfirmation,
+  isAddToCartConfirmation,
+} from "../lib/add-to-cart";
 import { CLIENT_TOOLS } from "../types";
+import { AddToCartConfirm } from "./add-to-cart-confirm";
 import { TextPart } from "./text-part";
 
 interface MessageListProps {
@@ -92,6 +97,26 @@ function getNavigationFallbackText(message: UIMessage): string | null {
     if (!isNavTool) return null;
     const output = "output" in part ? part.output : null;
     return typeof output === "string" ? output : null;
+  }
+  return null;
+}
+
+/**
+ * The add_to_cart tool's pending line, when that tool call is the last thing
+ * in the message. Rendered as a card whose button the shopper has to press.
+ */
+function getAddToCartConfirmation(
+  message: UIMessage
+): AddToCartConfirmation | null {
+  for (let i = message.parts.length - 1; i >= 0; i--) {
+    const part = message.parts[i] as Part | undefined;
+    if (!part) continue;
+    if (part.type === "text" || part.type === "step-start") continue;
+    // Only this tool's own output counts — never a card built from another
+    // tool's result, which could carry text the shopper never asked for.
+    if (part.type !== `tool-${CLIENT_TOOLS.ADD_TO_CART}`) return null;
+    const output = "output" in part ? part.output : null;
+    return isAddToCartConfirmation(output) ? output : null;
   }
   return null;
 }
@@ -204,6 +229,19 @@ export function MessageList({
         // text. Last resort: show the friendly fallback.
         if (displayable.length === 0) {
           if (error && isLast) return null;
+          const confirmation = getAddToCartConfirmation(m);
+          if (confirmation) {
+            return (
+              <div
+                key={m.id}
+                className="flex animate-in fade-in slide-in-from-bottom-1 justify-start duration-300"
+              >
+                <div className="w-full">
+                  <AddToCartConfirm detail={confirmation.detail} />
+                </div>
+              </div>
+            );
+          }
           const navFallback = getNavigationFallbackText(m);
           if (navFallback) {
             return (

@@ -1,4 +1,8 @@
-import { addToCartSchema, toAddToCartDetail } from "@workspace/ai-commerce";
+import {
+  addToCartSchema,
+  isAddToCartConfirmation,
+  toAddToCartDetail,
+} from "@workspace/ai-commerce";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildLineMetadata } from "../metadata";
@@ -83,5 +87,17 @@ describe("toAddToCartDetail", () => {
     expect(
       toAddToCartDetail({ ...variant, available: false }, 1, "GBP")
     ).toMatch(/out of stock/);
+  });
+});
+
+describe("isAddToCartConfirmation", () => {
+  it("accepts a pending line and rejects error strings and other outputs", () => {
+    const detail = toAddToCartDetail(variant, 1, "GBP");
+    expect(isAddToCartConfirmation({ status: "pending", detail })).toBe(true);
+    expect(
+      isAddToCartConfirmation("Chill Guy Everyday Tee is out of stock.")
+    ).toBe(false);
+    expect(isAddToCartConfirmation({ detail: "nope" })).toBe(false);
+    expect(isAddToCartConfirmation(null)).toBe(false);
   });
 });

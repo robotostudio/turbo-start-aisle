@@ -5,8 +5,8 @@ import { client } from "@workspace/sanity/client";
 import Link from "next/link";
 
 import { useCurrencyCode } from "../context/currency-context";
-import { selectedOptionsFor } from "../lib/add-to-cart";
-import { ADD_TO_CART_EVENT, type AddToCartEventDetail } from "../types";
+import { dispatchAddToCart, selectedOptionsFor } from "../lib/add-to-cart";
+import type { AddToCartEventDetail } from "../types";
 
 interface ProductProps {
   id: string;
@@ -61,7 +61,7 @@ const PRODUCT_QUERY = /* groq */ `
  * assume we own the query string. Mirrors what `shopifyImageLoader` does in
  * apps/web/src/lib/shopify/image-loader.ts, which this package cannot import.
  */
-function thumbnailUrl(url: string, width: number): string {
+export function thumbnailUrl(url: string, width: number): string {
   try {
     const parsed = new URL(url);
     parsed.searchParams.set("width", String(width));
@@ -71,7 +71,7 @@ function thumbnailUrl(url: string, width: number): string {
   }
 }
 
-function formatPrice(
+export function formatPrice(
   min: number | null,
   max: number | null,
   currencyCode: string
@@ -251,12 +251,7 @@ function AddToCartButton({
       className="shrink-0 self-stretch border border-border bg-primary px-3 font-medium text-primary-foreground text-xs uppercase tracking-wide transition-colors hover:bg-primary/90"
       type="button"
       onClick={() => {
-        if (typeof window === "undefined") return;
-        window.dispatchEvent(
-          new CustomEvent<AddToCartEventDetail>(ADD_TO_CART_EVENT, {
-            detail: { ...detail, quantity: 1 },
-          })
-        );
+        dispatchAddToCart({ ...detail, quantity: 1 });
       }}
     >
       Add to cart
