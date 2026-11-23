@@ -242,16 +242,51 @@ function callerAddress({ headers }: Request): string {
   );
 }
 
-function limited(request: Request): Promise<Response> | Response {
+/**
+ * The request with its body read, or null once the body passes the cap. The
+ * bytes are counted as they arrive: a chunked body declares no length, so the
+ * `content-length` header alone would let it through.
+ */
+async function withinBodyLimit(request: Request): Promise<Request | null> {
   if (Number(request.headers.get("content-length")) > MAX_BODY_BYTES) {
-    return refused(413, "The request is too large.");
+    return null;
   }
+  if (!request.body) {
+    return request;
+  }
+  const reader = request.body.getReader();
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new Request(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: new Blob(chunks),
+  });
+}
+
+async function limited(request: Request): Promise<Response> {
   if (!allowRequest(callerAddress(request), CALLS_PER_MINUTE, 60_000)) {
     return refused(429, "Too many requests. Try again in a minute.", {
       "Retry-After": "60",
     });
   }
-  return serve(getPublicOrigin(request))(request);
+  const read = await withinBodyLimit(request);
+  if (!read) {
+    return refused(413, "The request is too large.");
+  }
+  return serve(getPublicOrigin(read))(read);
 }
 
 export { limited as GET, limited as POST };

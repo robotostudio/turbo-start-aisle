@@ -35,15 +35,22 @@ async function readOffer(search: string): Promise<Status> {
     return NOTHING;
   }
   const { handle, variant, quantity } = link.data;
-  const response = await fetch(`/api/products/${handle}`);
-  if (!response.ok) {
+  // A dropped connection or a broken reply is the shop being down, the same
+  // as an error status: the shopper keeps the way to the product.
+  const product = await fetch(`/api/products/${handle}`)
+    .then(async (response) =>
+      response.ok
+        ? ((await response.json()) as ProductByHandleResponse).product
+        : undefined
+    )
+    .catch(() => undefined);
+  if (product === undefined) {
     return {
       kind: "stopped",
       message: "We couldn't reach the shop. Open the product to add it.",
       handle,
     };
   }
-  const { product } = (await response.json()) as ProductByHandleResponse;
   if (!product) {
     return { kind: "stopped", message: "We couldn't find that product." };
   }
@@ -71,13 +78,11 @@ export function AddFromLink() {
 
   useEffect(() => {
     let current = true;
-    readOffer(window.location.search)
-      .catch((): Status => NOTHING)
-      .then((next) => {
-        if (current) {
-          setStatus(next);
-        }
-      });
+    readOffer(window.location.search).then((next) => {
+      if (current) {
+        setStatus(next);
+      }
+    });
     return () => {
       current = false;
     };
