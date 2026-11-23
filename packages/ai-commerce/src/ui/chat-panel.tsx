@@ -198,7 +198,10 @@ export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
               });
             const result = addToCartSchema.safeParse(toolCall.input);
             if (!result.success) {
-              reply(`Invalid add-to-cart input: ${result.error.message}`);
+              // The output is the shopper's chat bubble, so no zod text here.
+              reply(
+                "I couldn't work out which item to add. Tell me the product, size and colour and I'll try again."
+              );
               return;
             }
             try {
@@ -225,11 +228,8 @@ export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
                 `Added ${detail.quantity} × ${detail.productTitle} (${detail.variantTitle}) to your cart.`
               );
             } catch (err) {
-              reply(
-                `Couldn't add that to the cart: ${
-                  err instanceof Error ? err.message : String(err)
-                }`
-              );
+              console.error("add_to_cart failed", err);
+              reply("I couldn't add that to your cart. Please try again.");
             }
             return;
           }

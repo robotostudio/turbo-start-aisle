@@ -101,8 +101,6 @@ export const addToCartSchema = z.object({
   quantity: z.number().int().min(1).max(10).default(1),
 });
 
-export type AddToCartInput = z.infer<typeof addToCartSchema>;
-
 export type ClientToolName = (typeof CLIENT_TOOLS)[keyof typeof CLIENT_TOOLS];
 
 /**
