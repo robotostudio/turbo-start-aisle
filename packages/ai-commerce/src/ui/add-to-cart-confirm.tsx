@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 
 import {
   type AddToCartConfirmation,
@@ -17,7 +16,6 @@ import { formatPrice, thumbnailUrl } from "./product";
  * Markup mirrors the <Product /> card so the two read as one component.
  */
 export function AddToCartConfirm({ detail }: AddToCartConfirmation) {
-  const [added, setAdded] = useState(false);
   const total = Number(detail.price.amount) * detail.quantity;
 
   return (
@@ -50,15 +48,13 @@ export function AddToCartConfirm({ detail }: AddToCartConfirmation) {
         </div>
       </Link>
       <button
-        className="shrink-0 self-stretch border border-border bg-primary px-3 font-medium text-primary-foreground text-xs uppercase tracking-wide transition-colors hover:bg-primary/90 disabled:opacity-60"
-        disabled={added}
+        className="shrink-0 self-stretch border border-border bg-primary px-3 font-medium text-primary-foreground text-xs uppercase tracking-wide transition-colors hover:bg-primary/90"
         type="button"
-        onClick={() => {
-          dispatchAddToCart(detail);
-          setAdded(true);
-        }}
+        // No "Added" state: the cart answers later and may refuse the line.
+        // The drawer opening (or the cart's error toast) is the feedback.
+        onClick={() => dispatchAddToCart(detail)}
       >
-        {added ? "Added" : "Add to cart"}
+        Add to cart
       </button>
     </div>
   );

@@ -68,10 +68,7 @@ function getDisplayableText(message: UIMessage): string {
 }
 
 /** Client tools whose string output doubles as the user-facing confirmation. */
-const ACTION_TOOLS = new Set<string>([
-  CLIENT_TOOLS.SET_FILTERS,
-  CLIENT_TOOLS.ADD_TO_CART,
-]);
+const ACTION_TOOLS = new Set<string>([CLIENT_TOOLS.SET_FILTERS]);
 
 /**
  * If the assistant didn't emit any text but its last tool call was a
@@ -102,23 +99,23 @@ function getNavigationFallbackText(message: UIMessage): string | null {
 }
 
 /**
- * The add_to_cart tool's pending line, when that tool call is the last thing
- * in the message. Rendered as a card whose button the shopper has to press.
+ * Every add_to_cart result in the message, in call order: a pending line to
+ * render as a card, or the sentence saying why it can't be added. Only this
+ * tool's own parts count — never a card built from another tool's result,
+ * which could carry text the shopper never asked for.
  */
-function getAddToCartConfirmation(
+function getAddToCartOutputs(
   message: UIMessage
-): AddToCartConfirmation | null {
-  for (let i = message.parts.length - 1; i >= 0; i--) {
-    const part = message.parts[i] as Part | undefined;
-    if (!part) continue;
-    if (part.type === "text" || part.type === "step-start") continue;
-    // Only this tool's own output counts — never a card built from another
-    // tool's result, which could carry text the shopper never asked for.
-    if (part.type !== `tool-${CLIENT_TOOLS.ADD_TO_CART}`) return null;
+): (AddToCartConfirmation | string)[] {
+  const outputs: (AddToCartConfirmation | string)[] = [];
+  for (const part of message.parts as Part[]) {
+    if (part.type !== `tool-${CLIENT_TOOLS.ADD_TO_CART}`) continue;
     const output = "output" in part ? part.output : null;
-    return isAddToCartConfirmation(output) ? output : null;
+    if (isAddToCartConfirmation(output) || typeof output === "string") {
+      outputs.push(output);
+    }
   }
-  return null;
+  return outputs;
 }
 
 const FALLBACK_TEXT =
@@ -229,16 +226,32 @@ export function MessageList({
         // text. Last resort: show the friendly fallback.
         if (displayable.length === 0) {
           if (error && isLast) return null;
-          const confirmation = getAddToCartConfirmation(m);
-          if (confirmation) {
+          const cartOutputs = getAddToCartOutputs(m);
+          if (cartOutputs.length > 0) {
             return (
               <div
                 key={m.id}
-                className="flex animate-in fade-in slide-in-from-bottom-1 justify-start duration-300"
+                className="flex animate-in fade-in slide-in-from-bottom-1 flex-col items-start gap-2 duration-300"
               >
-                <div className="w-full">
-                  <AddToCartConfirm detail={confirmation.detail} />
-                </div>
+                {cartOutputs.map((output, outputIdx) =>
+                  typeof output === "string" ? (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: tool parts are appended in call order and never reorder
+                      key={`${m.id}-cart-${outputIdx}`}
+                      className="max-w-[85%] rounded-md bg-muted px-3 py-2 text-sm text-foreground"
+                    >
+                      {output}
+                    </div>
+                  ) : (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: tool parts are appended in call order and never reorder
+                      key={`${m.id}-cart-${outputIdx}`}
+                      className="w-full"
+                    >
+                      <AddToCartConfirm detail={output.detail} />
+                    </div>
+                  )
+                )}
               </div>
             );
           }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { client } from "@workspace/sanity/client";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { XIcon } from "lucide-react";
-import { client } from "@workspace/sanity/client";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 

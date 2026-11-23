@@ -60,7 +60,7 @@ export const VARIANT_QUERY = /* groq */ `
       "title": store.title,
       "slug": store.slug.current,
       "imageUrl": store.previewImageUrl,
-      "isActive": store.status == "active" && !store.isDeleted,
+      "isActive": store.status == "active" && store.isDeleted != true,
       "optionNames": store.options[].name
     }
   }
