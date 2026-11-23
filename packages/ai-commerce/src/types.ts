@@ -80,7 +80,26 @@ export const CLIENT_TOOLS = {
   PAGE_CONTEXT: "page_context",
   SCREENSHOT: "screenshot",
   SET_FILTERS: "set_collection_filters",
+  ADD_TO_CART: "add_to_cart",
 } as const;
+
+/**
+ * Input for the add_to_cart tool. The model supplies only the variant and a
+ * quantity — title, price and image are re-read from Sanity in the browser so
+ * a hallucinated price can never reach the cart.
+ */
+export const addToCartSchema = z.object({
+  variantGid: z
+    .string()
+    .regex(/^gid:\/\/shopify\/ProductVariant\/\d+$/, {
+      message:
+        "variantGid must be a Shopify variant GID (gid://shopify/ProductVariant/<digits>) — the variant's store.gid, not a Sanity _id",
+    })
+    .describe(
+      "Shopify variant GID — `store.gid` on the variant, copied verbatim from a GROQ result"
+    ),
+  quantity: z.number().int().min(1).max(10).default(1),
+});
 
 export type ClientToolName = (typeof CLIENT_TOOLS)[keyof typeof CLIENT_TOOLS];
 

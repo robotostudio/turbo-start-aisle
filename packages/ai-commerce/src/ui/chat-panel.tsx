@@ -1,6 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { client } from "@workspace/sanity/client";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -8,11 +9,17 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { usePageContext } from "../context/page-context";
 import {
+  type CartVariantData,
+  toAddToCartDetail,
+  VARIANT_QUERY,
+} from "../lib/add-to-cart";
+import {
   capturePageContext,
   captureScreenshot,
   captureUserContext,
 } from "../lib/capture-context";
 import {
+  addToCartSchema,
   CLIENT_TOOLS,
   PRICE_BUCKETS,
   type ProductFiltersInput,
@@ -177,6 +184,53 @@ export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
                 applied.join(", ") || "none"
               }). Navigated to ${href}.`,
             });
+            return;
+          }
+
+          case CLIENT_TOOLS.ADD_TO_CART: {
+            const reply = (output: string) =>
+              addToolOutput({
+                tool: CLIENT_TOOLS.ADD_TO_CART,
+                toolCallId: toolCall.toolCallId,
+                output,
+              });
+            const result = addToCartSchema.safeParse(toolCall.input);
+            if (!result.success) {
+              // The output is the shopper's chat bubble, so no zod text here.
+              reply(
+                "I couldn't work out which item to add. Tell me the product, size and colour and I'll try again."
+              );
+              return;
+            }
+            try {
+              const variant = await client.fetch<CartVariantData | null>(
+                VARIANT_QUERY,
+                { gid: result.data.variantGid }
+              );
+              const detail = toAddToCartDetail(
+                variant,
+                result.data.quantity,
+                currencyCode
+              );
+              if (typeof detail === "string") {
+                reply(detail);
+                return;
+              }
+              // Not added yet: MessageList renders this as a confirm card and
+              // the shopper's click on it is what reaches the cart.
+              addToolOutput({
+                tool: CLIENT_TOOLS.ADD_TO_CART,
+                toolCallId: toolCall.toolCallId,
+                output: {
+                  status:
+                    "Shown to the shopper with an Add to cart button. Not in the cart until they press it.",
+                  detail,
+                },
+              });
+            } catch (err) {
+              console.error("add_to_cart failed", err);
+              reply("I couldn't look that item up. Please try again.");
+            }
             return;
           }
 

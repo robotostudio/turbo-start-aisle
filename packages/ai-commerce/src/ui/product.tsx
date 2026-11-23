@@ -5,11 +5,8 @@ import { client } from "@workspace/sanity/client";
 import Link from "next/link";
 
 import { useCurrencyCode } from "../context/currency-context";
-import {
-  ADD_TO_CART_EVENT,
-  type AddToCartEventDetail,
-  type AiSelectedOption,
-} from "../types";
+import { dispatchAddToCart, selectedOptionsFor } from "../lib/add-to-cart";
+import type { AddToCartEventDetail } from "../types";
 
 interface ProductProps {
   id: string;
@@ -59,28 +56,12 @@ const PRODUCT_QUERY = /* groq */ `
 `;
 
 /**
- * Zips the product's option names against a variant's option1/2/3 values into
- * the {name, value}[] shape the cart's LineMetadata expects.
- */
-function selectedOptionsFor(
-  product: ProductData,
-  variant: ProductVariantData
-): AiSelectedOption[] {
-  return (product.optionNames ?? [])
-    .map((name, index) => ({ name, value: variant.optionValues?.[index] }))
-    .filter(
-      (option): option is AiSelectedOption =>
-        Boolean(option.name) && Boolean(option.value)
-    );
-}
-
-/**
  * Ask the Shopify CDN for a thumbnail-sized image instead of the master.
  * `previewImageUrl` already carries a `?v=` cache-buster, so append rather than
  * assume we own the query string. Mirrors what `shopifyImageLoader` does in
  * apps/web/src/lib/shopify/image-loader.ts, which this package cannot import.
  */
-function thumbnailUrl(url: string, width: number): string {
+export function thumbnailUrl(url: string, width: number): string {
   try {
     const parsed = new URL(url);
     parsed.searchParams.set("width", String(width));
@@ -90,7 +71,7 @@ function thumbnailUrl(url: string, width: number): string {
   }
 }
 
-function formatPrice(
+export function formatPrice(
   min: number | null,
   max: number | null,
   currencyCode: string
@@ -249,7 +230,10 @@ export function Product({ id, isInline }: ProductProps) {
                   height: 0,
                 }
               : null,
-            selectedOptions: selectedOptionsFor(product, product.variants[0]),
+            selectedOptions: selectedOptionsFor(
+              product.optionNames,
+              product.variants[0].optionValues
+            ),
           }}
         />
       ) : null}
@@ -267,12 +251,7 @@ function AddToCartButton({
       className="shrink-0 self-stretch border border-border bg-primary px-3 font-medium text-primary-foreground text-xs uppercase tracking-wide transition-colors hover:bg-primary/90"
       type="button"
       onClick={() => {
-        if (typeof window === "undefined") return;
-        window.dispatchEvent(
-          new CustomEvent<AddToCartEventDetail>(ADD_TO_CART_EVENT, {
-            detail: { ...detail, quantity: 1 },
-          })
-        );
+        dispatchAddToCart({ ...detail, quantity: 1 });
       }}
     >
       Add to cart

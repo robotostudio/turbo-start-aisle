@@ -3,6 +3,12 @@
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
 import { useEffect, useRef } from "react";
 
+import {
+  type AddToCartConfirmation,
+  isAddToCartConfirmation,
+} from "../lib/add-to-cart";
+import { CLIENT_TOOLS } from "../types";
+import { AddToCartConfirm } from "./add-to-cart-confirm";
 import { TextPart } from "./text-part";
 
 interface MessageListProps {
@@ -61,9 +67,12 @@ function getDisplayableText(message: UIMessage): string {
   return text;
 }
 
+/** Client tools whose string output doubles as the user-facing confirmation. */
+const ACTION_TOOLS = new Set<string>([CLIENT_TOOLS.SET_FILTERS]);
+
 /**
  * If the assistant didn't emit any text but its last tool call was a
- * navigation/action tool (set_collection_filters), surface the tool's own
+ * navigation/action tool (ACTION_TOOLS), surface the tool's own
  * output as the bubble content. Models sometimes stop after a successful
  * tool call — the prompt asks them to confirm in prose but some don't comply.
  * Showing the tool's user-friendly output beats showing "I couldn't find an
@@ -74,11 +83,12 @@ function getNavigationFallbackText(message: UIMessage): string | null {
     const part = message.parts[i] as Part | undefined;
     if (!part) continue;
     if (part.type === "text" || part.type === "step-start") continue;
+    const toolName =
+      part.type === "dynamic-tool" && "toolName" in part
+        ? part.toolName
+        : part.type.replace(/^tool-/, "");
     const isNavTool =
-      (part.type === "tool-set_collection_filters" ||
-        (part.type === "dynamic-tool" &&
-          "toolName" in part &&
-          part.toolName === "set_collection_filters")) &&
+      ACTION_TOOLS.has(toolName) &&
       "state" in part &&
       part.state === "output-available";
     if (!isNavTool) return null;
@@ -86,6 +96,26 @@ function getNavigationFallbackText(message: UIMessage): string | null {
     return typeof output === "string" ? output : null;
   }
   return null;
+}
+
+/**
+ * Every add_to_cart result in the message, in call order: a pending line to
+ * render as a card, or the sentence saying why it can't be added. Only this
+ * tool's own parts count — never a card built from another tool's result,
+ * which could carry text the shopper never asked for.
+ */
+function getAddToCartOutputs(
+  message: UIMessage
+): (AddToCartConfirmation | string)[] {
+  const outputs: (AddToCartConfirmation | string)[] = [];
+  for (const part of message.parts as Part[]) {
+    if (part.type !== `tool-${CLIENT_TOOLS.ADD_TO_CART}`) continue;
+    const output = "output" in part ? part.output : null;
+    if (isAddToCartConfirmation(output) || typeof output === "string") {
+      outputs.push(output);
+    }
+  }
+  return outputs;
 }
 
 const FALLBACK_TEXT =
@@ -196,6 +226,35 @@ export function MessageList({
         // text. Last resort: show the friendly fallback.
         if (displayable.length === 0) {
           if (error && isLast) return null;
+          const cartOutputs = getAddToCartOutputs(m);
+          if (cartOutputs.length > 0) {
+            return (
+              <div
+                key={m.id}
+                className="flex animate-in fade-in slide-in-from-bottom-1 flex-col items-start gap-2 duration-300"
+              >
+                {cartOutputs.map((output, outputIdx) =>
+                  typeof output === "string" ? (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: tool parts are appended in call order and never reorder
+                      key={`${m.id}-cart-${outputIdx}`}
+                      className="max-w-[85%] rounded-md bg-muted px-3 py-2 text-sm text-foreground"
+                    >
+                      {output}
+                    </div>
+                  ) : (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: tool parts are appended in call order and never reorder
+                      key={`${m.id}-cart-${outputIdx}`}
+                      className="w-full"
+                    >
+                      <AddToCartConfirm detail={output.detail} />
+                    </div>
+                  )
+                )}
+              </div>
+            );
+          }
           const navFallback = getNavigationFallbackText(m);
           if (navFallback) {
             return (

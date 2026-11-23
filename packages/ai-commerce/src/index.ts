@@ -10,6 +10,10 @@ export {
 export { buildSystemPrompt } from "./system-prompt";
 // Tool registry
 export { clientTools } from "./tools";
+export {
+  isAddToCartConfirmation,
+  toAddToCartDetail,
+} from "./lib/add-to-cart";
 export type {
   AddToCartEventDetail,
   AiMoneyV2,
@@ -24,6 +28,7 @@ export type {
 } from "./types";
 export {
   ADD_TO_CART_EVENT,
+  addToCartSchema,
   CLIENT_TOOLS,
   PRICE_BUCKETS,
   productFiltersSchema,
