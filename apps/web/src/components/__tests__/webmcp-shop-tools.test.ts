@@ -237,9 +237,9 @@ describe("shopTools", () => {
     expect(found.products[0]).toMatchObject({
       handle: "tee",
       from: "20.0 GBP",
-      path: "/products/tee",
+      url: "/products/tee",
     });
-    expect(found.collections[0].path).toBe("/collections/tees");
+    expect(found.collections[0].url).toBe("/collections/tees");
   });
 
   it("sends the visitor to the confirmed cart's checkout", async () => {
