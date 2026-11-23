@@ -3,6 +3,7 @@
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from "ai";
 import { useEffect, useRef } from "react";
 
+import { CLIENT_TOOLS } from "../types";
 import { TextPart } from "./text-part";
 
 interface MessageListProps {
@@ -61,9 +62,15 @@ function getDisplayableText(message: UIMessage): string {
   return text;
 }
 
+/** Client tools whose string output doubles as the user-facing confirmation. */
+const ACTION_TOOLS = new Set<string>([
+  CLIENT_TOOLS.SET_FILTERS,
+  CLIENT_TOOLS.ADD_TO_CART,
+]);
+
 /**
  * If the assistant didn't emit any text but its last tool call was a
- * navigation/action tool (set_collection_filters), surface the tool's own
+ * navigation/action tool (ACTION_TOOLS), surface the tool's own
  * output as the bubble content. Models sometimes stop after a successful
  * tool call — the prompt asks them to confirm in prose but some don't comply.
  * Showing the tool's user-friendly output beats showing "I couldn't find an
@@ -74,11 +81,12 @@ function getNavigationFallbackText(message: UIMessage): string | null {
     const part = message.parts[i] as Part | undefined;
     if (!part) continue;
     if (part.type === "text" || part.type === "step-start") continue;
+    const toolName =
+      part.type === "dynamic-tool" && "toolName" in part
+        ? part.toolName
+        : part.type.replace(/^tool-/, "");
     const isNavTool =
-      (part.type === "tool-set_collection_filters" ||
-        (part.type === "dynamic-tool" &&
-          "toolName" in part &&
-          part.toolName === "set_collection_filters")) &&
+      ACTION_TOOLS.has(toolName) &&
       "state" in part &&
       part.state === "output-available";
     if (!isNavTool) return null;

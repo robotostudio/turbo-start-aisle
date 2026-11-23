@@ -5,11 +5,8 @@ import { client } from "@workspace/sanity/client";
 import Link from "next/link";
 
 import { useCurrencyCode } from "../context/currency-context";
-import {
-  ADD_TO_CART_EVENT,
-  type AddToCartEventDetail,
-  type AiSelectedOption,
-} from "../types";
+import { selectedOptionsFor } from "../lib/add-to-cart";
+import { ADD_TO_CART_EVENT, type AddToCartEventDetail } from "../types";
 
 interface ProductProps {
   id: string;
@@ -57,22 +54,6 @@ const PRODUCT_QUERY = /* groq */ `
     }
   }
 `;
-
-/**
- * Zips the product's option names against a variant's option1/2/3 values into
- * the {name, value}[] shape the cart's LineMetadata expects.
- */
-function selectedOptionsFor(
-  product: ProductData,
-  variant: ProductVariantData
-): AiSelectedOption[] {
-  return (product.optionNames ?? [])
-    .map((name, index) => ({ name, value: variant.optionValues?.[index] }))
-    .filter(
-      (option): option is AiSelectedOption =>
-        Boolean(option.name) && Boolean(option.value)
-    );
-}
 
 /**
  * Ask the Shopify CDN for a thumbnail-sized image instead of the master.
@@ -249,7 +230,10 @@ export function Product({ id, isInline }: ProductProps) {
                   height: 0,
                 }
               : null,
-            selectedOptions: selectedOptionsFor(product, product.variants[0]),
+            selectedOptions: selectedOptionsFor(
+              product.optionNames,
+              product.variants[0].optionValues
+            ),
           }}
         />
       ) : null}

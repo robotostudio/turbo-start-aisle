@@ -1,6 +1,7 @@
 import type { ToolSet } from "ai";
 
 import { CLIENT_TOOLS } from "../types";
+import { addToCartTool } from "./add-to-cart";
 import { pageContextTool } from "./page-context";
 import { screenshotTool } from "./screenshot";
 import { setCollectionFiltersTool } from "./set-collection-filters";
@@ -14,4 +15,5 @@ export const clientTools: ToolSet = {
   [CLIENT_TOOLS.PAGE_CONTEXT]: pageContextTool,
   [CLIENT_TOOLS.SCREENSHOT]: screenshotTool,
   [CLIENT_TOOLS.SET_FILTERS]: setCollectionFiltersTool,
+  [CLIENT_TOOLS.ADD_TO_CART]: addToCartTool,
 };

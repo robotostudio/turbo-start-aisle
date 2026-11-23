@@ -3,16 +3,25 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { XIcon } from "lucide-react";
+import { client } from "@workspace/sanity/client";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 
 import { usePageContext } from "../context/page-context";
+import {
+  type CartVariantData,
+  toAddToCartDetail,
+  VARIANT_QUERY,
+} from "../lib/add-to-cart";
 import {
   capturePageContext,
   captureScreenshot,
   captureUserContext,
 } from "../lib/capture-context";
 import {
+  ADD_TO_CART_EVENT,
+  type AddToCartEventDetail,
+  addToCartSchema,
   CLIENT_TOOLS,
   PRICE_BUCKETS,
   type ProductFiltersInput,
@@ -177,6 +186,51 @@ export function ChatPanel({ onClose, currencyCode }: ChatPanelProps) {
                 applied.join(", ") || "none"
               }). Navigated to ${href}.`,
             });
+            return;
+          }
+
+          case CLIENT_TOOLS.ADD_TO_CART: {
+            const reply = (output: string) =>
+              addToolOutput({
+                tool: CLIENT_TOOLS.ADD_TO_CART,
+                toolCallId: toolCall.toolCallId,
+                output,
+              });
+            const result = addToCartSchema.safeParse(toolCall.input);
+            if (!result.success) {
+              reply(`Invalid add-to-cart input: ${result.error.message}`);
+              return;
+            }
+            try {
+              const variant = await client.fetch<CartVariantData | null>(
+                VARIANT_QUERY,
+                { gid: result.data.variantGid }
+              );
+              const detail = toAddToCartDetail(
+                variant,
+                result.data.quantity,
+                currencyCode
+              );
+              if (typeof detail === "string") {
+                reply(detail);
+                return;
+              }
+              // Picked up by the app's <AiCartBridge />, which owns the cart.
+              window.dispatchEvent(
+                new CustomEvent<AddToCartEventDetail>(ADD_TO_CART_EVENT, {
+                  detail,
+                })
+              );
+              reply(
+                `Added ${detail.quantity} × ${detail.productTitle} (${detail.variantTitle}) to your cart.`
+              );
+            } catch (err) {
+              reply(
+                `Couldn't add that to the cart: ${
+                  err instanceof Error ? err.message : String(err)
+                }`
+              );
+            }
             return;
           }
 
