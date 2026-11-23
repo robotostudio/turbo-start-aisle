@@ -1,5 +1,4 @@
 import {
-  addToCartSchema,
   buildCollectionUrl,
   productFiltersSchema,
 } from "@workspace/ai-commerce";
@@ -8,6 +7,7 @@ import { z } from "zod";
 
 import {
   cartLineFor,
+  cartLineInput,
   collectionsSummary,
   productHandle as handle,
   money,
@@ -114,8 +114,7 @@ export function shopPath(path: string): string | undefined {
  * a browser with WebMCP, so other visitors never pay for this file.
  */
 export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
-  const addInput = addToCartSchema.extend({
-    handle,
+  const addInput = cartLineInput.extend({
     dryRun: z
       .boolean()
       .optional()
@@ -222,7 +221,7 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
         name: "open_page",
         title: "Open a shop page",
         description:
-          "Show your user a page of this shop. Takes a path: / for home, /products/<handle>, /collections, /collections/<handle>, or /search?q=<words>. To show one variant, add its options as query params: /products/<handle>?Color=Blue&Size=M.",
+          "Show your user a page of this shop. Takes a path, such as a url the other tools return: / for home, /products/<handle>, /collections, /collections/<handle>, or /search?q=<words>. To show one variant, add its options as query params: /products/<handle>?Color=Blue&Size=M.",
       },
       z.object({ path: z.string().max(500) }),
       ({ path }) => {

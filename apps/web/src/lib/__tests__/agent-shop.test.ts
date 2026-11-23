@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   cartLineFor,
+  cartLineInput,
   cartLink,
   cartLinkQuery,
+  productsSummary,
   variantGidFromLink,
 } from "../agent-shop";
-import { allowRequest } from "../rate-limit";
+import { allowRequest, MAX_KEYS } from "../rate-limit";
 import type { ShopifyCollectionProduct } from "../shopify/types";
 
 const GID = "gid://shopify/ProductVariant/42";
@@ -98,5 +100,44 @@ describe("allowRequest", () => {
     expect(allowRequest(key, 2, 1000, 20)).toBe(false);
     expect(allowRequest(`${key}-other`, 2, 1000, 20)).toBe(true);
     expect(allowRequest(key, 2, 1000, 1005)).toBe(true);
+  });
+
+  it("keeps a limited caller limited while other addresses sweep through", () => {
+    const key = `held-${Math.random()}`;
+    expect(allowRequest(key, 1, 60_000, 0)).toBe(true);
+    for (let other = 0; other < MAX_KEYS + 10; other++) {
+      allowRequest(`sweep-${other}`, 1, 60_000, 1);
+      // Still calling, so still among the newest keys.
+      if (other % 1000 === 0) {
+        expect(allowRequest(key, 1, 60_000, 2)).toBe(false);
+      }
+    }
+  });
+});
+
+describe("what the tools take and give", () => {
+  it("accepts only a Shopify variant id and a small quantity", () => {
+    expect(
+      cartLineInput.parse({ handle: "tee", variantGid: GID }).quantity
+    ).toBe(1);
+    for (const bad of [
+      { handle: "tee", variantGid: "42" },
+      { handle: "tee", variantGid: GID, quantity: 11 },
+      { handle: "a/b", variantGid: GID },
+    ]) {
+      expect(cartLineInput.safeParse(bad).success).toBe(false);
+    }
+  });
+
+  it("gives full links when there is an origin, and paths in the page", () => {
+    const listed = {
+      ...product,
+      vendor: "Aisle",
+      priceRange: { minVariantPrice: price },
+    } as ShopifyCollectionProduct;
+    expect(productsSummary([listed], "https://shop.example")[0]?.url).toBe(
+      "https://shop.example/products/tee"
+    );
+    expect(productsSummary([listed])[0]?.url).toBe("/products/tee");
   });
 });

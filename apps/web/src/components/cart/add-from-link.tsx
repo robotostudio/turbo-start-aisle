@@ -2,9 +2,10 @@
 
 import { Button } from "@workspace/ui/components/button";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
+  type CartLineChoice,
   cartLineFor,
   cartLinkQuery,
   variantGidFromLink,
@@ -12,8 +13,11 @@ import {
 import type { ProductByHandleResponse } from "@/lib/shopify/types";
 import { useCartActions, useCartState } from "./cart-context";
 
+type Offer = Extract<CartLineChoice, { ok: true }> & { quantity: number };
+
 type Status =
-  | { kind: "working" }
+  | { kind: "loading" }
+  | { kind: "offer"; offer: Offer; adding: boolean }
   | { kind: "added"; message: string }
   | { kind: "stopped"; message: string; handle?: string };
 
@@ -22,84 +26,112 @@ const NOTHING: Status = {
   message: "This link has nothing to add.",
 };
 
+/** What the link names, read fresh from the shop. Changes nothing. */
+async function readOffer(search: string): Promise<Status> {
+  const link = cartLinkQuery.safeParse(
+    Object.fromEntries(new URLSearchParams(search))
+  );
+  if (!link.success) {
+    return NOTHING;
+  }
+  const { handle, variant, quantity } = link.data;
+  const response = await fetch(`/api/products/${handle}`);
+  if (!response.ok) {
+    return {
+      kind: "stopped",
+      message: "We couldn't reach the shop. Open the product to add it.",
+      handle,
+    };
+  }
+  const { product } = (await response.json()) as ProductByHandleResponse;
+  if (!product) {
+    return { kind: "stopped", message: "We couldn't find that product." };
+  }
+  const line = cartLineFor(product, variantGidFromLink(variant), quantity);
+  return line.ok
+    ? { kind: "offer", offer: { ...line, quantity }, adding: false }
+    : {
+        kind: "stopped",
+        message: `${product.title} can't be added in that option right now.`,
+        handle,
+      };
+}
+
 /**
- * Adds the line an add-to-cart link names (ROB-6903): the `/mcp` server hands
- * these links to chat apps, which cannot reach the shopper's cart themselves.
- * Stock and price are read again here, so an old link never adds a stale line.
+ * Offers the line an add-to-cart link names (ROB-6903): the `/mcp` server
+ * hands these links to chat apps, which cannot reach the shopper's cart.
+ *
+ * Opening the link only shows the item. The shopper's press on the button is
+ * what adds it, so a link on another site can never fill a cart by itself.
  */
 export function AddFromLink() {
   const { isLoading } = useCartState();
   const { addLine, openCart } = useCartActions();
-  const [status, setStatus] = useState<Status>({ kind: "working" });
-  const started = useRef(false);
+  const [status, setStatus] = useState<Status>({ kind: "loading" });
 
   useEffect(() => {
-    // The cart must be read first: adding before that would start a new cart.
-    if (isLoading || started.current) {
-      return;
-    }
-    started.current = true;
-
-    const link = cartLinkQuery.safeParse(
-      Object.fromEntries(new URLSearchParams(window.location.search))
-    );
-    // Taken out of the address bar first, so a reload never adds twice.
-    window.history.replaceState(null, "", window.location.pathname);
-    if (!link.success) {
-      setStatus(NOTHING);
-      return;
-    }
-    const { handle, variant, quantity } = link.data;
-
-    const add = async (): Promise<Status> => {
-      const response = await fetch(`/api/products/${handle}`);
-      if (!response.ok) {
-        throw new Error(`Product lookup answered ${response.status}`);
-      }
-      const { product } = (await response.json()) as ProductByHandleResponse;
-      if (!product) {
-        return { kind: "stopped", message: "We couldn't find that product." };
-      }
-      const line = cartLineFor(product, variantGidFromLink(variant), quantity);
-      if (!line.ok) {
-        return {
-          kind: "stopped",
-          message: `${product.title} can't be added in that option right now.`,
-          handle,
-        };
-      }
-      openCart();
-      const { ok } = await addLine(line.variantId, quantity, line.metadata);
-      return ok
-        ? {
-            kind: "added",
-            message: `Added ${quantity} x ${product.title} (${line.metadata.variantTitle}) to your cart.`,
-          }
-        : {
-            kind: "stopped",
-            message: `${product.title} couldn't be added to your cart.`,
-            handle,
-          };
+    let current = true;
+    readOffer(window.location.search)
+      .catch((): Status => NOTHING)
+      .then((next) => {
+        if (current) {
+          setStatus(next);
+        }
+      });
+    return () => {
+      current = false;
     };
+  }, []);
 
-    add()
-      .then(setStatus)
-      .catch(() =>
-        setStatus({
-          kind: "stopped",
-          message: "We couldn't reach the shop. Open the product to add it.",
-          handle,
-        })
-      );
-  }, [isLoading, addLine, openCart]);
+  async function add(offer: Offer) {
+    setStatus({ kind: "offer", offer, adding: true });
+    openCart();
+    const { ok, warnings } = await addLine(
+      offer.variantId,
+      offer.quantity,
+      offer.metadata
+    );
+    const { productTitle, productHandle } = offer.metadata;
+    if (!ok) {
+      setStatus({
+        kind: "stopped",
+        message: `${productTitle} couldn't be added to your cart.`,
+        handle: productHandle,
+      });
+      return;
+    }
+    // Out of the address bar once used, so a reload offers nothing again.
+    window.history.replaceState(null, "", window.location.pathname);
+    // A warning means Shopify changed the line, usually to fit the stock, so
+    // the count asked for is no longer what the cart holds.
+    setStatus({
+      kind: "added",
+      message:
+        warnings.length > 0
+          ? `Added ${productTitle}. ${warnings.map((warning) => warning.message).join(" ")}`
+          : `Added ${offer.named}.`,
+    });
+  }
 
   return (
     <main className="px-4 py-16">
       <h1 className="mb-8 font-semibold text-3xl">Add to cart</h1>
       <div className="flex flex-col items-center justify-center gap-6 py-16">
-        <p aria-live="polite" className="font-medium text-lg" role="status">
-          {status.kind === "working" ? "Adding to your cart…" : status.message}
+        <p className="font-medium text-lg" role="status">
+          {status.kind === "loading" && "Looking up your item…"}
+          {status.kind === "offer" && `Add ${status.offer.named}?`}
+          {(status.kind === "added" || status.kind === "stopped") &&
+            status.message}
         </p>
+        {status.kind === "offer" && (
+          // The cart must be read first: adding before that starts a new cart.
+          <Button
+            disabled={isLoading || status.adding}
+            onClick={() => add(status.offer)}
+          >
+            {status.adding ? "Adding…" : "Add to cart"}
+          </Button>
+        )}
         {status.kind === "added" && (
           <Button asChild>
             <Link href="/cart">View cart</Link>

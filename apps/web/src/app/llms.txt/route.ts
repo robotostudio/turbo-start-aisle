@@ -20,7 +20,7 @@ const AGENT_TOOLS =
 
 /** The remote MCP server at `app/mcp`, for chat apps that connect to a URL. */
 const mcpServer = (base: string) =>
-  `MCP server (Streamable HTTP, no key): ${base}/mcp. Tools: search_products, get_product, list_collection_products, get_add_to_cart_link. It cannot change a cart: it returns a link the shopper opens.`;
+  `MCP server (Streamable HTTP, no key): ${base}/mcp. Tools: search_products, get_product, list_collection_products, get_add_to_cart_link. It cannot change a cart: it returns a link to a page where the shopper presses Add to cart.`;
 
 /** Absolute `.md` URL for an internal path. */
 function mdUrl(base: string, path: string): string {

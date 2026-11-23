@@ -4,7 +4,8 @@ import { getSEOMetadata } from "@/lib/seo";
 export async function generateMetadata() {
   return await getSEOMetadata({
     title: "Add to cart",
-    description: "Adds the item from your link to your cart.",
+    description:
+      "Shows the item from your link so you can add it to your cart.",
     slug: "/cart/add",
     seoNoIndex: true,
   });

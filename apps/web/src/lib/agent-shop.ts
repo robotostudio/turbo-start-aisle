@@ -20,6 +20,18 @@ export const productHandle = z
   .regex(/^[\w-]{1,255}$/)
   .describe("Product handle: the last part of a /products/<handle> URL");
 
+/** One variant and how many: what every add-to-cart tool takes. */
+export const cartLineInput = z.object({
+  handle: productHandle,
+  variantGid: z
+    .string()
+    .regex(/^gid:\/\/shopify\/ProductVariant\/\d+$/)
+    .describe(
+      "The variant's variantGid from get_product, as given: gid://shopify/ProductVariant/<digits>"
+    ),
+  quantity: z.number().int().min(1).max(10).default(1),
+});
+
 export const money = ({ amount, currencyCode }: MoneyV2) =>
   `${amount} ${currencyCode}`;
 
@@ -118,8 +130,8 @@ export const cartLinkQuery = z.object({
 });
 
 /**
- * A link that adds one line when the shopper opens it. The cart lives in the
- * shopper's browser, so this is how a chat app on another machine fills it.
+ * A link to the page that offers one line; the shopper adds it there. The cart
+ * lives in the shopper's browser, so this is how a chat app elsewhere fills it.
  */
 export function cartLink(
   base: string,

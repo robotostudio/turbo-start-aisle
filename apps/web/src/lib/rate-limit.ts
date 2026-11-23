@@ -1,7 +1,7 @@
 const hits = new Map<string, number[]>();
 
-/** Keys kept before the map is emptied, so an address sweep can't grow it forever. */
-const MAX_KEYS = 5000;
+/** Keys kept at once, so a sweep of addresses can't grow the map forever. */
+export const MAX_KEYS = 5000;
 
 /**
  * True while `key` has made fewer than `limit` calls in the last `windowMs`.
@@ -21,8 +21,12 @@ export function allowRequest(
   if (allowed) {
     recent.push(now);
   }
-  if (hits.size >= MAX_KEYS && !hits.has(key)) {
-    hits.clear();
+  // Re-added at the end, so the map runs from least to most recently seen.
+  hits.delete(key);
+  if (hits.size >= MAX_KEYS) {
+    // Only the caller idle longest goes: emptying the map would hand every
+    // caller a fresh allowance whenever someone sweeps through addresses.
+    hits.delete(hits.keys().next().value as string);
   }
   hits.set(key, recent);
   return allowed;
