@@ -3,6 +3,11 @@
 // Page-context hooks
 export { usePageContext, useSetPageContext } from "./context/page-context";
 export {
+  isAddToCartConfirmation,
+  toAddToCartDetail,
+} from "./lib/add-to-cart";
+export { buildCollectionUrl } from "./lib/collection-url";
+export {
   createSanityAgentContextClient,
   type SanityAgentContextConfig,
 } from "./mcp/sanity-agent-context";
@@ -10,10 +15,6 @@ export {
 export { buildSystemPrompt } from "./system-prompt";
 // Tool registry
 export { clientTools } from "./tools";
-export {
-  isAddToCartConfirmation,
-  toAddToCartDetail,
-} from "./lib/add-to-cart";
 export type {
   AddToCartEventDetail,
   AiMoneyV2,

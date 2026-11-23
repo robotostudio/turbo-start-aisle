@@ -14,6 +14,10 @@ const PUBLISHED = { perspective: "published", stega: false } as const;
 const FORMAT_NOTE =
   "Append .md to any URL, or send Accept: text/markdown, to get a structured Markdown view of a page.";
 
+/** The WebMCP tools `components/webmcp-tools.tsx` registers on every page. */
+const AGENT_TOOLS =
+  "In a browser with WebMCP, every page registers shopping tools: search_products, get_product, get_cart, get_saved_items, open_page, set_collection_filters, add_to_cart, update_cart_line, set_saved_item, go_to_checkout. Checkout is a hand-off: the shopper pays.";
+
 /** Absolute `.md` URL for an internal path. */
 function mdUrl(base: string, path: string): string {
   return `${base}${toMarkdownHref(path)}`;
@@ -48,6 +52,7 @@ export async function GET(): Promise<Response> {
   const body = [
     `# ${siteConfig.title}`,
     `> ${siteConfig.description ? `${siteConfig.description} ` : ""}${FORMAT_NOTE}`,
+    section("Agents", [AGENT_TOOLS]),
     section("Pages", [mdUrl(base, "/"), ...paths("page")]),
     section("Collections", [
       // Has a markdown handler and sitemap entry but no `querySitemapData` key.

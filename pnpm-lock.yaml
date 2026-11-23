@@ -265,7 +265,7 @@ importers:
         version: 16.3.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       next-sanity:
         specifier: ^13.3.3
-        version: 13.3.3(cc0acfb3f266e6a381bf1e3585dfe31f)
+        version: 13.3.3(ebffa520e5c662f173e90b202fc1921a)
       next-themes:
         specifier: 'catalog:'
         version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -324,6 +324,9 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(@vitest/coverage-v8@4.1.11)(jsdom@29.1.1(@noble/hashes@2.3.0))(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+      webmcp-types:
+        specifier: 0.1.10
+        version: 0.1.10
 
   packages/ai-commerce:
     dependencies:
@@ -442,7 +445,7 @@ importers:
         version: link:../env
       next-sanity:
         specifier: ^13.3.3
-        version: 13.3.3(cc0acfb3f266e6a381bf1e3585dfe31f)
+        version: 13.3.3(ebffa520e5c662f173e90b202fc1921a)
       sanity-image:
         specifier: ^1.1.0
         version: 1.1.0(react@19.2.8)
@@ -3908,6 +3911,7 @@ packages:
   '@sanity/ui@4.0.6':
     resolution: {integrity: sha512-iPtHRtnwcwq2ePHVrXsmTCFLNkEYfXL0kSavY4gnfkrbCPOmMD4iMe5MKcRtQ2YrJug6K70c6JQRCB+gN8kNaA==}
     engines: {node: '>=22.12'}
+    deprecated: Class names collide with @sanity/ui 4.4.4 (shipped in sanity@6.19.0) when both load on one page, breaking styles. Upgrade to @sanity/ui@^4.4.4.
     peerDependencies:
       react: ^19.2
       react-dom: ^19.2
@@ -7620,6 +7624,9 @@ packages:
     resolution: {integrity: sha512-BMhLD/Sw+GbJC21C/UgyaZX41nPt8bUTg+jWyDeg7e7YN4xOM05YPSIXceACnXVtqyEw/LMClUQMtMZ+PGGpqQ==}
     engines: {node: '>=20'}
 
+  webmcp-types@0.1.10:
+    resolution: {integrity: sha512-U4GQ1RpJ0tqCUt2ALMV9Pnhi+hsy8L31f/Q1v4mLVhW64r5sYhh+2+SjP/Lq4/9jP33vZgNkuRZARJl65A/ZIg==}
+
   whatwg-mimetype@5.0.0:
     resolution: {integrity: sha512-sXcNcHOC51uPGF0P/D4NVtrkjSU2fNsm9iog4ZvZJsL3rjoDAzXZhkm2MWt1y+PUdggKAYVoMAIYcs78wJ51Cw==}
     engines: {node: '>=20'}
@@ -9973,7 +9980,7 @@ snapshots:
     dependencies:
       '@portabletext/schema': 2.2.4
       '@sanity/schema': 6.9.1(@types/react@19.2.18)
-      '@sanity/types': 6.9.1(@types/react@19.2.18)
+      '@sanity/types': 6.10.1(@types/react@19.2.18)
     transitivePeerDependencies:
       - '@types/react'
 
@@ -10920,7 +10927,7 @@ snapshots:
       '@sanity/generate-help-url': 4.0.0
       '@sanity/schema': 6.9.1(@types/react@19.2.18)
       '@sanity/telemetry': 1.1.0(react@19.2.8)
-      '@sanity/types': 6.9.1(@types/react@19.2.18)
+      '@sanity/types': 6.10.1(@types/react@19.2.18)
       '@sanity/workbench-cli': 2.1.0(@noble/hashes@2.3.0)(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@8.1.1))(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)))(@types/node@24.13.3)(@types/react@19.2.18)(babel-plugin-react-compiler@1.0.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@5.9.3)(vitest@4.1.11)(yaml@2.9.0)
       '@vitejs/plugin-react': 6.1.0(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@8.1.1))(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
       chokidar: 5.0.0
@@ -11062,7 +11069,7 @@ snapshots:
       '@sanity/schema': 6.9.1(@types/react@19.2.18)
       '@sanity/telemetry': 1.1.0(react@19.2.8)
       '@sanity/template-validator': 3.1.0
-      '@sanity/types': 6.9.1(@types/react@19.2.18)
+      '@sanity/types': 6.10.1(@types/react@19.2.18)
       '@sanity/workbench-cli': 1.10.0(@noble/hashes@2.3.0)(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@8.1.1))(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)))(@types/node@24.13.3)(@types/react@19.2.18)(babel-plugin-react-compiler@1.0.0)(esbuild@0.28.2)(jiti@2.7.0)(supports-color@8.1.1)(tsx@4.23.12)(typescript@5.9.3)(yaml@2.9.0)
       '@sanity/worker-channels': 2.0.0
       '@vercel/frameworks': 3.29.0
@@ -11285,7 +11292,7 @@ snapshots:
       '@sanity/asset-utils': 2.3.0
       '@sanity/client': 7.26.2
       '@sanity/generate-help-url': 4.0.0
-      '@sanity/mutator': 6.9.1(@types/react@19.2.18)(supports-color@8.1.1)
+      '@sanity/mutator': 6.10.1(@types/react@19.2.18)(supports-color@8.1.1)
       debug: 4.4.3(supports-color@8.1.1)
       get-it: 8.8.3
       gunzip-maybe: 1.4.2
@@ -11323,8 +11330,8 @@ snapshots:
     dependencies:
       '@sanity/client': 7.26.2
       '@sanity/mutate': 0.18.1(xstate@5.32.5)
-      '@sanity/types': 6.9.1(@types/react@19.2.18)
-      '@sanity/util': 6.9.1(@types/react@19.2.18)
+      '@sanity/types': 6.10.1(@types/react@19.2.18)
+      '@sanity/util': 6.10.1(@types/react@19.2.18)
       arrify: 3.0.0
       debug: 4.4.3(supports-color@8.1.1)
       fast-fifo: 1.3.2
@@ -11691,7 +11698,7 @@ snapshots:
     dependencies:
       '@module-federation/vite': 1.20.1(typescript@5.9.3)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
       '@sanity/cli-core': 2.8.1(@noble/hashes@2.3.0)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(esbuild@0.28.2)(supports-color@8.1.1)(yaml@2.9.0)
-      '@sanity/types': 6.9.1(@types/react@19.2.18)
+      '@sanity/types': 6.10.1(@types/react@19.2.18)
       '@vitejs/plugin-react': 6.1.0(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@8.1.1))(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
       form-data: 4.0.6
       tar-fs: 3.1.3
@@ -11730,7 +11737,7 @@ snapshots:
       '@module-federation/runtime': 2.8.2
       '@module-federation/vite': 1.20.7(typescript@5.9.3)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
       '@sanity/cli-core': 3.3.0(@noble/hashes@2.3.0)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(esbuild@0.28.2)(vitest@4.1.11)(yaml@2.9.0)
-      '@sanity/types': 6.9.1(@types/react@19.2.18)
+      '@sanity/types': 6.10.1(@types/react@19.2.18)
       '@vitejs/plugin-react': 6.1.0(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@8.1.1))(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
       form-data: 4.0.6
       rxjs: 7.8.2
@@ -14002,7 +14009,7 @@ snapshots:
 
   nanoid@6.0.1: {}
 
-  next-sanity@13.3.3(cc0acfb3f266e6a381bf1e3585dfe31f):
+  next-sanity@13.3.3(ebffa520e5c662f173e90b202fc1921a):
     dependencies:
       '@portabletext/react': 7.0.1(react@19.2.8)
       '@sanity/client': 7.26.2
@@ -15646,6 +15653,8 @@ snapshots:
   web-vitals@6.2.0: {}
 
   webidl-conversions@8.0.1: {}
+
+  webmcp-types@0.1.10: {}
 
   whatwg-mimetype@5.0.0: {}
 

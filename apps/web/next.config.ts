@@ -1,7 +1,5 @@
-import "@workspace/env/client";
-import "@workspace/env/server";
-
 import { env } from "@workspace/env/client";
+import { env as serverEnv } from "@workspace/env/server";
 import { client } from "@workspace/sanity/client";
 import { queryRedirects } from "@workspace/sanity/query";
 import type { NextConfig } from "next";
@@ -50,6 +48,16 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Content-Security-Policy", value: csp },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          // Turns WebMCP on for every Chrome visitor, so their agent gets the
+          // shopping tools (`components/webmcp-tools.tsx`).
+          ...(serverEnv.WEBMCP_ORIGIN_TRIAL_TOKEN
+            ? [
+                {
+                  key: "Origin-Trial",
+                  value: serverEnv.WEBMCP_ORIGIN_TRIAL_TOKEN,
+                },
+              ]
+            : []),
           // Skipped in dev: HSTS on `localhost` pins every local project to
           // https for two years.
           ...(process.env.NODE_ENV === "development"

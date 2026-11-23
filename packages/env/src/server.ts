@@ -17,6 +17,9 @@ const env = createEnv({
     SHOPIFY_API_VERSION: z.string().default("2026-04"),
     AI_GATEWAY_API_KEY: z.string().default(""),
     SANITY_CONTEXT_MCP_URL: z.string().default(""),
+    // Chrome origin trial token for WebMCP. Without it the shopping tools only
+    // register for visitors who turned the WebMCP flag on themselves.
+    WEBMCP_ORIGIN_TRIAL_TOKEN: z.string().optional(),
   },
 
   experimental__runtimeEnv: {

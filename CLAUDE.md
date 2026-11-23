@@ -96,8 +96,9 @@ Integration points in the web app:
 |---|---|
 | `apps/web/src/app/api/chat/route.ts` | Streams via Vercel AI Gateway; wires MCP + client tools |
 | `apps/web/src/components/ai-cart-bridge.tsx` | Listens for `ADD_TO_CART_EVENT`, maps it onto `useCartActions().addLine()` |
+| `apps/web/src/components/webmcp-tools.tsx` | Registers the WebMCP shopping tools (`webmcp-shop-tools.ts`) on `document.modelContext` for the visitor's own browser agent: `search_products`, `get_product`, `get_cart`, `get_saved_items`, `open_page`, `set_collection_filters`, `add_to_cart`, `update_cart_line`, `set_saved_item`, `go_to_checkout` (the add, update and checkout tools carry `consequentialHint`). Separate from the chat: it calls the cart and router directly |
 | `apps/web/src/components/page-context-tracker.tsx` | Writes route + surface on every navigation; read by `ChatPanel` and sent to the model |
-| `apps/web/src/app/layout.tsx` | Mounts the three AI components inside `<Providers>` |
+| `apps/web/src/app/layout.tsx` | Mounts the AI components and `WebMcpTools` inside `<Providers>` |
 
 The chat cannot call app functions directly, so "add to cart" is a `window` CustomEvent (`ADD_TO_CART_EVENT`) carrying the full line metadata. `addLine(variantId, quantity, metadata)` requires a complete `LineMetadata` so the optimistic line can render before Shopify responds — build it with `buildLineMetadata()` from `apps/web/src/lib/cart/metadata.ts`. (AGENTS.md rule 3 covers the cart intent pipeline itself.)
 
@@ -127,6 +128,7 @@ Search is one shared `search-panel.tsx` behind three surfaces: the `/search` pag
 - `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_STOREFRONT_ACCESS_TOKEN` — required; `SHOPIFY_API_VERSION` defaults to `2026-04` (upstream still defaults to the deprecated `2025-01`)
 - `NEXT_PUBLIC_STORE_CURRENCY` — ISO 4217, defaults to `GBP`
 - `AI_GATEWAY_API_KEY`, `SANITY_CONTEXT_MCP_URL` — optional; `/api/chat` returns 503 until both are set. Only needed locally, since Vercel OIDC authenticates the Gateway on deployments
+- `WEBMCP_ORIGIN_TRIAL_TOKEN` — optional Chrome origin trial token, sent as an `Origin-Trial` header. Without it the WebMCP tools only register for visitors who turned the flag on
 - `NEXT_PUBLIC_SITE_URL` — canonical origin, no trailing slash. Checked _before_ the Vercel vars, so it also overrides the generated `*.vercel.app` URL. Required off Vercel: `getBaseUrl()` otherwise falls back to `localhost:3000` and every canonical, OG URL and sitemap entry ships pointing there
 
 **Studio** (`apps/studio/.env`): `SANITY_STUDIO_PROJECT_ID`, `SANITY_STUDIO_DATASET`, `SANITY_STUDIO_TITLE`, `SANITY_STUDIO_PRESENTATION_URL`, `SHOPIFY_ADMIN_ACCESS_TOKEN` (seed scripts only)
@@ -148,7 +150,7 @@ git diff HEAD upstream/main -- apps packages     # review before taking anything
 
 The two histories are **unrelated** — `git merge-base HEAD upstream/main` returns nothing, because Aisle re-bases by copying trees rather than merging. So there is no `git merge` or `git rebase` path: port path-by-path with `git checkout upstream/main -- <path>`, driven by the diff against the last-synced SHA.
 
-The AI layer is confined to `packages/ai-commerce`, the four integration files above, `apps/studio/schemaTypes/documents/ai-assistant-settings.ts`, the four `apps/studio/scripts/seed-*.ts`, and small deltas in `layout.tsx`, `query.ts`, `env/*`, `globals.css`, `turbo.json` and the studio config. Everything else can be taken from upstream wholesale.
+The AI layer is confined to `packages/ai-commerce`, the five integration files above, the WebMCP files `apps/web/src/components/webmcp-shop-tools.ts` and `apps/web/src/lib/webmcp.ts`, `apps/studio/schemaTypes/documents/ai-assistant-settings.ts`, the four `apps/studio/scripts/seed-*.ts`, and small deltas in `layout.tsx`, `next.config.ts` (the `Origin-Trial` header), `llms.txt/route.ts` (the tool list), `query.ts`, `env/*`, `globals.css`, `turbo.json` and the studio config. Everything else can be taken from upstream wholesale.
 
 Four Aisle-authored fixes upstream still lacks — check they survive every sync:
 
