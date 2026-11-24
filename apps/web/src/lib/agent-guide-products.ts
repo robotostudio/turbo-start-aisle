@@ -63,11 +63,12 @@ type GuideProductsResponse = {
 
 /** One page of best sellers. Throws when Shopify cannot be read. */
 async function guideProductsPage(
+  first: number,
   after: string | null
 ): Promise<GuideProductsResponse["products"]> {
   const result = await storefrontQuery<GuideProductsResponse>(
     GUIDE_PRODUCTS_QUERY,
-    { variables: { first: PAGE_SIZE, after } }
+    { variables: { first, after } }
   );
   if (!result.ok) {
     throw new Error(`Guide products read failed: ${result.error}`);
@@ -88,7 +89,11 @@ export const guideCatalogue = unstable_cache(
     let after: string | null = null;
     let more = true;
     while (more && products.length < MAX_GUIDE_PRODUCTS) {
-      const { edges, pageInfo } = await guideProductsPage(after);
+      // The last read asks only for what the cap still allows.
+      const { edges, pageInfo } = await guideProductsPage(
+        Math.min(PAGE_SIZE, MAX_GUIDE_PRODUCTS - products.length),
+        after
+      );
       products.push(...edges.map((edge) => edge.node));
       after = pageInfo.endCursor;
       more = pageInfo.hasNextPage;

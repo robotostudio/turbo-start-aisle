@@ -70,13 +70,18 @@ describe("guideCatalogue", () => {
   });
 
   it("stops at the cap and says the list was cut", async () => {
+    // A shop with more products than the cap: every read returns exactly
+    // what was asked for, and there is always more.
     storefrontQuery.mockImplementation(
       async (
         _query,
-        { variables }: { variables: { after: string | null } }
+        { variables }: { variables: { first: number; after: string | null } }
       ) => {
         const from = Number(variables.after ?? 0);
-        return page(handles(from, 50), String(from + 50));
+        return page(
+          handles(from, variables.first),
+          String(from + variables.first)
+        );
       }
     );
 
@@ -85,7 +90,13 @@ describe("guideCatalogue", () => {
     expect(products).toHaveLength(MAX_GUIDE_PRODUCTS);
     expect(products.at(-1)?.handle).toBe(`p${MAX_GUIDE_PRODUCTS - 1}`);
     expect(partial).toBe(true);
-    expect(storefrontQuery).toHaveBeenCalledTimes(MAX_GUIDE_PRODUCTS / 50);
+    // No read asks for more than the cap has room for.
+    const asked = storefrontQuery.mock.calls.map(
+      ([, options]) => options.variables.first as number
+    );
+    expect(asked.reduce((sum, first) => sum + first, 0)).toBe(
+      MAX_GUIDE_PRODUCTS
+    );
   });
 
   it("is not partial when the shop ends exactly at the cap", async () => {
