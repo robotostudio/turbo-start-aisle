@@ -7,6 +7,7 @@
 
 import { env } from "@workspace/env/client";
 
+import { cartLink } from "@/lib/agent-shop";
 import {
   keyMetafields,
   PRODUCT_METAFIELD_KEYS,
@@ -25,8 +26,8 @@ import {
   formatMultiline,
   heading,
   joinSections,
-  sanityImageMarkdown,
   type SanityImageRef,
+  sanityImageMarkdown,
   toMarkdownHref,
 } from "./shared";
 
@@ -186,7 +187,8 @@ function optionsSection(product: ShopifyProduct): string | null {
 
 function variantsSection(
   product: ShopifyProduct,
-  variants: ShopifyVariant[]
+  variants: ShopifyVariant[],
+  base: string
 ): string | null {
   if (variants.length === 0) return null;
   const columns = realOptions(product);
@@ -195,6 +197,7 @@ function variantsSection(
     ...columns.map((column) => escapeMarkdown(column.name)),
     "Price",
     "Available",
+    "Add to cart",
   ];
   const rows = variants.map((variant) => {
     const optionCells = columns.map((column) => {
@@ -208,6 +211,10 @@ function variantsSection(
       ...optionCells,
       formatMoney(variant.price),
       variant.availableForSale ? "Yes" : "No",
+      // The page behind the link adds nothing until the shopper presses a button.
+      variant.availableForSale
+        ? `[Add to cart](${cartLink(base, product.handle, variant.id, 1)})`
+        : "—",
     ].join(" | ")} |`;
   });
   return joinSections([
@@ -273,7 +280,9 @@ const CURRENCY_LOCALE: Record<string, string> = {
 
 export function productToMarkdown(
   shopify: ShopifyProduct,
-  sanity: SanityProductDoc
+  sanity: SanityProductDoc,
+  /** Site origin, for the absolute add-to-cart links. */
+  base: string
 ): string {
   const variants = shopify.variants.edges.map((edge) => edge.node);
   const currency =
@@ -300,7 +309,7 @@ export function productToMarkdown(
         ])
       : null,
     optionsSection(shopify),
-    variantsSection(shopify, variants),
+    variantsSection(shopify, variants, base),
     metafieldSections(shopify),
     editorial ? joinSections([heading(2, "Editorial"), editorial]) : null,
     imagesSection(shopify),

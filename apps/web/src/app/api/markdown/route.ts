@@ -13,6 +13,7 @@ import {
   querySlugPageData,
 } from "@workspace/sanity/query";
 
+import { SHOP_GUIDE_PATH, shopGuideMarkdown } from "@/lib/agent-shop";
 import {
   type BlogListItem,
   blogIndexToMarkdown,
@@ -30,6 +31,7 @@ import type {
   CollectionQueryResponse,
   ProductQueryResponse,
 } from "@/lib/shopify/types";
+import { getBaseUrl } from "@/utils";
 
 const logger = new Logger("MarkdownRoute");
 
@@ -48,7 +50,11 @@ async function fetchProductMarkdown(handle: string): Promise<string | null> {
     }),
   ]);
   if (!shopifyRes.ok || !shopifyRes.data.product) return null;
-  return productToMarkdown(shopifyRes.data.product, sanityRes.data ?? null);
+  return productToMarkdown(
+    shopifyRes.data.product,
+    sanityRes.data ?? null,
+    getBaseUrl()
+  );
 }
 
 async function fetchCollectionMarkdown(handle: string): Promise<string | null> {
@@ -134,6 +140,7 @@ async function fetchPageMarkdown(path: string): Promise<string | null> {
 async function buildMarkdown(path: string): Promise<string | null> {
   const segments = path.split("/").filter(Boolean);
   if (segments.length === 0) return fetchHomeMarkdown();
+  if (path === SHOP_GUIDE_PATH) return shopGuideMarkdown(getBaseUrl());
 
   switch (segments[0]) {
     case "blog":

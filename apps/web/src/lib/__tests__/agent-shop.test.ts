@@ -6,6 +6,7 @@ import {
   cartLink,
   cartLinkQuery,
   productsSummary,
+  shopGuideMarkdown,
   variantGidFromLink,
 } from "../agent-shop";
 import { allowRequest, MAX_KEYS } from "../rate-limit";
@@ -139,5 +140,18 @@ describe("what the tools take and give", () => {
       "https://shop.example/products/tee"
     );
     expect(productsSummary([listed])[0]?.url).toBe("/products/tee");
+  });
+});
+
+describe("shopGuideMarkdown", () => {
+  const guide = shopGuideMarkdown("https://shop.test");
+
+  it("points agents at pages on this origin they can open", () => {
+    expect(guide).toContain("https://shop.test/collections.md");
+    expect(guide).toContain("https://shop.test/llms.txt");
+  });
+
+  it("never sends an agent to a URL under /api/", () => {
+    expect(guide).not.toMatch(/https?:\/\/\S*\/api\//);
   });
 });
