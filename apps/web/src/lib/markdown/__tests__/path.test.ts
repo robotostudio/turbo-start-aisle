@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeMarkdownPath, prefersMarkdown } from "@/lib/markdown/path";
+import {
+  normalizeMarkdownPath,
+  prefersMarkdown,
+  stripTrailingPunctuation,
+} from "@/lib/markdown/path";
 
 describe("normalizeMarkdownPath", () => {
   it("strips a trailing .md suffix", () => {
@@ -23,6 +27,30 @@ describe("normalizeMarkdownPath", () => {
 
   it("passes nested paths through untouched", () => {
     expect(normalizeMarkdownPath("/foo/bar")).toBe("/foo/bar");
+  });
+});
+
+describe("stripTrailingPunctuation", () => {
+  it("drops trailing full stops and commas", () => {
+    expect(stripTrailingPunctuation("/shop-for-agents.")).toBe(
+      "/shop-for-agents"
+    );
+    expect(stripTrailingPunctuation("/shop-for-agents.md.")).toBe(
+      "/shop-for-agents.md"
+    );
+    expect(stripTrailingPunctuation("/a..")).toBe("/a");
+    expect(stripTrailingPunctuation("/a,")).toBe("/a");
+    expect(stripTrailingPunctuation("/a.,")).toBe("/a");
+  });
+
+  it("leaves real paths alone", () => {
+    for (const path of ["/", "/file.png", "/x.md", "/api/search", "/a.b/c"]) {
+      expect(stripTrailingPunctuation(path)).toBe(path);
+    }
+  });
+
+  it("never returns an empty path", () => {
+    expect(stripTrailingPunctuation("/.")).toBe("/");
   });
 });
 
