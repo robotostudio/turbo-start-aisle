@@ -43,15 +43,28 @@ const noSubscribe = () => () => undefined;
 
 // min-h-11.5 keeps a 46px touch height. The smaller text on phones keeps the
 // label on one line at 360px; below that it wraps instead of being clipped.
+// Motion: hover colours and the press share one 150ms ease-out transition, so
+// a release mid-press glides back. The press scale sits behind motion-safe.
 const chipClass =
-  "group inline-flex min-h-11.5 cursor-pointer items-center gap-2 border border-border bg-muted px-3 text-foreground text-xs outline-none transition-[background-color,border-color,scale] duration-140 hover:border-foreground/30 hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 motion-safe:active:scale-97 sm:text-sm";
+  "group inline-flex min-h-11.5 cursor-pointer items-center gap-2 border border-border bg-muted px-3 text-foreground text-xs outline-none transition-[background-color,border-color,scale] duration-150 ease-out hover:border-foreground/30 hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 motion-safe:active:scale-97 sm:text-sm";
 
 // Both states sit in one grid cell, so the chip keeps the width of the wider
-// one. Exit (140ms) is quicker than enter (200ms). Scale and blur sit behind
-// motion-safe, so reduced motion keeps only the fade.
-const swapClass = "col-start-1 row-start-1 transition-[opacity,scale,filter]";
-const hideOnCopy = `${swapClass} duration-200 group-data-[copied=true]:opacity-0 group-data-[copied=true]:duration-140 motion-safe:group-data-[copied=true]:scale-96 motion-safe:group-data-[copied=true]:blur-[2px]`;
-const showOnCopy = `${swapClass} opacity-0 duration-140 motion-safe:scale-96 motion-safe:blur-[2px] group-data-[copied=true]:scale-100 group-data-[copied=true]:opacity-100 group-data-[copied=true]:blur-none group-data-[copied=true]:duration-200`;
+// one and nothing unmounts: a press during the swap retargets the transition.
+// The state coming in takes 300ms on a firm ease-out; the one leaving takes
+// 200ms. Label and icon share that timing because they change as one.
+// Reduced motion drops the scale and blur and keeps a 200ms fade.
+const swapClass =
+  "col-start-1 row-start-1 transition-[opacity,scale,filter] duration-200 ease-[cubic-bezier(0.25,0.1,0,1)]";
+const hideOnCopy = `${swapClass} motion-safe:duration-300 group-data-[copied=true]:opacity-0 motion-safe:group-data-[copied=true]:duration-200`;
+const showOnCopy = `${swapClass} opacity-0 group-data-[copied=true]:scale-100 group-data-[copied=true]:opacity-100 group-data-[copied=true]:blur-none motion-safe:group-data-[copied=true]:duration-300`;
+
+// How far the hidden state sits from rest. Text moves a little. An icon
+// shrinks deep, so the change reads as a swap and not as a glitch. The names
+// are written out in full: Tailwind only generates classes it can read.
+const labelHide = `${hideOnCopy} motion-safe:group-data-[copied=true]:scale-97 motion-safe:group-data-[copied=true]:blur-[2px]`;
+const labelShow = `${showOnCopy} motion-safe:scale-97 motion-safe:blur-[2px]`;
+const iconHide = `${hideOnCopy} motion-safe:group-data-[copied=true]:scale-30 motion-safe:group-data-[copied=true]:blur-[3px]`;
+const iconShow = `${showOnCopy} motion-safe:scale-30 motion-safe:blur-[3px]`;
 
 // The link before hydration renders the same parts, so the chip never changes width.
 function ChipContent() {
@@ -78,14 +91,14 @@ function ChipContent() {
         ))}
       </span>
       <span className="grid">
-        <span className={hideOnCopy}>{LABEL}</span>
-        <span aria-hidden className={showOnCopy}>
+        <span className={labelHide}>{LABEL}</span>
+        <span aria-hidden className={labelShow}>
           {PASTE_LINE}
         </span>
       </span>
       <span className="grid shrink-0 text-muted-foreground">
-        <Copy aria-hidden className={`size-4 ${hideOnCopy}`} />
-        <Check aria-hidden className={`size-4 ${showOnCopy}`} />
+        <Copy aria-hidden className={`size-4 ${iconHide}`} />
+        <Check aria-hidden className={`size-4 ${iconShow}`} />
       </span>
     </>
   );
