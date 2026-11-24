@@ -182,7 +182,10 @@ function FooterContent({ data, settingsData }: ResolvedFooterProps) {
           <div className="flex flex-col gap-6">
             <NewsletterForm />
             {socialLinks && <SocialLinks data={socialLinks} />}
-            <ShopPrompt />
+            {/* A block wrapper, so the chip keeps its own width in this column. */}
+            <div>
+              <ShopPrompt />
+            </div>
           </div>
           <FooterColumns columns={columns} />
         </div>

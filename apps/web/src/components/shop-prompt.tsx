@@ -4,7 +4,7 @@ import { getSiteConfig } from "@/lib/seo";
 import { getBaseUrl } from "@/utils";
 
 /**
- * The sentence a shopper pastes into ChatGPT or Claude, with a copy button.
+ * The chip that copies the sentence a shopper pastes into their AI agent.
  * `getSiteConfig` reads the title without stega, and its Settings read is the
  * one every page's metadata already made, so this adds no round trip.
  */

@@ -29,10 +29,7 @@ export default async function ShopForAgentsPage() {
       <h1 className="mb-4 font-semibold text-3xl">{SHOP_GUIDE_TITLE}</h1>
       <p className="text-lg text-muted-foreground">{intro}</p>
       {/* For a person who lands here: the guide itself is written to agents. */}
-      <aside
-        aria-label="For shoppers"
-        className="mt-8 border border-border p-4"
-      >
+      <aside aria-label="For shoppers" className="mt-6">
         <ShopPrompt />
       </aside>
       {steps.map(({ title, lines }) => (
