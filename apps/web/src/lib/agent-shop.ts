@@ -149,3 +149,84 @@ export function cartLink(
 
 export const variantGidFromLink = (variant: string) =>
   `${VARIANT_GID}${variant}`;
+
+/** The guide a chat agent reads when its user pastes the shop prompt. */
+export const SHOP_GUIDE_PATH = "/shop-for-agents";
+
+export const SHOP_GUIDE_TITLE = "Shop here, for AI agents";
+
+export const SHOP_GUIDE_DESCRIPTION =
+  "How an AI agent finds a product in this shop for its user and gives them a link that adds it to their cart.";
+
+/**
+ * The guide's steps. Every URL an agent must open is one it finds on a page:
+ * chat agents refuse URLs they build themselves, and robots.txt closes /api/.
+ */
+export function shopGuide(base: string) {
+  return {
+    intro:
+      "Use this page when your user asks you to find or buy something in this shop. You read the shop as Markdown pages and give your user a link. You need no API key, account or connector. You cannot change a cart or pay: your user does both.",
+    steps: [
+      {
+        title: "1. Ask your user",
+        lines: [
+          "What they are looking for, and any size, colour or budget.",
+          "How many they want. One link adds up to 10.",
+        ],
+      },
+      {
+        title: "2. Find the product",
+        lines: [
+          `Open ${base}/collections.md for the collections. Each collection page lists up to 50 of its products with their lowest price.`,
+          `Or open ${base}/llms.txt, which lists the product pages.`,
+          "Only open links you find on these pages. Do not build a search or API URL: /api/ is closed to agents.",
+        ],
+      },
+      {
+        title: "3. Read the product page",
+        lines: [
+          "Open the product's page ending in .md. It has the description, the options and a table of variants with price and stock.",
+          'Each variant in stock has an "Add to cart" link in that table.',
+        ],
+      },
+      {
+        title: "4. Confirm with your user",
+        lines: [
+          "Tell them the product, the variant and the price, then wait for their answer.",
+          "Never pick a size or colour they did not choose.",
+        ],
+      },
+      {
+        title: "5. Give your user the link",
+        lines: [
+          'Copy the variant\'s "Add to cart" link exactly as listed. For more than one, change quantity=1 to the number they want.',
+          'Tell them the link opens a page that shows the item, and nothing is added until they press "Add to cart". They check out and pay themselves.',
+        ],
+      },
+      {
+        title: "Using tools instead",
+        lines: [
+          `${base}/llms.txt also lists an MCP server and the WebMCP tools, for agents that can connect to them.`,
+        ],
+      },
+    ],
+  };
+}
+
+/** A URL inside a guide line: the page and the `.md` twin both make it a link. */
+export const GUIDE_URL = /(https?:\/\/[^\s,]+)/;
+
+/** The guide as Markdown: the `.md` twin of the page. */
+export function shopGuideMarkdown(base: string): string {
+  const { intro, steps } = shopGuide(base);
+  return [
+    `# ${SHOP_GUIDE_TITLE}`,
+    intro,
+    ...steps.map(
+      ({ title, lines }) =>
+        `## ${title}\n\n${lines
+          .map((line) => `- ${line.replace(GUIDE_URL, "<$1>")}`)
+          .join("\n")}`
+    ),
+  ].join("\n\n");
+}
