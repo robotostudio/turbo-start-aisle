@@ -217,10 +217,10 @@ function itemLines(
   }
   return [
     {
-      text: "Each line below is one item in stock: the product, its variant, the price, then its add-to-cart link.",
+      text: "Below, each product starts with a photo line, then has one line per item in stock: the product, its variant, the price, then its add-to-cart link.",
     },
     {
-      text: "A photo line gives a product's own picture. Show that picture: never one you found elsewhere.",
+      text: "The photo line is the product's own picture, not a link to buy. Show that picture: never one you found elsewhere.",
     },
     partial
       ? elsewhere

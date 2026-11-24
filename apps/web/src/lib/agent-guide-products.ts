@@ -73,8 +73,8 @@ export const guideCatalogue = unstable_cache(
         products.some((product) => product.variants.pageInfo.hasNextPage),
     };
   },
-  // Bump the key when the query's shape changes: the cache outlives a deploy,
-  // and an entry in the old shape would be served for its last 5 minutes.
+  // Bump the key when the query gains a field: the cache outlives a deploy,
+  // and the old entry would be served without that field for up to 5 minutes.
   ["agent-guide-catalogue-v2"],
   { revalidate: 300 }
 );

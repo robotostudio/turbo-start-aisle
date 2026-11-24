@@ -173,13 +173,21 @@ describe("shopGuideMarkdown", () => {
     });
   });
 
-  it("gives each product in stock its own photo, and a sold-out one none", () => {
-    expect(guide).toContain("- Tee, photo: <https://cdn.test/tee.png>");
+  it("puts each product's own photo ahead of its items", () => {
+    const photo = guide.indexOf("- Tee, photo: <https://cdn.test/tee.png>");
+    expect(photo).toBeGreaterThan(-1);
+    expect(photo).toBeLessThan(guide.indexOf("- Tee, S, 20.0 GBP:"));
+  });
+
+  it("lists no photo for a sold-out product or one without a picture", () => {
     const soldOut = {
       ...tee(),
       variants: { edges: [variant(43, "M", false)] },
     };
     expect(guideFor([soldOut])).not.toContain("photo:");
+    expect(guideFor([{ ...tee(), featuredImage: null }])).not.toContain(
+      "photo:"
+    );
   });
 
   it("leaves out a sold-out variant", () => {
