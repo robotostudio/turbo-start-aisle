@@ -6,6 +6,8 @@ import {
   cartLink,
   cartLinkQuery,
   type GuideProduct,
+  lineTotal,
+  optionsLine,
   productsSummary,
   shopGuide,
   shopGuideMarkdown,
@@ -143,6 +145,29 @@ describe("what the tools take and give", () => {
       "https://shop.example/products/tee"
     );
     expect(productsSummary([listed])[0]?.url).toBe("/products/tee");
+  });
+});
+
+describe("the /cart/add slip", () => {
+  it("words a variant's options, and says nothing for a product with none", () => {
+    expect(
+      optionsLine([
+        { name: "Size", value: "S" },
+        { name: "Color", value: "pink" },
+      ])
+    ).toBe("Size S · Color pink");
+    expect(optionsLine([{ name: "Title", value: "Default Title" }])).toBe("");
+  });
+
+  it("totals a line to the penny", () => {
+    expect(lineTotal({ amount: "46.42", currencyCode: "USD" }, 3)).toEqual({
+      amount: "139.26",
+      currencyCode: "USD",
+    });
+    // 0.1 * 3 is 0.30000000000000004 in floating point.
+    expect(lineTotal({ amount: "0.1", currencyCode: "USD" }, 3).amount).toBe(
+      "0.30"
+    );
   });
 });
 
