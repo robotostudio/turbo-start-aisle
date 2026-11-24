@@ -15,6 +15,7 @@ import {
   variantGidFromLink,
 } from "../agent-shop";
 import { allowRequest, MAX_KEYS } from "../rate-limit";
+import { formatMoney } from "../shopify/money";
 import type { ShopifyCollectionProduct } from "../shopify/types";
 
 const GID = "gid://shopify/ProductVariant/42";
@@ -159,14 +160,17 @@ describe("the /cart/add slip", () => {
     expect(optionsLine([{ name: "Title", value: "Default Title" }])).toBe("");
   });
 
-  it("totals a line to the penny", () => {
-    expect(lineTotal({ amount: "46.42", currencyCode: "USD" }, 3)).toEqual({
-      amount: "139.26",
-      currencyCode: "USD",
-    });
-    // 0.1 * 3 is 0.30000000000000004 in floating point.
-    expect(lineTotal({ amount: "0.1", currencyCode: "USD" }, 3).amount).toBe(
-      "0.30"
+  it("totals a line in the price's own currency", () => {
+    const total = lineTotal({ amount: "46.42", currencyCode: "USD" }, 3);
+    expect(total.currencyCode).toBe("USD");
+    expect(formatMoney(total)).toBe("$139.26");
+    // 0.1 * 3 is 0.30000000000000004: the formatter, not the sum, rounds it.
+    expect(
+      formatMoney(lineTotal({ amount: "0.1", currencyCode: "USD" }, 3))
+    ).toBe("$0.30");
+    // A three-decimal currency keeps its third digit.
+    expect(lineTotal({ amount: "1.275", currencyCode: "KWD" }, 1).amount).toBe(
+      "1.275"
     );
   });
 });

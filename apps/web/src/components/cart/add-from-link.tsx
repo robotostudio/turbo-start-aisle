@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@workspace/ui/components/button";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -22,6 +23,8 @@ import { useCartActions, useCartState } from "./cart-context";
 
 type Offer = Extract<CartLineChoice, { ok: true }> & {
   quantity: number;
+  /** The most the stepper allows: the link's limit, or the stock if lower. */
+  max: number;
   /** The variant's own photo when it has one, else the product's. */
   imageUrl?: string;
 };
@@ -67,11 +70,19 @@ async function readOffer(search: string): Promise<Status> {
   }
   const variantGid = variantGidFromLink(variant);
   const line = cartLineFor(product, variantGid, quantity);
-  const imageUrl =
-    product.variants.edges.find(({ node }) => node.id === variantGid)?.node
-      .image?.url ?? product.featuredImage?.url;
+  const chosen = product.variants.edges.find(
+    ({ node }) => node.id === variantGid
+  )?.node;
+  const stock = chosen?.quantityAvailable ?? 0;
+  const max =
+    stock > 0 ? Math.min(MAX_LINK_QUANTITY, stock) : MAX_LINK_QUANTITY;
+  const imageUrl = chosen?.image?.url ?? product.featuredImage?.url;
   return line.ok
-    ? { kind: "offer", offer: { ...line, quantity, imageUrl }, adding: false }
+    ? {
+        kind: "offer",
+        offer: { ...line, quantity: Math.min(quantity, max), max, imageUrl },
+        adding: false,
+      }
     : {
         kind: "stopped",
         message: `${product.title} can't be added in that option right now.`,
@@ -111,7 +122,9 @@ export function AddFromLink() {
       offer.quantity,
       offer.metadata
     );
-    const { productTitle, productHandle, variantTitle } = offer.metadata;
+    const { productTitle, productHandle, selectedOptions } = offer.metadata;
+    const options = optionsLine(selectedOptions);
+    const added = `${offer.quantity} × ${productTitle}${options ? ` (${options})` : ""}`;
     if (!ok) {
       setStatus({
         kind: "stopped",
@@ -129,7 +142,7 @@ export function AddFromLink() {
       message:
         warnings.length > 0
           ? `Added ${productTitle}. ${warnings.map((warning) => warning.message).join(" ")}`
-          : `Added ${offer.quantity} × ${productTitle} (${variantTitle}).`,
+          : `Added ${added}.`,
     });
   }
 
@@ -142,13 +155,9 @@ export function AddFromLink() {
         : status.message;
 
   return (
-    <main className="flex flex-col items-center gap-5 px-4 py-16 md:py-24">
+    <main className="flex flex-col items-center px-4 py-16 md:py-24">
       <h1 className="sr-only">Add to cart</h1>
-      <p className="flex items-center gap-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
-        <span aria-hidden="true" className="size-1.5 bg-foreground" />
-        Picked with your assistant
-      </p>
-      <div className="flex w-full max-w-100 flex-col border border-border bg-card">
+      <div className="flex w-full max-w-100 flex-col border border-border">
         {status.kind === "offer" ? (
           <Slip
             // The cart must be read first: adding before that starts a new cart.
@@ -157,13 +166,18 @@ export function AddFromLink() {
             offer={status.offer}
             onAdd={() => add(status.offer)}
             onQuantity={(quantity) =>
-              setStatus({ ...status, offer: { ...status.offer, quantity } })
+              setStatus((now) =>
+                now.kind === "offer"
+                  ? { ...now, offer: { ...now.offer, quantity } }
+                  : now
+              )
             }
           />
         ) : null}
+        {status.kind === "loading" && <SlipSkeleton />}
         <div
           className={
-            status.kind === "offer"
+            status.kind === "offer" || status.kind === "loading"
               ? "sr-only"
               : "flex flex-col items-center gap-5 px-6 py-10 text-center"
           }
@@ -185,16 +199,47 @@ export function AddFromLink() {
           )}
         </div>
       </div>
-      {status.kind === "offer" && (
-        <p className="max-w-100 text-center text-muted-foreground text-sm">
-          Nothing is in your cart until you press the button.
-        </p>
-      )}
     </main>
   );
 }
 
-/** The offer as a till slip: the item, how many, what it costs, one button. */
+/**
+ * The slip while the item is looked up: the same blocks at the same sizes, so
+ * nothing moves when the item arrives. The status line says what is happening.
+ */
+function SlipSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="flex items-center gap-4 p-6 pb-5">
+        <Skeleton className="h-22 w-18 shrink-0" />
+        <div className="flex flex-1 flex-col gap-2">
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+      <div className="flex flex-col px-6">
+        <div className="flex h-13 items-center justify-between border-foreground/20 border-t border-dashed">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-9 w-24" />
+        </div>
+        <div className="flex items-center justify-between border-foreground/20 border-t border-dashed pt-4.5 pb-5.5">
+          <Skeleton className="h-4 w-10" />
+          {/* 44px: the animated total renders taller than its line height. */}
+          <Skeleton className="h-11 w-28" />
+        </div>
+      </div>
+      <div className="px-6 pb-6">
+        <Skeleton className="h-13 w-full" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The offer as a till slip: the item and its price, how many, the total, one
+ * button. Nothing else: the name links to the product, and the dashed rules
+ * and mono figures are the slip's only decoration.
+ */
 function Slip({
   offer,
   busy,
@@ -213,7 +258,7 @@ function Slip({
   const options = optionsLine(selectedOptions);
   return (
     <>
-      <div className="flex items-center gap-4 px-6 pt-6 pb-5">
+      <div className="flex items-center gap-4 p-6 pb-5">
         <div className="card-surface relative h-22 w-18 shrink-0 overflow-hidden">
           {offer.imageUrl && (
             // Decorative: the name beside it says what it is.
@@ -227,9 +272,20 @@ function Slip({
           )}
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="font-medium text-lg leading-6 tracking-[-0.01em]">
-            {productTitle}
-          </h2>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-medium text-lg leading-6 tracking-[-0.01em]">
+              <Link
+                className="underline-offset-3 hover:underline"
+                href={`/products/${productHandle}`}
+              >
+                {productTitle}
+              </Link>
+            </h2>
+            <p className="shrink-0 font-mono text-sm tabular-nums">
+              <span className="sr-only">Price each: </span>
+              {formatMoney(price)}
+            </p>
+          </div>
           {options && (
             <p className="text-muted-foreground text-sm">{options}</p>
           )}
@@ -241,15 +297,11 @@ function Slip({
           <dd>
             <QuantitySelector
               disabled={busy}
-              max={MAX_LINK_QUANTITY}
+              max={offer.max}
               onChange={onQuantity}
               value={offer.quantity}
             />
           </dd>
-        </div>
-        <div className="flex h-11 items-center justify-between">
-          <dt className="text-muted-foreground">Each</dt>
-          <dd className="font-mono tabular-nums">{formatMoney(price)}</dd>
         </div>
         <div className="flex items-baseline justify-between border-foreground/20 border-t border-dashed pt-4.5 pb-5.5">
           <dt className="text-muted-foreground">Total</dt>
@@ -258,7 +310,7 @@ function Slip({
           </dd>
         </div>
       </dl>
-      <div className="flex flex-col items-center gap-3.5 px-6 pb-6">
+      <div className="px-6 pb-6">
         <Button
           className="h-13 w-full text-base"
           disabled={busy}
@@ -266,12 +318,6 @@ function Slip({
         >
           {label}
         </Button>
-        <Link
-          className="text-muted-foreground text-sm underline underline-offset-3 transition-colors duration-150 ease-out hover:text-foreground"
-          href={`/products/${productHandle}`}
-        >
-          See the product first
-        </Link>
       </div>
     </>
   );

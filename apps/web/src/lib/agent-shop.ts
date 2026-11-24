@@ -22,6 +22,9 @@ export const productHandle = z
   .describe("Product handle: the last part of a /products/<handle> URL");
 
 /** One variant and how many: what every add-to-cart tool takes. */
+/** The most of one item an agent tool, a link, or the page it opens will add. */
+export const MAX_LINK_QUANTITY = 10;
+
 export const cartLineInput = z.object({
   handle: productHandle,
   variantGid: z
@@ -30,7 +33,7 @@ export const cartLineInput = z.object({
     .describe(
       "The variant's variantGid from get_product, as given: gid://shopify/ProductVariant/<digits>"
     ),
-  quantity: z.number().int().min(1).max(10).default(1),
+  quantity: z.number().int().min(1).max(MAX_LINK_QUANTITY).default(1),
 });
 
 export const money = ({ amount, currencyCode }: MoneyV2) =>
@@ -123,9 +126,6 @@ export function cartLineFor(
 
 const VARIANT_GID = "gid://shopify/ProductVariant/";
 
-/** The most of one item a link, or the page it opens, will add. */
-export const MAX_LINK_QUANTITY = 10;
-
 /** The query of an add-to-cart link: what `/cart/add` reads back. */
 export const cartLinkQuery = z.object({
   handle: productHandle,
@@ -141,9 +141,12 @@ export const optionsLine = (options: SelectedOption[]) =>
     .map(({ name, value }) => `${name} ${value}`)
     .join(" · ");
 
-/** What `quantity` of one item costs, for the slip's total. */
+/**
+ * What `quantity` of one item costs, for the slip's total. Not rounded here:
+ * the formatter rounds to the currency's own digits, which are not always two.
+ */
 export const lineTotal = (price: MoneyV2, quantity: number): MoneyV2 => ({
-  amount: (Number.parseFloat(price.amount) * quantity).toFixed(2),
+  amount: String(Number.parseFloat(price.amount) * quantity),
   currencyCode: price.currencyCode,
 });
 
@@ -285,7 +288,9 @@ export function shopGuide(
           {
             text: "What they are looking for, and any size, colour or budget.",
           },
-          { text: "How many they want. One link adds up to 10." },
+          {
+            text: `How many they want. One link adds up to ${MAX_LINK_QUANTITY}.`,
+          },
         ],
       },
       { title: "2. Find the item", lines: itemLines(base, catalogue) },
