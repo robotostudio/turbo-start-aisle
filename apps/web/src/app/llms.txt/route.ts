@@ -25,7 +25,7 @@ const mcpServer = (base: string) =>
 
 /** The guide a chat agent follows with no connector: `app/shop-for-agents`. */
 const shopGuideLine = (base: string) =>
-  `Shopping for your user? Follow the steps at ${base}${SHOP_GUIDE_PATH}.md. No connector or key needed.`;
+  `Shopping for your user? No connector or key needed. Follow the steps at ${base}${SHOP_GUIDE_PATH}.md`;
 
 /** Absolute `.md` URL for an internal path. */
 function mdUrl(base: string, path: string): string {

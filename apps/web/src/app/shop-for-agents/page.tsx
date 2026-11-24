@@ -1,4 +1,5 @@
 import {
+  GUIDE_URL,
   SHOP_GUIDE_DESCRIPTION,
   SHOP_GUIDE_PATH,
   SHOP_GUIDE_TITLE,
@@ -27,7 +28,18 @@ export default function ShopForAgentsPage() {
           <h2 className="mb-3 font-semibold text-xl">{title}</h2>
           <ul className="list-disc space-y-2 pl-5">
             {lines.map((line) => (
-              <li key={line}>{line}</li>
+              <li key={line}>
+                {/* Real anchors: a chat agent opens links, not URLs in text. */}
+                {line.split(GUIDE_URL).map((part) =>
+                  GUIDE_URL.test(part) ? (
+                    <a className="underline" href={part} key={part}>
+                      {part}
+                    </a>
+                  ) : (
+                    part
+                  )
+                )}
+              </li>
             ))}
           </ul>
         </section>

@@ -177,8 +177,8 @@ export function shopGuide(base: string) {
       {
         title: "2. Find the product",
         lines: [
-          `Open ${base}/collections.md for the collections. Each collection page lists its products with their lowest price.`,
-          `Or open ${base}/llms.txt, which lists every product page.`,
+          `Open ${base}/collections.md for the collections. Each collection page lists up to 50 of its products with their lowest price.`,
+          `Or open ${base}/llms.txt, which lists the product pages.`,
           "Only open links you find on these pages. Do not build a search or API URL: /api/ is closed to agents.",
         ],
       },
@@ -213,6 +213,9 @@ export function shopGuide(base: string) {
   };
 }
 
+/** A URL inside a guide line: the page and the `.md` twin both make it a link. */
+export const GUIDE_URL = /(https?:\/\/[^\s,]+)/;
+
 /** The guide as Markdown: the `.md` twin of the page. */
 export function shopGuideMarkdown(base: string): string {
   const { intro, steps } = shopGuide(base);
@@ -221,7 +224,9 @@ export function shopGuideMarkdown(base: string): string {
     intro,
     ...steps.map(
       ({ title, lines }) =>
-        `## ${title}\n\n${lines.map((line) => `- ${line}`).join("\n")}`
+        `## ${title}\n\n${lines
+          .map((line) => `- ${line.replace(GUIDE_URL, "<$1>")}`)
+          .join("\n")}`
     ),
   ].join("\n\n");
 }

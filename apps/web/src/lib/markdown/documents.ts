@@ -21,6 +21,7 @@ import type {
 import { pageBuilderToMarkdown } from "./page-builder";
 import { portableTextToMarkdownString } from "./portable-text";
 import {
+  absolutizeUrl,
   escapeMarkdown,
   formatMoney,
   formatMultiline,
@@ -318,13 +319,23 @@ export function productToMarkdown(
   ]);
 }
 
+/**
+ * The absolute `.md` URL of a shop page. Absolute because the agent guide
+ * (`shopGuide`) sends chat agents down these links, and they only open a URL
+ * they found written out in full.
+ */
+function agentHref(path: string): string {
+  const href = toMarkdownHref(path);
+  return absolutizeUrl(href) ?? href;
+}
+
 export function collectionToMarkdown(
   shopify: ShopifyCollection,
   _sanity: SanityCollectionDoc
 ): string {
   const products = shopify.products.edges.map((edge) => edge.node);
   const bullets = products.map((product) => {
-    const href = toMarkdownHref(`/products/${product.handle}`);
+    const href = agentHref(`/products/${product.handle}`);
     const price = formatMoney(product.priceRange.minVariantPrice);
     const suffix = price ? ` — from ${price}` : "";
     return `- [${escapeMarkdown(product.title)}](${href})${suffix}`;
@@ -350,7 +361,7 @@ export function collectionsIndexToMarkdown(
     .map((collection) => {
       const title = collection.title?.trim();
       if (!title || !collection.slug) return null;
-      const href = toMarkdownHref(`/collections/${collection.slug}`);
+      const href = agentHref(`/collections/${collection.slug}`);
       return `- [${escapeMarkdown(title)}](${href})`;
     })
     .filter((line): line is string => Boolean(line));

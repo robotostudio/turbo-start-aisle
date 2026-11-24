@@ -147,8 +147,8 @@ describe("shopGuideMarkdown", () => {
   const guide = shopGuideMarkdown("https://shop.test");
 
   it("points agents at pages on this origin they can open", () => {
-    expect(guide).toContain("https://shop.test/collections.md");
-    expect(guide).toContain("https://shop.test/llms.txt");
+    expect(guide).toContain("<https://shop.test/collections.md>");
+    expect(guide).toContain("<https://shop.test/llms.txt>");
   });
 
   it("never sends an agent to a URL under /api/", () => {
