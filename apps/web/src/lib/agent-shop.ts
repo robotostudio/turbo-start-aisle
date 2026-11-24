@@ -174,24 +174,62 @@ export type GuideProduct = {
   };
 };
 
+/** The products the guide lists, and whether Shopify had more than fit. */
+export type GuideCatalogue = { products: GuideProduct[]; partial: boolean };
+
+/** One guide line. The link, when there is one, always ends the line. */
+export type GuideLine = { text: string; url?: string };
+
 /** Shopify's name for the only variant of a product that has no options. */
 const NO_OPTIONS = "Default Title";
+
+/** Step 2: every item in stock, or the plain truth when there is none. */
+function itemLines(
+  base: string,
+  { products, partial }: GuideCatalogue
+): GuideLine[] {
+  const items = products.flatMap(({ handle, title, variants }) =>
+    variants.edges
+      .filter(({ node }) => node.availableForSale)
+      .map(({ node }) => ({
+        text: `${node.title === NO_OPTIONS ? title : `${title}, ${node.title}`}, ${money(node.price)}:`,
+        url: cartLink(base, handle, node.id, 1),
+      }))
+  );
+  const elsewhere = {
+    text: "This list has the best sellers only. For an item that is not listed, tell your user you cannot see it here and give them the shop's search:",
+    url: `${base}/search`,
+  };
+  if (items.length === 0) {
+    return [
+      {
+        text: "Nothing in this list is in stock right now. Tell your user: do not guess.",
+      },
+      ...(partial ? [elsewhere] : []),
+    ];
+  }
+  return [
+    {
+      text: "Each line below is one item in stock: the product, its variant, the price, then its add-to-cart link.",
+    },
+    partial
+      ? elsewhere
+      : {
+          text: "An item that is not listed is sold out or not sold here. Say so: do not guess.",
+        },
+    ...items,
+  ];
+}
 
 /**
  * The guide's steps. Everything an agent needs is on this one page, down to
  * the add-to-cart link of each item: ChatGPT read the guide but opened no
  * product page after it, not even one its user pasted.
  */
-export function shopGuide(base: string, products: GuideProduct[]) {
-  const items = products.flatMap(({ handle, title, variants }) =>
-    variants.edges
-      .filter(({ node }) => node.availableForSale)
-      .map(({ node }) => {
-        const named =
-          node.title === NO_OPTIONS ? title : `${title}, ${node.title}`;
-        return `${named}, ${money(node.price)}: ${cartLink(base, handle, node.id, 1)}`;
-      })
-  );
+export function shopGuide(
+  base: string,
+  catalogue: GuideCatalogue
+): { intro: string; steps: { title: string; lines: GuideLine[] }[] } {
   return {
     intro:
       "Use this page when your user asks you to find or buy something in this shop. Everything you need is on this page: you do not have to open any other. You need no API key, account or connector. You cannot change a cart or pay: your user does both.",
@@ -199,64 +237,59 @@ export function shopGuide(base: string, products: GuideProduct[]) {
       {
         title: "1. Ask your user",
         lines: [
-          "What they are looking for, and any size, colour or budget.",
-          "How many they want. One link adds up to 10.",
+          {
+            text: "What they are looking for, and any size, colour or budget.",
+          },
+          { text: "How many they want. One link adds up to 10." },
         ],
       },
-      {
-        title: "2. Find the item",
-        lines:
-          items.length > 0
-            ? [
-                "Each line below is one item in stock: the product, its variant, the price, then its add-to-cart link.",
-                "An item that is not listed is sold out or not sold here. Say so: do not guess.",
-                ...items,
-              ]
-            : [
-                `The list of items could not be loaded. Try this page again in a minute, or open ${base}/llms.txt for the product pages.`,
-              ],
-      },
+      { title: "2. Find the item", lines: itemLines(base, catalogue) },
       {
         title: "3. Confirm with your user",
         lines: [
-          "Tell them the product, the variant and the price, then wait for their answer.",
-          "Never pick a size or colour they did not choose.",
+          {
+            text: "Tell them the product, the variant and the price, then wait for their answer.",
+          },
+          { text: "Never pick a size or colour they did not choose." },
         ],
       },
       {
         title: "4. Give your user the link",
         lines: [
-          "Copy the item's add-to-cart link exactly as listed. For more than one, change quantity=1 to the number they want.",
-          'Tell them the link opens a page that shows the item, and nothing is added until they press "Add to cart". They check out and pay themselves.',
+          {
+            text: "Copy the item's add-to-cart link exactly as listed. For more than one, change quantity=1 to the number they want.",
+          },
+          {
+            text: 'Tell them the link opens a page that shows the item, and nothing is added until they press "Add to cart". They check out and pay themselves.',
+          },
         ],
       },
       {
-        title: "More about a product",
+        title: "Using tools instead",
         lines: [
-          "A product's page is /products/<handle> on this site, where <handle> is the handle= value in its link. Add .md to that address for a Markdown version with the description.",
-          `${base}/llms.txt also lists an MCP server and the WebMCP tools, for agents that can connect to them.`,
+          {
+            text: "For agents that can connect to tools, the MCP server and the WebMCP tools are listed at",
+            url: `${base}/llms.txt`,
+          },
         ],
       },
     ],
   };
 }
 
-/** A URL inside a guide line: the page and the `.md` twin both make it a link. */
-export const GUIDE_URL = /(https?:\/\/[^\s,]+)/;
-
 /** The guide as Markdown: the `.md` twin of the page. */
 export function shopGuideMarkdown(
   base: string,
-  products: GuideProduct[]
+  catalogue: GuideCatalogue
 ): string {
-  const { intro, steps } = shopGuide(base, products);
+  const { intro, steps } = shopGuide(base, catalogue);
   return [
     `# ${SHOP_GUIDE_TITLE}`,
     intro,
     ...steps.map(
       ({ title, lines }) =>
         `## ${title}\n\n${lines
-          .map((line) => `- ${line.replace(GUIDE_URL, "<$1>")}`)
+          .map(({ text, url }) => (url ? `- ${text} <${url}>` : `- ${text}`))
           .join("\n")}`
     ),
   ].join("\n\n");

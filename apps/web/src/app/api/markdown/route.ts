@@ -13,7 +13,7 @@ import {
   querySlugPageData,
 } from "@workspace/sanity/query";
 
-import { guideProducts } from "@/lib/agent-guide-products";
+import { guideCatalogue } from "@/lib/agent-guide-products";
 import { SHOP_GUIDE_PATH, shopGuideMarkdown } from "@/lib/agent-shop";
 import {
   type BlogListItem,
@@ -142,7 +142,7 @@ async function buildMarkdown(path: string): Promise<string | null> {
   const segments = path.split("/").filter(Boolean);
   if (segments.length === 0) return fetchHomeMarkdown();
   if (path === SHOP_GUIDE_PATH) {
-    return shopGuideMarkdown(getBaseUrl(), await guideProducts());
+    return shopGuideMarkdown(getBaseUrl(), await guideCatalogue());
   }
 
   switch (segments[0]) {

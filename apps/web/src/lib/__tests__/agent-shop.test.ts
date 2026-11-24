@@ -152,12 +152,14 @@ describe("shopGuideMarkdown", () => {
       price,
     },
   });
-  const listed = {
+  const tee = (title = "Tee") => ({
     handle: "tee",
-    title: "Tee",
+    title,
     variants: { edges: [variant(42, "S", true), variant(43, "M", false)] },
-  };
-  const guide = shopGuideMarkdown("https://shop.test", [listed]);
+  });
+  const guideFor = (products: ReturnType<typeof tee>[], partial = false) =>
+    shopGuideMarkdown("https://shop.test", { products, partial });
+  const guide = guideFor([tee()]);
 
   it("lists each item in stock with a link /cart/add can read back", () => {
     const link = guide.match(/- Tee, S, 20\.0 GBP: <(\S+)>/)?.[1];
@@ -175,20 +177,37 @@ describe("shopGuideMarkdown", () => {
   });
 
   it("names a product with no options by its title alone", () => {
-    const plain = {
+    const cap = {
       handle: "cap",
       title: "Cap",
       variants: { edges: [variant(7, "Default Title", true)] },
     };
-    expect(shopGuideMarkdown("https://shop.test", [plain])).toContain(
+    expect(guideFor([cap])).toContain(
       "- Cap, 20.0 GBP: <https://shop.test/cart/add?"
     );
   });
 
-  it("says so when the list could not be read", () => {
-    expect(shopGuideMarkdown("https://shop.test", [])).toContain(
-      "could not be loaded"
+  it("links the cart, not a URL written in a product title", () => {
+    expect(guideFor([tee("Tee https://x.io")])).toContain(
+      "- Tee https://x.io, S, 20.0 GBP: <https://shop.test/cart/add?"
     );
+  });
+
+  it("says nothing is in stock, not that an item is missing", () => {
+    const soldOut = {
+      handle: "tee",
+      title: "Tee",
+      variants: { edges: [variant(43, "M", false)] },
+    };
+    expect(guideFor([soldOut])).toContain("Nothing in this list is in stock");
+    expect(guideFor([])).toContain("Nothing in this list is in stock");
+  });
+
+  it("does not call an unlisted item sold out when the list was cut", () => {
+    expect(guide).toContain("is sold out or not sold here");
+    const cut = guideFor([tee()], true);
+    expect(cut).not.toContain("is sold out or not sold here");
+    expect(cut).toContain("<https://shop.test/search>");
   });
 
   it("never sends an agent to a URL under /api/", () => {
