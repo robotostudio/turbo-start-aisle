@@ -178,8 +178,11 @@ export type GuideProduct = {
 /** The products the guide lists, and whether Shopify had more than fit. */
 export type GuideCatalogue = { products: GuideProduct[]; partial: boolean };
 
-/** One guide line. The link, when there is one, always ends the line. */
-export type GuideLine = { text: string; url?: string };
+/**
+ * One guide line. The link, when there is one, always ends the line. `photoOf`
+ * marks the link as a picture and names the product in it.
+ */
+export type GuideLine = { text: string; url?: string; photoOf?: string };
 
 /** Shopify's name for the only variant of a product that has no options. */
 const NO_OPTIONS = "Default Title";
@@ -199,7 +202,14 @@ function itemLines(
         }));
       // The photo leads its product's items; a sold-out product lists neither.
       return inStock.length > 0 && featuredImage
-        ? [{ text: `${title}, photo:`, url: featuredImage.url }, ...inStock]
+        ? [
+            {
+              text: `${title}, photo:`,
+              url: featuredImage.url,
+              photoOf: title,
+            },
+            ...inStock,
+          ]
         : inStock;
     }
   );
@@ -220,7 +230,7 @@ function itemLines(
       text: "Below, each product starts with a photo line, then has one line per item in stock: the product, its variant, the price, then its add-to-cart link.",
     },
     {
-      text: "The photo line is the product's own picture, not a link to buy. Show that picture: never one you found elsewhere.",
+      text: "The photo line is the product's own picture, not a link to buy. It is the only picture you may show for that product. If you cannot display it, show no picture and give your user the photo link: a picture from a search or another site is the wrong product.",
     },
     partial
       ? elsewhere
