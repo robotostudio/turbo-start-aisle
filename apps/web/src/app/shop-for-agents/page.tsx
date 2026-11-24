@@ -32,7 +32,7 @@ export default async function ShopForAgentsPage() {
           <h2 className="mb-3 font-semibold text-xl">{title}</h2>
           <ul className="list-disc space-y-2 pl-5">
             {lines.map(({ text, url }) => (
-              <li key={url ?? text}>
+              <li key={`${text} ${url ?? ""}`}>
                 {text}
                 {/* A real anchor: a chat agent opens links, not URLs in text. */}
                 {url ? (

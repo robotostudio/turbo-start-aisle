@@ -5,6 +5,7 @@ import {
   cartLineInput,
   cartLink,
   cartLinkQuery,
+  type GuideProduct,
   productsSummary,
   shopGuideMarkdown,
   variantGidFromLink,
@@ -155,9 +156,10 @@ describe("shopGuideMarkdown", () => {
   const tee = (title = "Tee") => ({
     handle: "tee",
     title,
+    featuredImage: { url: "https://cdn.test/tee.png" },
     variants: { edges: [variant(42, "S", true), variant(43, "M", false)] },
   });
-  const guideFor = (products: ReturnType<typeof tee>[], partial = false) =>
+  const guideFor = (products: GuideProduct[], partial = false) =>
     shopGuideMarkdown("https://shop.test", { products, partial });
   const guide = guideFor([tee()]);
 
@@ -171,6 +173,23 @@ describe("shopGuideMarkdown", () => {
     });
   });
 
+  it("puts each product's own photo ahead of its items", () => {
+    const photo = guide.indexOf("- Tee, photo: <https://cdn.test/tee.png>");
+    expect(photo).toBeGreaterThan(-1);
+    expect(photo).toBeLessThan(guide.indexOf("- Tee, S, 20.0 GBP:"));
+  });
+
+  it("lists no photo for a sold-out product or one without a picture", () => {
+    const soldOut = {
+      ...tee(),
+      variants: { edges: [variant(43, "M", false)] },
+    };
+    expect(guideFor([soldOut])).not.toContain("photo:");
+    expect(guideFor([{ ...tee(), featuredImage: null }])).not.toContain(
+      "photo:"
+    );
+  });
+
   it("leaves out a sold-out variant", () => {
     expect(guide).not.toContain("Tee, M");
     expect(guide).not.toContain("variant=43");
@@ -180,6 +199,7 @@ describe("shopGuideMarkdown", () => {
     const cap = {
       handle: "cap",
       title: "Cap",
+      featuredImage: null,
       variants: { edges: [variant(7, "Default Title", true)] },
     };
     expect(guideFor([cap])).toContain(
@@ -197,6 +217,7 @@ describe("shopGuideMarkdown", () => {
     const soldOut = {
       handle: "tee",
       title: "Tee",
+      featuredImage: { url: "https://cdn.test/tee.png" },
       variants: { edges: [variant(43, "M", false)] },
     };
     expect(guideFor([soldOut])).toContain("Nothing in this list is in stock");
