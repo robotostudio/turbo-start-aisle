@@ -39,6 +39,8 @@ const LABEL = "Let your agent shop for you";
 
 const PASTE_LINE = "Now paste it in your agent";
 
+const FAILED_LINE = "Could not copy";
+
 const noSubscribe = () => () => undefined;
 
 // min-h-11.5 keeps a 46px touch height. The smaller text on phones keeps the
@@ -67,7 +69,7 @@ const iconHide = `${hideOnCopy} motion-safe:group-data-[copied=true]:scale-30 mo
 const iconShow = `${showOnCopy} motion-safe:scale-30 motion-safe:blur-[3px]`;
 
 // The link before hydration renders the same parts, so the chip never changes width.
-function ChipContent() {
+function ChipContent({ label = LABEL }: { label?: string }) {
   return (
     <>
       <span className="grid shrink-0 grid-flow-col gap-1">
@@ -91,7 +93,7 @@ function ChipContent() {
         ))}
       </span>
       <span className="grid">
-        <span className={labelHide}>{LABEL}</span>
+        <span className={labelHide}>{label}</span>
         <span aria-hidden className={labelShow}>
           {PASTE_LINE}
         </span>
@@ -116,7 +118,7 @@ export function CopyShopPrompt({ prompt }: { prompt: string }) {
     () => true,
     () => false
   );
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => () => clearTimeout(timeoutRef.current), []);
@@ -129,16 +131,25 @@ export function CopyShopPrompt({ prompt }: { prompt: string }) {
     );
   }
 
+  const show = (next: "copied" | "failed") => {
+    clearTimeout(timeoutRef.current);
+    setState(next);
+    timeoutRef.current = setTimeout(() => setState("idle"), COPIED_MS);
+  };
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(prompt);
-      clearTimeout(timeoutRef.current);
-      setCopied(true);
-      timeoutRef.current = setTimeout(() => setCopied(false), COPIED_MS);
+      show("copied");
     } catch {
       // No clipboard (an old browser or a denied permission): the guide still
-      // gets the shopper's agent there.
-      location.assign(SHOP_GUIDE_PATH);
+      // gets the shopper's agent there. On the guide itself that would only
+      // reload the page, so the chip says the copy failed instead.
+      if (location.pathname === SHOP_GUIDE_PATH) {
+        show("failed");
+      } else {
+        location.assign(SHOP_GUIDE_PATH);
+      }
     }
   };
 
@@ -146,19 +157,20 @@ export function CopyShopPrompt({ prompt }: { prompt: string }) {
     <>
       <button
         className={chipClass}
-        data-copied={copied}
+        data-copied={state === "copied"}
         onClick={() => {
           void copy();
         }}
         type="button"
       >
-        <ChipContent />
+        <ChipContent label={state === "failed" ? FAILED_LINE : LABEL} />
         <span className="sr-only">
           (copies a prompt for Claude, ChatGPT or Gemini)
         </span>
       </button>
       <output aria-live="polite" className="sr-only">
-        {copied ? `Copied. ${PASTE_LINE}` : ""}
+        {state === "copied" ? `Copied. ${PASTE_LINE}` : ""}
+        {state === "failed" ? `${FAILED_LINE}. Your browser blocked it.` : ""}
       </output>
     </>
   );

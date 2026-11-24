@@ -85,12 +85,26 @@ describe("CopyShopPrompt", () => {
   it("opens the agent guide when the clipboard is unavailable", async () => {
     stubClipboard(() => Promise.reject(new Error("denied")));
     const assign = vi.fn();
-    vi.stubGlobal("location", { assign });
+    vi.stubGlobal("location", { assign, pathname: "/" });
     const { button } = await mount();
 
     await act(async () => button.click());
 
     expect(assign).toHaveBeenCalledWith("/shop-for-agents");
+    expect(button.dataset.copied).toBe("false");
+  });
+
+  it("says the copy failed on the guide itself, where a reload helps nobody", async () => {
+    stubClipboard(() => Promise.reject(new Error("denied")));
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign, pathname: "/shop-for-agents" });
+    const { button, status } = await mount();
+
+    await act(async () => button.click());
+
+    expect(assign).not.toHaveBeenCalled();
+    expect(button.textContent).toContain("Could not copy");
+    expect(status.textContent).toBe("Could not copy. Your browser blocked it.");
     expect(button.dataset.copied).toBe("false");
   });
 });
