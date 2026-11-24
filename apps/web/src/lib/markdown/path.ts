@@ -24,6 +24,15 @@ export function normalizeMarkdownPath(raw: string): string {
   return withoutTrailing === "/index" ? "/" : withoutTrailing;
 }
 
+/**
+ * Drops sentence punctuation from the end of a path. A shopper who pastes an
+ * address at the end of a sentence sends a chat agent to `/shop-for-agents.`,
+ * and no route ends in a full stop or a comma.
+ */
+export function stripTrailingPunctuation(pathname: string): string {
+  return pathname.replace(/[.,]+$/, "") || "/";
+}
+
 type AcceptEntry = { type: string; q: number };
 
 /** Parses an `Accept` header into media types with their q-values. */
