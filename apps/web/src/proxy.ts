@@ -1,12 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { normalizeMarkdownPath, prefersMarkdown } from "@/lib/markdown/path";
+import {
+  normalizeMarkdownPath,
+  prefersMarkdown,
+  stripTrailingPunctuation,
+} from "@/lib/markdown/path";
 
 /**
  * Content negotiation for AI agents. A request that either ends in `.md` or
  * prefers `Accept: text/markdown` is rewritten to the `/api/markdown` route,
  * which serves a Markdown representation of the same content a browser would
  * get as HTML. Everything else passes straight through unchanged.
+ *
+ * Before that, a path ending in a full stop or a comma is redirected to the
+ * same path without it (see `stripTrailingPunctuation`).
  *
  * Next.js 16's `proxy` convention (the former `middleware`).
  */
@@ -16,6 +23,14 @@ export function proxy(request: NextRequest): NextResponse {
   }
 
   const { pathname } = request.nextUrl;
+
+  const cleanPath = stripTrailingPunctuation(pathname);
+  if (cleanPath !== pathname) {
+    const url = request.nextUrl.clone();
+    url.pathname = cleanPath;
+    return NextResponse.redirect(url, 308);
+  }
+
   const hasMdSuffix = pathname.endsWith(".md");
   const wantsMarkdown =
     hasMdSuffix || prefersMarkdown(request.headers.get("accept") ?? "");

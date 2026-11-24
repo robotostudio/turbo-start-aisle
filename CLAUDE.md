@@ -115,7 +115,7 @@ Search is one shared `search-panel.tsx` behind three surfaces: the `/search` pag
 ## Other
 
 - **SEO**: `getSEOMetadata()` in `apps/web/src/lib/seo.ts`, OG images via `/api/og`
-- **AI agent surfaces**: content negotiation serves Markdown to agents (`apps/web/src/proxy.ts`, `apps/web/src/app/api/markdown/route.ts`), plus `apps/web/src/app/llms.txt/route.ts`
+- **AI agent surfaces**: content negotiation serves Markdown to agents (`apps/web/src/proxy.ts`, `apps/web/src/app/api/markdown/route.ts`), plus `apps/web/src/app/llms.txt/route.ts`. The proxy also answers a path ending in `.` or `,` with a 308 to the path without it (`stripTrailingPunctuation` in `lib/markdown/path.ts`), because a shopper who pastes the guide address at the end of a sentence sends a chat agent to `/shop-for-agents.`
 - **Visual editing**: `VisualEditing` from `next-sanity` + `createDataAttribute` per block; draft mode via `/api/presentation-draft`
 - **Redirects**: fetched from Sanity at Next.js build time via `queryRedirects` in `next.config.ts`
 - **Node** >=24.10, **pnpm** 11.24.0 (workspace protocol, catalog in `pnpm-workspace.yaml`)
@@ -152,7 +152,7 @@ git diff HEAD upstream/main -- apps packages     # review before taking anything
 
 The two histories are **unrelated** — `git merge-base HEAD upstream/main` returns nothing, because Aisle re-bases by copying trees rather than merging. So there is no `git merge` or `git rebase` path: port path-by-path with `git checkout upstream/main -- <path>`, driven by the diff against the last-synced SHA.
 
-The AI layer is confined to `packages/ai-commerce`, the seven integration files above, the agent files `apps/web/src/components/webmcp-shop-tools.ts`, `apps/web/src/components/cart/add-from-link.tsx`, `apps/web/src/app/cart/add/page.tsx` and `apps/web/src/lib/{webmcp,agent-shop,agent-guide-products,rate-limit}.ts`, `apps/studio/schemaTypes/documents/ai-assistant-settings.ts`, the four `apps/studio/scripts/seed-*.ts`, and small deltas in `layout.tsx`, `next.config.ts` (the `Origin-Trial` header), `llms.txt/route.ts` (the tool list and guide link), `api/markdown/route.ts` and `lib/markdown/documents.ts` (the guide and the add-to-cart column), `proxy.ts` (`mcp` in the matcher), `query.ts`, `env/*`, `globals.css`, `turbo.json` and the studio config. Everything else can be taken from upstream wholesale.
+The AI layer is confined to `packages/ai-commerce`, the seven integration files above, the agent files `apps/web/src/components/webmcp-shop-tools.ts`, `apps/web/src/components/cart/add-from-link.tsx`, `apps/web/src/app/cart/add/page.tsx` and `apps/web/src/lib/{webmcp,agent-shop,agent-guide-products,rate-limit}.ts`, `apps/studio/schemaTypes/documents/ai-assistant-settings.ts`, the four `apps/studio/scripts/seed-*.ts`, and small deltas in `layout.tsx`, `next.config.ts` (the `Origin-Trial` header), `llms.txt/route.ts` (the tool list and guide link), `api/markdown/route.ts` and `lib/markdown/documents.ts` (the guide and the add-to-cart column), `proxy.ts` (`mcp` in the matcher, the trailing-punctuation redirect) and `lib/markdown/path.ts` (`stripTrailingPunctuation`), `query.ts`, `env/*`, `globals.css`, `turbo.json` and the studio config. Everything else can be taken from upstream wholesale.
 
 Four Aisle-authored fixes upstream still lacks — check they survive every sync:
 
