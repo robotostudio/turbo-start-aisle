@@ -31,7 +31,7 @@ export default async function ShopForAgentsPage() {
         <section className="mt-10" key={title}>
           <h2 className="mb-3 font-semibold text-xl">{title}</h2>
           <ul className="list-disc space-y-2 pl-5">
-            {lines.map(({ text, url }) => (
+            {lines.map(({ text, url, photoOf }) => (
               <li key={`${text} ${url ?? ""}`}>
                 {text}
                 {/* A real anchor: a chat agent opens links, not URLs in text. */}
@@ -42,6 +42,17 @@ export default async function ShopForAgentsPage() {
                       {url}
                     </a>
                   </>
+                ) : null}
+                {/* An <img>, so an agent that shows page images has the real one. Not lazy: a reader that never scrolls must still load it. */}
+                {url && photoOf ? (
+                  // biome-ignore lint/performance/noImgElement: next/image would rewrite the Shopify address the agent is told to show
+                  <img
+                    alt={photoOf}
+                    className="mt-2 rounded"
+                    height={160}
+                    src={url}
+                    width={160}
+                  />
                 ) : null}
               </li>
             ))}
