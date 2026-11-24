@@ -144,11 +144,51 @@ describe("what the tools take and give", () => {
 });
 
 describe("shopGuideMarkdown", () => {
-  const guide = shopGuideMarkdown("https://shop.test");
+  const variant = (id: number, title: string, availableForSale: boolean) => ({
+    node: {
+      id: `gid://shopify/ProductVariant/${id}`,
+      title,
+      availableForSale,
+      price,
+    },
+  });
+  const listed = {
+    handle: "tee",
+    title: "Tee",
+    variants: { edges: [variant(42, "S", true), variant(43, "M", false)] },
+  };
+  const guide = shopGuideMarkdown("https://shop.test", [listed]);
 
-  it("points agents at pages on this origin they can open", () => {
-    expect(guide).toContain("<https://shop.test/collections.md>");
-    expect(guide).toContain("<https://shop.test/llms.txt>");
+  it("lists each item in stock with a link /cart/add can read back", () => {
+    const link = guide.match(/- Tee, S, 20\.0 GBP: <(\S+)>/)?.[1];
+    const query = Object.fromEntries(new URL(link as string).searchParams);
+    expect(cartLinkQuery.parse(query)).toEqual({
+      handle: "tee",
+      variant: "42",
+      quantity: 1,
+    });
+  });
+
+  it("leaves out a sold-out variant", () => {
+    expect(guide).not.toContain("Tee, M");
+    expect(guide).not.toContain("variant=43");
+  });
+
+  it("names a product with no options by its title alone", () => {
+    const plain = {
+      handle: "cap",
+      title: "Cap",
+      variants: { edges: [variant(7, "Default Title", true)] },
+    };
+    expect(shopGuideMarkdown("https://shop.test", [plain])).toContain(
+      "- Cap, 20.0 GBP: <https://shop.test/cart/add?"
+    );
+  });
+
+  it("says so when the list could not be read", () => {
+    expect(shopGuideMarkdown("https://shop.test", [])).toContain(
+      "could not be loaded"
+    );
   });
 
   it("never sends an agent to a URL under /api/", () => {

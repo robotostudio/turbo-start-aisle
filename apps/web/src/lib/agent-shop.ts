@@ -158,14 +158,43 @@ export const SHOP_GUIDE_TITLE = "Shop here, for AI agents";
 export const SHOP_GUIDE_DESCRIPTION =
   "How an AI agent finds a product in this shop for its user and gives them a link that adds it to their cart.";
 
+/** A product as the guide lists it. */
+export type GuideProduct = {
+  handle: string;
+  title: string;
+  variants: {
+    edges: {
+      node: {
+        id: string;
+        title: string;
+        availableForSale: boolean;
+        price: MoneyV2;
+      };
+    }[];
+  };
+};
+
+/** Shopify's name for the only variant of a product that has no options. */
+const NO_OPTIONS = "Default Title";
+
 /**
- * The guide's steps. Every URL an agent must open is one it finds on a page:
- * chat agents refuse URLs they build themselves, and robots.txt closes /api/.
+ * The guide's steps. Everything an agent needs is on this one page, down to
+ * the add-to-cart link of each item: ChatGPT read the guide but opened no
+ * product page after it, not even one its user pasted.
  */
-export function shopGuide(base: string) {
+export function shopGuide(base: string, products: GuideProduct[]) {
+  const items = products.flatMap(({ handle, title, variants }) =>
+    variants.edges
+      .filter(({ node }) => node.availableForSale)
+      .map(({ node }) => {
+        const named =
+          node.title === NO_OPTIONS ? title : `${title}, ${node.title}`;
+        return `${named}, ${money(node.price)}: ${cartLink(base, handle, node.id, 1)}`;
+      })
+  );
   return {
     intro:
-      "Use this page when your user asks you to find or buy something in this shop. You read the shop as Markdown pages and give your user a link. You need no API key, account or connector. You cannot change a cart or pay: your user does both.",
+      "Use this page when your user asks you to find or buy something in this shop. Everything you need is on this page: you do not have to open any other. You need no API key, account or connector. You cannot change a cart or pay: your user does both.",
     steps: [
       {
         title: "1. Ask your user",
@@ -175,37 +204,36 @@ export function shopGuide(base: string) {
         ],
       },
       {
-        title: "2. Find the product",
-        lines: [
-          `Open ${base}/collections.md for the collections. Each collection page lists up to 50 of its products with their lowest price.`,
-          `Or open ${base}/llms.txt, which lists the product pages.`,
-          "Only open links you find on these pages. Do not build a search or API URL: /api/ is closed to agents.",
-        ],
+        title: "2. Find the item",
+        lines:
+          items.length > 0
+            ? [
+                "Each line below is one item in stock: the product, its variant, the price, then its add-to-cart link.",
+                "An item that is not listed is sold out or not sold here. Say so: do not guess.",
+                ...items,
+              ]
+            : [
+                `The list of items could not be loaded. Try this page again in a minute, or open ${base}/llms.txt for the product pages.`,
+              ],
       },
       {
-        title: "3. Read the product page",
-        lines: [
-          "Open the product's page ending in .md. It has the description, the options and a table of variants with price and stock.",
-          'Each variant in stock has an "Add to cart" link in that table.',
-        ],
-      },
-      {
-        title: "4. Confirm with your user",
+        title: "3. Confirm with your user",
         lines: [
           "Tell them the product, the variant and the price, then wait for their answer.",
           "Never pick a size or colour they did not choose.",
         ],
       },
       {
-        title: "5. Give your user the link",
+        title: "4. Give your user the link",
         lines: [
-          'Copy the variant\'s "Add to cart" link exactly as listed. For more than one, change quantity=1 to the number they want.',
+          "Copy the item's add-to-cart link exactly as listed. For more than one, change quantity=1 to the number they want.",
           'Tell them the link opens a page that shows the item, and nothing is added until they press "Add to cart". They check out and pay themselves.',
         ],
       },
       {
-        title: "Using tools instead",
+        title: "More about a product",
         lines: [
+          "A product's page is /products/<handle> on this site, where <handle> is the handle= value in its link. Add .md to that address for a Markdown version with the description.",
           `${base}/llms.txt also lists an MCP server and the WebMCP tools, for agents that can connect to them.`,
         ],
       },
@@ -217,8 +245,11 @@ export function shopGuide(base: string) {
 export const GUIDE_URL = /(https?:\/\/[^\s,]+)/;
 
 /** The guide as Markdown: the `.md` twin of the page. */
-export function shopGuideMarkdown(base: string): string {
-  const { intro, steps } = shopGuide(base);
+export function shopGuideMarkdown(
+  base: string,
+  products: GuideProduct[]
+): string {
+  const { intro, steps } = shopGuide(base, products);
   return [
     `# ${SHOP_GUIDE_TITLE}`,
     intro,

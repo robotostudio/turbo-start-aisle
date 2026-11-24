@@ -1,3 +1,4 @@
+import { guideProducts } from "@/lib/agent-guide-products";
 import {
   GUIDE_URL,
   SHOP_GUIDE_DESCRIPTION,
@@ -17,8 +18,11 @@ export async function generateMetadata() {
   });
 }
 
-export default function ShopForAgentsPage() {
-  const { intro, steps } = shopGuide(getBaseUrl());
+/** Prices and the product list go stale, so the page is rebuilt every 5 minutes. */
+export const revalidate = 300;
+
+export default async function ShopForAgentsPage() {
+  const { intro, steps } = shopGuide(getBaseUrl(), await guideProducts());
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
       <h1 className="mb-4 font-semibold text-3xl">{SHOP_GUIDE_TITLE}</h1>
