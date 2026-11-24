@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Fragment } from "react";
 
 import { NewsletterForm } from "./footer/newsletter-form";
+import { ShopPrompt } from "./shop-prompt";
 // import { ModeToggle } from "./mode-toggle";
 import {
   FacebookIcon,
@@ -181,6 +182,10 @@ function FooterContent({ data, settingsData }: ResolvedFooterProps) {
           <div className="flex flex-col gap-6">
             <NewsletterForm />
             {socialLinks && <SocialLinks data={socialLinks} />}
+            {/* A block wrapper, so the chip keeps its own width in this column. */}
+            <div>
+              <ShopPrompt />
+            </div>
           </div>
           <FooterColumns columns={columns} />
         </div>
