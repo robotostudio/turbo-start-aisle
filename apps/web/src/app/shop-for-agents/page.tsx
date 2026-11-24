@@ -1,5 +1,5 @@
+import { guideCatalogue } from "@/lib/agent-guide-products";
 import {
-  GUIDE_URL,
   SHOP_GUIDE_DESCRIPTION,
   SHOP_GUIDE_PATH,
   SHOP_GUIDE_TITLE,
@@ -17,8 +17,12 @@ export async function generateMetadata() {
   });
 }
 
-export default function ShopForAgentsPage() {
-  const { intro, steps } = shopGuide(getBaseUrl());
+/** Prices and the product list go stale, so the page is rebuilt every 5 minutes. */
+export const revalidate = 300;
+
+export default async function ShopForAgentsPage() {
+  // A failed Shopify read throws, so Next keeps serving the last good page.
+  const { intro, steps } = shopGuide(getBaseUrl(), await guideCatalogue());
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
       <h1 className="mb-4 font-semibold text-3xl">{SHOP_GUIDE_TITLE}</h1>
@@ -27,18 +31,18 @@ export default function ShopForAgentsPage() {
         <section className="mt-10" key={title}>
           <h2 className="mb-3 font-semibold text-xl">{title}</h2>
           <ul className="list-disc space-y-2 pl-5">
-            {lines.map((line) => (
-              <li key={line}>
-                {/* Real anchors: a chat agent opens links, not URLs in text. */}
-                {line.split(GUIDE_URL).map((part) =>
-                  GUIDE_URL.test(part) ? (
-                    <a className="underline" href={part} key={part}>
-                      {part}
+            {lines.map(({ text, url }) => (
+              <li key={url ?? text}>
+                {text}
+                {/* A real anchor: a chat agent opens links, not URLs in text. */}
+                {url ? (
+                  <>
+                    {" "}
+                    <a className="underline" href={url}>
+                      {url}
                     </a>
-                  ) : (
-                    part
-                  )
-                )}
+                  </>
+                ) : null}
               </li>
             ))}
           </ul>
