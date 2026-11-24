@@ -162,6 +162,7 @@ export const SHOP_GUIDE_DESCRIPTION =
 export type GuideProduct = {
   handle: string;
   title: string;
+  featuredImage: { url: string } | null;
   variants: {
     edges: {
       node: {
@@ -188,13 +189,19 @@ function itemLines(
   base: string,
   { products, partial }: GuideCatalogue
 ): GuideLine[] {
-  const items = products.flatMap(({ handle, title, variants }) =>
-    variants.edges
-      .filter(({ node }) => node.availableForSale)
-      .map(({ node }) => ({
-        text: `${node.title === NO_OPTIONS ? title : `${title}, ${node.title}`}, ${money(node.price)}:`,
-        url: cartLink(base, handle, node.id, 1),
-      }))
+  const items = products.flatMap(
+    ({ handle, title, featuredImage, variants }) => {
+      const inStock = variants.edges
+        .filter(({ node }) => node.availableForSale)
+        .map(({ node }) => ({
+          text: `${node.title === NO_OPTIONS ? title : `${title}, ${node.title}`}, ${money(node.price)}:`,
+          url: cartLink(base, handle, node.id, 1),
+        }));
+      // The photo leads its product's items; a sold-out product lists neither.
+      return inStock.length > 0 && featuredImage
+        ? [{ text: `${title}, photo:`, url: featuredImage.url }, ...inStock]
+        : inStock;
+    }
   );
   const elsewhere = {
     text: "This list has the best sellers only. For an item that is not listed, tell your user you cannot see it here and give them the shop's search:",
@@ -211,6 +218,9 @@ function itemLines(
   return [
     {
       text: "Each line below is one item in stock: the product, its variant, the price, then its add-to-cart link.",
+    },
+    {
+      text: "A photo line gives a product's own picture. Show that picture: never one you found elsewhere.",
     },
     partial
       ? elsewhere

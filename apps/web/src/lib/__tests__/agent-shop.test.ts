@@ -5,6 +5,7 @@ import {
   cartLineInput,
   cartLink,
   cartLinkQuery,
+  type GuideProduct,
   productsSummary,
   shopGuideMarkdown,
   variantGidFromLink,
@@ -155,9 +156,10 @@ describe("shopGuideMarkdown", () => {
   const tee = (title = "Tee") => ({
     handle: "tee",
     title,
+    featuredImage: { url: "https://cdn.test/tee.png" },
     variants: { edges: [variant(42, "S", true), variant(43, "M", false)] },
   });
-  const guideFor = (products: ReturnType<typeof tee>[], partial = false) =>
+  const guideFor = (products: GuideProduct[], partial = false) =>
     shopGuideMarkdown("https://shop.test", { products, partial });
   const guide = guideFor([tee()]);
 
@@ -171,6 +173,15 @@ describe("shopGuideMarkdown", () => {
     });
   });
 
+  it("gives each product in stock its own photo, and a sold-out one none", () => {
+    expect(guide).toContain("- Tee, photo: <https://cdn.test/tee.png>");
+    const soldOut = {
+      ...tee(),
+      variants: { edges: [variant(43, "M", false)] },
+    };
+    expect(guideFor([soldOut])).not.toContain("photo:");
+  });
+
   it("leaves out a sold-out variant", () => {
     expect(guide).not.toContain("Tee, M");
     expect(guide).not.toContain("variant=43");
@@ -180,6 +191,7 @@ describe("shopGuideMarkdown", () => {
     const cap = {
       handle: "cap",
       title: "Cap",
+      featuredImage: null,
       variants: { edges: [variant(7, "Default Title", true)] },
     };
     expect(guideFor([cap])).toContain(
@@ -197,6 +209,7 @@ describe("shopGuideMarkdown", () => {
     const soldOut = {
       handle: "tee",
       title: "Tee",
+      featuredImage: { url: "https://cdn.test/tee.png" },
       variants: { edges: [variant(43, "M", false)] },
     };
     expect(guideFor([soldOut])).toContain("Nothing in this list is in stock");

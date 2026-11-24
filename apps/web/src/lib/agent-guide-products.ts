@@ -19,6 +19,9 @@ const GUIDE_PRODUCTS_QUERY = /* graphql */ `
         node {
           handle
           title
+          featuredImage {
+            url
+          }
           variants(first: 100) {
             pageInfo {
               hasNextPage
@@ -70,6 +73,8 @@ export const guideCatalogue = unstable_cache(
         products.some((product) => product.variants.pageInfo.hasNextPage),
     };
   },
-  ["agent-guide-catalogue"],
+  // Bump the key when the query's shape changes: the cache outlives a deploy,
+  // and an entry in the old shape would be served for its last 5 minutes.
+  ["agent-guide-catalogue-v2"],
   { revalidate: 300 }
 );
