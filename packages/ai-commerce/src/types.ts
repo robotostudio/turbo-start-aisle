@@ -138,6 +138,9 @@ const optionNameSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9 _-]{0,49}$/, {
     "option name must be alphanumeric with spaces, hyphens or underscores",
 });
 
+/** Values one filter takes: every one becomes a Shopify filter clause. */
+const MAX_FILTER_VALUES = 20;
+
 export const productFiltersSchema = z.object({
   collection: collectionHandleSchema.describe(
     "Shopify collection handle to navigate to (required)"
@@ -159,19 +162,25 @@ export const productFiltersSchema = z.object({
     .optional()
     .describe("Maximum price. Prefer the bucket edges 50, 100 or 150."),
   vendor: z
-    .array(z.string())
+    .array(z.string().max(200))
+    .max(MAX_FILTER_VALUES)
     .optional()
     .describe("Multi-select vendor / brand names from Shopify"),
   type: z
-    .array(z.string())
+    .array(z.string().max(200))
+    .max(MAX_FILTER_VALUES)
     .optional()
     .describe("Multi-select Shopify productType values"),
   tag: z
-    .array(z.string())
+    .array(z.string().max(200))
+    .max(MAX_FILTER_VALUES)
     .optional()
     .describe("Multi-select Shopify tag values"),
   option: z
-    .array(z.object({ name: optionNameSchema, value: z.string().min(1) }))
+    .array(
+      z.object({ name: optionNameSchema, value: z.string().min(1).max(200) })
+    )
+    .max(MAX_FILTER_VALUES)
     .optional()
     .describe(
       'Variant option facets, e.g. [{name:"Color",value:"Indigo"},{name:"Size",value:"M"}]. ' +

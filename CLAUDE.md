@@ -97,6 +97,7 @@ Integration points in the web app:
 | `apps/web/src/app/api/chat/route.ts` | Streams via Vercel AI Gateway; wires MCP + client tools |
 | `apps/web/src/components/ai-cart-bridge.tsx` | Listens for `ADD_TO_CART_EVENT`, maps it onto `useCartActions().addLine()` |
 | `apps/web/src/components/webmcp-tools.tsx` | Registers the WebMCP shopping tools (`webmcp-shop-tools.ts`) on `document.modelContext` for the visitor's own browser agent: `search_products`, `get_product`, `get_cart`, `get_saved_items`, `open_page`, `set_collection_filters`, `add_to_cart`, `update_cart_line`, `set_saved_item`, `go_to_checkout` (the add, update and checkout tools carry `consequentialHint`). Separate from the chat: it calls the cart and router directly |
+| `apps/web/src/app/mcp/route.ts` | Remote MCP server for chat apps (Claude, ChatGPT) that connect to a URL: `search_products`, `get_product`, `list_collection_products`, `get_add_to_cart_link`. It reads the catalogue but cannot reach a cart, so adding is a `/cart/add?handle=&variant=&quantity=` link. The page it opens shows the item and adds it only when the shopper presses the button, never on load, so a link on another site cannot fill a cart (`components/cart/add-from-link.tsx`). Limited per IP in memory (`lib/rate-limit.ts`). Shares its wording with the WebMCP tools through `lib/agent-shop.ts` |
 | `apps/web/src/components/page-context-tracker.tsx` | Writes route + surface on every navigation; read by `ChatPanel` and sent to the model |
 | `apps/web/src/app/layout.tsx` | Mounts the AI components and `WebMcpTools` inside `<Providers>` |
 
@@ -150,7 +151,7 @@ git diff HEAD upstream/main -- apps packages     # review before taking anything
 
 The two histories are **unrelated** — `git merge-base HEAD upstream/main` returns nothing, because Aisle re-bases by copying trees rather than merging. So there is no `git merge` or `git rebase` path: port path-by-path with `git checkout upstream/main -- <path>`, driven by the diff against the last-synced SHA.
 
-The AI layer is confined to `packages/ai-commerce`, the five integration files above, the WebMCP files `apps/web/src/components/webmcp-shop-tools.ts` and `apps/web/src/lib/webmcp.ts`, `apps/studio/schemaTypes/documents/ai-assistant-settings.ts`, the four `apps/studio/scripts/seed-*.ts`, and small deltas in `layout.tsx`, `next.config.ts` (the `Origin-Trial` header), `llms.txt/route.ts` (the tool list), `query.ts`, `env/*`, `globals.css`, `turbo.json` and the studio config. Everything else can be taken from upstream wholesale.
+The AI layer is confined to `packages/ai-commerce`, the six integration files above, the agent files `apps/web/src/components/webmcp-shop-tools.ts`, `apps/web/src/components/cart/add-from-link.tsx`, `apps/web/src/app/cart/add/page.tsx` and `apps/web/src/lib/{webmcp,agent-shop,rate-limit}.ts`, `apps/studio/schemaTypes/documents/ai-assistant-settings.ts`, the four `apps/studio/scripts/seed-*.ts`, and small deltas in `layout.tsx`, `next.config.ts` (the `Origin-Trial` header), `llms.txt/route.ts` (the tool list), `proxy.ts` (`mcp` in the matcher), `query.ts`, `env/*`, `globals.css`, `turbo.json` and the studio config. Everything else can be taken from upstream wholesale.
 
 Four Aisle-authored fixes upstream still lacks — check they survive every sync:
 

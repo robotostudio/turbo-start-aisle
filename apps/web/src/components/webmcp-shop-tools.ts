@@ -1,17 +1,24 @@
 import {
-  addToCartSchema,
   buildCollectionUrl,
   productFiltersSchema,
 } from "@workspace/ai-commerce";
 import type { WebMCP } from "webmcp-types";
 import { z } from "zod";
 
+import {
+  cartLineFor,
+  cartLineInput,
+  collectionsSummary,
+  productHandle as handle,
+  money,
+  noProduct,
+  productSummary,
+  productsSummary,
+} from "@/lib/agent-shop";
 import { type AddLineResult, MAX_LINE_QUANTITY } from "@/lib/cart/controller";
-import { buildLineMetadata } from "@/lib/cart/metadata";
 import type { LineMetadata } from "@/lib/cart/types";
 import type {
   Cart,
-  MoneyV2,
   PredictiveSearchResponse,
   ProductByHandleResponse,
 } from "@/lib/shopify/types";
@@ -40,14 +47,6 @@ export type ShopToolDeps = {
 
 const CONFIRM_FIRST =
   "Confirm the exact product, variant and quantity with your user before you call this.";
-
-const handle = z
-  .string()
-  .regex(/^[\w-]{1,255}$/)
-  .describe("Product handle: the last part of a /products/<handle> URL");
-
-const money = ({ amount, currencyCode }: MoneyV2) =>
-  `${amount} ${currencyCode}`;
 
 const CART_LOADING = "The cart is still loading. Call this again in a moment.";
 
@@ -92,9 +91,6 @@ async function fetchProduct(productHandle: string, signal?: AbortSignal) {
   return ((await response.json()) as ProductByHandleResponse).product;
 }
 
-const noProduct = (productHandle: string) =>
-  `No product has the handle "${productHandle}". Find the handle with search_products.`;
-
 /**
  * `path` when it is a page on this site an agent may open, else undefined.
  * Only shop pages: never /api, and never another origin.
@@ -118,8 +114,7 @@ export function shopPath(path: string): string | undefined {
  * a browser with WebMCP, so other visitors never pay for this file.
  */
 export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
-  const addInput = addToCartSchema.extend({
-    handle,
+  const addInput = cartLineInput.extend({
     dryRun: z
       .boolean()
       .optional()
@@ -152,18 +147,8 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
           return `Nothing matches "${query}".`;
         }
         return JSON.stringify({
-          products: products.map((product) => ({
-            handle: product.handle,
-            title: product.title,
-            vendor: product.vendor,
-            from: money(product.priceRange.minVariantPrice),
-            path: `/products/${product.handle}`,
-          })),
-          collections: collections.map((collection) => ({
-            handle: collection.handle,
-            title: collection.title,
-            path: `/collections/${collection.handle}`,
-          })),
+          products: productsSummary(products),
+          collections: collectionsSummary(collections),
         });
       }
     ),
@@ -181,22 +166,7 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
         if (!product) {
           return noProduct(input.handle);
         }
-        return JSON.stringify({
-          handle: product.handle,
-          title: product.title,
-          vendor: product.vendor,
-          path: `/products/${product.handle}`,
-          options: product.options.map(({ name, values }) => ({
-            name,
-            values,
-          })),
-          variants: product.variants.edges.map(({ node }) => ({
-            variantGid: node.id,
-            options: node.selectedOptions,
-            price: money(node.price),
-            available: node.availableForSale,
-          })),
-        });
+        return JSON.stringify(productSummary(product));
       }
     ),
     tool(
@@ -251,7 +221,7 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
         name: "open_page",
         title: "Open a shop page",
         description:
-          "Show your user a page of this shop. Takes a path: / for home, /products/<handle>, /collections, /collections/<handle>, or /search?q=<words>. To show one variant, add its options as query params: /products/<handle>?Color=Blue&Size=M.",
+          "Show your user a page of this shop. Takes a path, such as a url the other tools return: / for home, /products/<handle>, /collections, /collections/<handle>, or /search?q=<words>. To show one variant, add its options as query params: /products/<handle>?Color=Blue&Size=M.",
       },
       z.object({ path: z.string().max(500) }),
       ({ path }) => {
@@ -292,31 +262,19 @@ export function shopTools(deps: ShopToolDeps): WebMCP.ModelContextTool[] {
         if (!product) {
           return noProduct(productHandle);
         }
-        const variant = product.variants.edges.find(
-          ({ node }) => node.id === variantGid
-        )?.node;
-        if (!variant) {
-          return `${product.title} has no variant ${variantGid}. Call get_product for its variants.`;
+        const line = cartLineFor(product, variantGid, quantity);
+        if (!line.ok) {
+          return line.reason;
         }
-        const metadata = buildLineMetadata({
-          productTitle: product.title,
-          productHandle: product.handle,
-          price: variant.price,
-          selectedOptions: variant.selectedOptions,
-          image: product.featuredImage,
-        });
-        const named = `${quantity} x ${product.title} (${metadata.variantTitle}) at ${money(variant.price)} each`;
-        if (!variant.availableForSale) {
-          return `${product.title} (${metadata.variantTitle}) is out of stock. Nothing was added.`;
-        }
+        const { named } = line;
         if (dryRun === true) {
           return `Dry run: ${named} is in stock. Nothing was added.`;
         }
         deps.openCart();
         const { ok, warnings } = await deps.addLine(
-          variant.id,
+          line.variantId,
           quantity,
-          metadata
+          line.metadata
         );
         const notes = warnings.map((warning) => warning.message).join(" ");
         return ok
