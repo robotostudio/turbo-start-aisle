@@ -102,7 +102,7 @@ async function readOffer(search: string): Promise<Status> {
  */
 export function AddFromLink() {
   const { isLoading } = useCartState();
-  const { addLine, openCart } = useCartActions();
+  const { addLine } = useCartActions();
   const [status, setStatus] = useState<Status>({ kind: "loading" });
 
   useEffect(() => {
@@ -119,7 +119,8 @@ export function AddFromLink() {
 
   async function add(offer: Offer) {
     setStatus({ kind: "offer", offer, adding: true });
-    openCart();
+    // The cart drawer stays shut: the slip is the confirmation, and an open
+    // drawer would cover it and hide the status line from screen readers.
     const { ok, warnings } = await addLine(
       offer.variantId,
       offer.quantity,
@@ -158,29 +159,32 @@ export function AddFromLink() {
         ? `${status.offer.metadata.productTitle} is ready to add.`
         : status.message;
 
-  const added = status.kind === "added" ? status.offer : undefined;
+  // One slip in one place for both states, so the press swaps its rows and
+  // button without rebuilding the photo or the total.
+  let slip: SlipProps | undefined;
+  if (status.kind === "offer") {
+    slip = {
+      // The cart must be read first: adding before that starts a new cart.
+      busy: isLoading || status.adding,
+      label: status.adding ? "Adding…" : "Add to cart",
+      offer: status.offer,
+      onAdd: () => add(status.offer),
+      onQuantity: (quantity) =>
+        setStatus((now) =>
+          now.kind === "offer"
+            ? { ...now, offer: { ...now.offer, quantity } }
+            : now
+        ),
+    };
+  } else if (status.kind === "added" && status.offer) {
+    slip = { added: true, offer: status.offer };
+  }
 
   return (
     <main className="flex flex-col items-center px-4 py-16 md:py-24">
       <h1 className="sr-only">Add to cart</h1>
       <div className="flex w-full max-w-100 flex-col border border-border">
-        {status.kind === "offer" && (
-          <Slip
-            // The cart must be read first: adding before that starts a new cart.
-            busy={isLoading || status.adding}
-            label={status.adding ? "Adding…" : "Add to cart"}
-            offer={status.offer}
-            onAdd={() => add(status.offer)}
-            onQuantity={(quantity) =>
-              setStatus((now) =>
-                now.kind === "offer"
-                  ? { ...now, offer: { ...now.offer, quantity } }
-                  : now
-              )
-            }
-          />
-        )}
-        {added && <Slip added offer={added} />}
+        {slip && <Slip {...slip} />}
         {status.kind === "loading" && <SlipSkeleton />}
         <Notice message={message} status={status} />
       </div>
@@ -254,6 +258,20 @@ function SlipSkeleton() {
   );
 }
 
+type SlipProps =
+  | {
+      added?: false;
+      offer: Offer;
+      busy: boolean;
+      label: string;
+      onAdd: () => void;
+      onQuantity: (quantity: number) => void;
+    }
+  | { added: true; offer: Offer };
+
+/** Moves focus to the link that replaced the pressed button. */
+const focusOnMount = (node: HTMLAnchorElement | null) => node?.focus();
+
 /**
  * The line as a till slip: the item and its price, how many, the total, one
  * button. Nothing else: the name links to the product, and the dashed rules
@@ -262,18 +280,7 @@ function SlipSkeleton() {
  * Before the add it offers the line; after, the same slip is the receipt, at
  * the same size, with the count fixed and the button leading to the cart.
  */
-function Slip(
-  props:
-    | {
-        added?: false;
-        offer: Offer;
-        busy: boolean;
-        label: string;
-        onAdd: () => void;
-        onQuantity: (quantity: number) => void;
-      }
-    | { added: true; offer: Offer }
-) {
+function Slip(props: SlipProps) {
   const { offer } = props;
   const { productTitle, productHandle, price, selectedOptions } =
     offer.metadata;
@@ -322,6 +329,7 @@ function Slip(
                 Added to your cart
               </dt>
               <dd className="font-mono text-base tabular-nums">
+                <span className="sr-only">Quantity: </span>
                 {offer.quantity}
               </dd>
             </>
@@ -349,7 +357,9 @@ function Slip(
       <div className="px-6 pb-6">
         {props.added ? (
           <Button asChild className="h-13 w-full text-base">
-            <Link href="/cart">View cart</Link>
+            <Link href="/cart" ref={focusOnMount}>
+              View cart
+            </Link>
           </Button>
         ) : (
           <Button
