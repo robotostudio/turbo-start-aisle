@@ -158,6 +158,13 @@ export const SHOP_GUIDE_TITLE = "Shop here, for AI agents";
 export const SHOP_GUIDE_DESCRIPTION =
   "How an AI agent finds a product in this shop for its user and gives them a link that adds it to their cart.";
 
+/**
+ * The sentence a shopper pastes into a chat app. The address comes last with
+ * no full stop after it: ChatGPT read a trailing full stop as part of it.
+ */
+export const shopPrompt = (siteTitle: string, base: string) =>
+  `Shop ${siteTitle} for me. Ask me for anything you need first. The steps are at ${base}${SHOP_GUIDE_PATH}`;
+
 /** A product as the guide lists it. */
 export type GuideProduct = {
   handle: string;

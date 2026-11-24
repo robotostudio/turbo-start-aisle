@@ -9,6 +9,7 @@ import {
   productsSummary,
   shopGuide,
   shopGuideMarkdown,
+  shopPrompt,
   variantGidFromLink,
 } from "../agent-shop";
 import { allowRequest, MAX_KEYS } from "../rate-limit";
@@ -247,5 +248,13 @@ describe("shopGuideMarkdown", () => {
 
   it("never sends an agent to a URL under /api/", () => {
     expect(guide).not.toMatch(/https?:\/\/\S*\/api\//);
+  });
+});
+
+describe("shopPrompt", () => {
+  it("names the shop and ends with the guide address, no full stop", () => {
+    expect(shopPrompt("Aisle", "https://shop.test")).toBe(
+      "Shop Aisle for me. Ask me for anything you need first. The steps are at https://shop.test/shop-for-agents"
+    );
   });
 });

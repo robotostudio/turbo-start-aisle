@@ -1,3 +1,4 @@
+import { ShopPrompt } from "@/components/shop-prompt";
 import { guideCatalogue } from "@/lib/agent-guide-products";
 import {
   SHOP_GUIDE_DESCRIPTION,
@@ -27,6 +28,13 @@ export default async function ShopForAgentsPage() {
     <main className="mx-auto max-w-3xl px-4 py-16">
       <h1 className="mb-4 font-semibold text-3xl">{SHOP_GUIDE_TITLE}</h1>
       <p className="text-lg text-muted-foreground">{intro}</p>
+      {/* For a person who lands here: the guide itself is written to agents. */}
+      <aside
+        aria-label="For shoppers"
+        className="mt-8 border border-border p-4"
+      >
+        <ShopPrompt />
+      </aside>
       {steps.map(({ title, lines }) => (
         <section className="mt-10" key={title}>
           <h2 className="mb-3 font-semibold text-xl">{title}</h2>
