@@ -20,7 +20,7 @@ const GUIDE_PRODUCTS_QUERY = /* graphql */ `
           handle
           title
           featuredImage {
-            url
+            url(transform: { maxWidth: 800 })
           }
           variants(first: 100) {
             pageInfo {
@@ -75,6 +75,6 @@ export const guideCatalogue = unstable_cache(
   },
   // Bump the key when the query gains a field: the cache outlives a deploy,
   // and the old entry would be served without that field for up to 5 minutes.
-  ["agent-guide-catalogue-v2"],
+  ["agent-guide-catalogue-v3"],
   { revalidate: 300 }
 );

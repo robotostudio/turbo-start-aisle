@@ -7,6 +7,7 @@ import {
   cartLinkQuery,
   type GuideProduct,
   productsSummary,
+  shopGuide,
   shopGuideMarkdown,
   variantGidFromLink,
 } from "../agent-shop";
@@ -177,6 +178,19 @@ describe("shopGuideMarkdown", () => {
     const photo = guide.indexOf("- Tee, photo: <https://cdn.test/tee.png>");
     expect(photo).toBeGreaterThan(-1);
     expect(photo).toBeLessThan(guide.indexOf("- Tee, S, 20.0 GBP:"));
+  });
+
+  it("marks only the photo line as a picture, for the page to embed", () => {
+    const { steps } = shopGuide("https://shop.test", {
+      products: [tee()],
+      partial: false,
+    });
+    const pictures = steps
+      .flatMap((step) => step.lines)
+      .filter((line) => line.photoOf);
+    expect(pictures).toEqual([
+      { text: "Tee, photo:", url: "https://cdn.test/tee.png", photoOf: "Tee" },
+    ]);
   });
 
   it("lists no photo for a sold-out product or one without a picture", () => {

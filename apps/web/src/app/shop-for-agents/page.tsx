@@ -43,14 +43,13 @@ export default async function ShopForAgentsPage() {
                     </a>
                   </>
                 ) : null}
-                {/* An <img>, so an agent that shows page images has the real one. */}
+                {/* An <img>, so an agent that shows page images has the real one. Not lazy: a reader that never scrolls must still load it. */}
                 {url && photoOf ? (
                   // biome-ignore lint/performance/noImgElement: next/image would rewrite the Shopify address the agent is told to show
                   <img
                     alt={photoOf}
                     className="mt-2 rounded"
                     height={160}
-                    loading="lazy"
                     src={url}
                     width={160}
                   />
