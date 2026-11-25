@@ -82,4 +82,31 @@ describe("collectionToMarkdown", () => {
       "[Tee](https://shop.test/products/tee.md)"
     );
   });
+
+  it("gives each item in stock an add-to-cart link on the page itself", () => {
+    const collection = {
+      title: "Tees",
+      description: "",
+      products: {
+        edges: [
+          {
+            node: {
+              handle: "tee",
+              title: "Tee",
+              priceRange: { minVariantPrice: price },
+              variants: {
+                edges: [variant(42, "S", true), variant(43, "M", false)],
+              },
+            },
+          },
+        ],
+      },
+    } as unknown as ShopifyCollection;
+    const markdown = collectionToMarkdown(collection, null);
+    expect(markdown).toContain(
+      "add to cart: <https://shop.test/cart/add?handle=tee&variant=42&quantity=1>"
+    );
+    expect(markdown).toContain("  - Size S, ");
+    expect(markdown).not.toContain("variant=43");
+  });
 });

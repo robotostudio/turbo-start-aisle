@@ -224,6 +224,36 @@ describe("shopGuideMarkdown", () => {
     ]);
   });
 
+  it("links each collection's .md page from a cut list, and the search last", () => {
+    const guide = shopGuideMarkdown("https://shop.test", {
+      products: [tee()],
+      partial: true,
+      collections: [
+        { handle: "tees", title: "Tees" },
+        { handle: "hats", title: "Hats" },
+      ],
+    });
+    const tees = guide.indexOf(
+      "- Tees: <https://shop.test/collections/tees.md>"
+    );
+    const hats = guide.indexOf(
+      "- Hats: <https://shop.test/collections/hats.md>"
+    );
+    const search = guide.indexOf("<https://shop.test/search>");
+    expect(tees).toBeGreaterThan(-1);
+    expect(hats).toBeGreaterThan(tees);
+    expect(search).toBeGreaterThan(hats);
+  });
+
+  it("links no collection when the whole shop is listed", () => {
+    const guide = shopGuideMarkdown("https://shop.test", {
+      products: [tee()],
+      partial: false,
+      collections: [{ handle: "tees", title: "Tees" }],
+    });
+    expect(guide).not.toContain("/collections/");
+  });
+
   it("groups the item list by product for the page, and keeps notes apart", () => {
     const hat = {
       ...tee("Hat"),

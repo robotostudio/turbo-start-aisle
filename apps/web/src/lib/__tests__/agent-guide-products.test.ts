@@ -41,6 +41,9 @@ const page = (
 const handles = (from: number, count: number) =>
   Array.from({ length: count }, (_, index) => `p${from + index}`);
 
+/** The read a cut list makes after its products. */
+const noCollections = { ok: true, data: { collections: { edges: [] } } };
+
 beforeEach(() => {
   storefrontQuery.mockReset();
 });
@@ -75,9 +78,10 @@ describe("guideCatalogue", () => {
     // A read that ignored the cap would take 30 more and list 120.
     storefrontQuery.mockImplementation(
       async (
-        _query,
+        query: string,
         { variables }: { variables: { first: number; after: string | null } }
       ) => {
+        if (query.includes("GuideCollections")) return noCollections;
         const from = Number(variables.after ?? 0);
         const count = Math.min(30, variables.first);
         return page(handles(from, count), String(from + count));
@@ -101,16 +105,44 @@ describe("guideCatalogue", () => {
   });
 
   it("is partial when a product has more variants than one read returns", async () => {
-    storefrontQuery.mockResolvedValueOnce({
-      ok: true,
-      data: {
-        products: {
-          pageInfo: { hasNextPage: false, endCursor: null },
-          edges: [product("big", true)],
+    storefrontQuery
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          products: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            edges: [product("big", true)],
+          },
         },
-      },
-    });
+      })
+      .mockResolvedValueOnce(noCollections);
 
     expect((await guideCatalogue()).partial).toBe(true);
+  });
+
+  it("asks for the collections only when the list was cut", async () => {
+    storefrontQuery.mockResolvedValueOnce(page(["a"], null));
+    expect((await guideCatalogue()).collections).toBeUndefined();
+    expect(storefrontQuery).toHaveBeenCalledTimes(1);
+
+    storefrontQuery.mockReset();
+    storefrontQuery
+      .mockResolvedValueOnce(page(["a"], null, true))
+      .mockResolvedValueOnce({
+        ok: true,
+        data: {
+          collections: { edges: [{ node: { handle: "tees", title: "Tees" } }] },
+        },
+      });
+    expect((await guideCatalogue()).collections).toEqual([
+      { handle: "tees", title: "Tees" },
+    ]);
+  });
+
+  it("throws when the collections read fails, so no half guide is cached", async () => {
+    storefrontQuery
+      .mockResolvedValueOnce(page(["a"], null, true))
+      .mockResolvedValueOnce({ ok: false, error: "boom" });
+    await expect(guideCatalogue()).rejects.toThrow("boom");
   });
 });

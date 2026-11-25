@@ -7,7 +7,7 @@
 
 import { env } from "@workspace/env/client";
 
-import { cartLink } from "@/lib/agent-shop";
+import { cartLink, optionsLine } from "@/lib/agent-shop";
 import {
   keyMetafields,
   PRODUCT_METAFIELD_KEYS,
@@ -334,15 +334,35 @@ export function collectionToMarkdown(
   _sanity: SanityCollectionDoc
 ): string {
   const products = shopify.products.edges.map((edge) => edge.node);
+  let hasItems = false;
   const bullets = products.map((product) => {
     const href = agentHref(`/products/${product.handle}`);
     const price = formatMoney(product.priceRange.minVariantPrice);
     const suffix = price ? ` — from ${price}` : "";
-    return `- [${escapeMarkdown(product.title)}](${href})${suffix}`;
+    // One line per item in stock, on this page: ChatGPT read a collection
+    // page and did not open the product page it linked.
+    const items = (product.variants?.edges ?? [])
+      .filter(({ node }) => node.availableForSale)
+      .map(({ node }) => {
+        const named = [
+          escapeMarkdown(optionsLine(node.selectedOptions)),
+          formatMoney(node.price),
+        ].filter(Boolean);
+        const link = absolutizeUrl(cartLink("", product.handle, node.id, 1));
+        return `  - ${[...named, "add to cart"].join(", ")}: <${link}>`;
+      });
+    hasItems ||= items.length > 0;
+    return [
+      `- [${escapeMarkdown(product.title)}](${href})${suffix}`,
+      ...items,
+    ].join("\n");
   });
   return joinSections([
     documentHeader(shopify.title, shopify.description),
     bullets.length ? heading(2, "Products") : null,
+    hasItems
+      ? 'Each item in stock has its own add-to-cart link. The link opens a page that shows the item, and nothing is added until the shopper presses "Add to cart". A product with no such line is sold out.'
+      : null,
     bullets.length ? bullets.join("\n") : null,
   ]);
 }
