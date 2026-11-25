@@ -9,10 +9,32 @@ const PAGE_SIZE = 50;
 
 // shortcut: the best sellers up to this cap, on one page. At about six lines
 // a product, 100 products is some 600 lines and 90 KB of Markdown, and the
-// HTML page is several times that. A bigger shop needs the guide split by
-// collection, or a search. `partial` tells the guide when the list was cut,
-// so it never says an item it left out is sold out.
+// HTML page is several times that. Past the cap the guide links each
+// collection's `.md` page, which lists 50 products: a bigger collection falls
+// back to the shop's search, so page that list when one exists. `partial`
+// tells the guide when the list was cut, so it never says an item it left out
+// is sold out.
 export const MAX_GUIDE_PRODUCTS = 100;
+
+/** The collections a cut guide links. A shop with more is not all linked. */
+const MAX_GUIDE_COLLECTIONS = 50;
+
+const GUIDE_COLLECTIONS_QUERY = /* graphql */ `
+  query GuideCollections($first: Int!) {
+    collections(first: $first, sortKey: TITLE) {
+      edges {
+        node {
+          handle
+          title
+        }
+      }
+    }
+  }
+`;
+
+type GuideCollectionsResponse = {
+  collections: { edges: { node: { handle: string; title: string } }[] };
+};
 
 const GUIDE_PRODUCTS_QUERY = /* graphql */ `
   query GuideProducts($first: Int!, $after: String) {
@@ -81,7 +103,8 @@ async function guideProductsPage(
  * then keeps its last good copy and the `.md` twin answers 503, instead of
  * either caching an empty list. A failed later page throws too, so a short
  * list is never cached as the whole shop. Cached for 5 minutes, so the page
- * and its twin show the same stock and share one set of Shopify reads.
+ * and its twin show the same stock and share one set of Shopify reads. A cut
+ * list comes with the shop's collections, for the guide to link.
  */
 export const guideCatalogue = unstable_cache(
   async (): Promise<GuideCatalogue> => {
@@ -101,16 +124,26 @@ export const guideCatalogue = unstable_cache(
       // leave `more` set so the list is marked partial.
       if (after === null || edges.length === 0) break;
     }
+    const partial =
+      more || products.some((product) => product.variants.pageInfo.hasNextPage);
+    // A shop that fits on the page never asks for its collections.
+    if (!partial) return { products, partial };
+    const result = await storefrontQuery<GuideCollectionsResponse>(
+      GUIDE_COLLECTIONS_QUERY,
+      { variables: { first: MAX_GUIDE_COLLECTIONS } }
+    );
+    if (!result.ok) {
+      throw new Error(`Guide collections read failed: ${result.error}`);
+    }
     return {
       products,
-      partial:
-        more ||
-        products.some((product) => product.variants.pageInfo.hasNextPage),
+      partial,
+      collections: result.data.collections.edges.map((edge) => edge.node),
     };
   },
   // Bump the key when the query gains a field the guide reads: the cache
   // outlives a deploy, and the old entry would be served without that field
   // for up to 5 minutes.
-  ["agent-guide-catalogue-v3"],
+  ["agent-guide-catalogue-v4"],
   { revalidate: 300 }
 );

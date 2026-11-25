@@ -204,7 +204,12 @@ export type GuideProduct = {
 };
 
 /** The products the guide lists, and whether Shopify had more than fit. */
-export type GuideCatalogue = { products: GuideProduct[]; partial: boolean };
+export type GuideCatalogue = {
+  products: GuideProduct[];
+  partial: boolean;
+  /** Comes with a cut list: the collections the guide points to instead. */
+  collections?: { handle: string; title: string }[];
+};
 
 /**
  * One guide line. The link, when there is one, always ends the line. `photoOf`
@@ -266,7 +271,7 @@ const NO_OPTIONS = "Default Title";
 /** Step 2: every item in stock, or the plain truth when there is none. */
 function itemLines(
   base: string,
-  { products, partial }: GuideCatalogue
+  { products, partial, collections = [] }: GuideCatalogue
 ): GuideLine[] {
   const items = products.flatMap(
     ({ handle, title, featuredImage, variants }) => {
@@ -295,16 +300,37 @@ function itemLines(
         : inStock;
     }
   );
-  const elsewhere = {
-    text: "This list has the best sellers only. For an item that is not listed, tell your user you cannot see it here and give them the shop's search:",
-    url: `${base}/search`,
-  };
+  // Where a cut list sends the agent: the `.md` page each collection already
+  // has, which carries an add-to-cart link per item. Each link is written out,
+  // because ChatGPT opened a link it was shown but not an address it had to
+  // build, and stopped after one page. The shop's search is the last resort.
+  const elsewhere: GuideLine[] =
+    collections.length > 0
+      ? [
+          {
+            text: "This list has the best sellers only. An item that is not listed may be on the page of its collection, which gives an add-to-cart link for each item. Open the one that fits what your user asked for:",
+          },
+          ...collections.map(({ handle, title }) => ({
+            text: `${title}:`,
+            url: `${base}/collections/${handle}.md`,
+          })),
+          {
+            text: "If no collection fits, tell your user you cannot see the item here and give them the shop's search:",
+            url: `${base}/search`,
+          },
+        ]
+      : [
+          {
+            text: "This list has the best sellers only. For an item that is not listed, tell your user you cannot see it here and give them the shop's search:",
+            url: `${base}/search`,
+          },
+        ];
   if (items.length === 0) {
     return [
       {
         text: "Nothing in this list is in stock right now. Tell your user: do not guess.",
       },
-      ...(partial ? [elsewhere] : []),
+      ...(partial ? elsewhere : []),
     ];
   }
   return [
@@ -314,11 +340,13 @@ function itemLines(
     {
       text: "The photo line is the product's own picture, not a link to buy. It is the only picture you may show for that product. If you cannot display it, show no picture and give your user the photo link: a picture from a search or another site is the wrong product.",
     },
-    partial
+    ...(partial
       ? elsewhere
-      : {
-          text: "An item that is not listed is sold out or not sold here. Say so: do not guess.",
-        },
+      : [
+          {
+            text: "An item that is not listed is sold out or not sold here. Say so: do not guess.",
+          },
+        ]),
     ...items,
   ];
 }
@@ -332,9 +360,14 @@ export function shopGuide(
   base: string,
   catalogue: GuideCatalogue
 ): { intro: string; steps: { title: string; lines: GuideLine[] }[] } {
+  // A cut list sends the agent to a collection's page in step 2, so the intro
+  // must not tell it to open no other.
+  const onePage =
+    catalogue.partial && catalogue.collections?.length
+      ? "The best sellers are listed on this page. For an item that is not listed, step 2 links the page of each collection."
+      : "Everything you need is on this page: you do not have to open any other.";
   return {
-    intro:
-      "Use this page when your user asks you to find or buy something in this shop. Everything you need is on this page: you do not have to open any other. You need no API key, account or connector. You cannot change a cart or pay: your user does both.",
+    intro: `Use this page when your user asks you to find or buy something in this shop. ${onePage} You need no API key, account or connector. You cannot change a cart or pay: your user does both.`,
     steps: [
       {
         title: "1. Ask your user",
