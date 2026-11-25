@@ -215,11 +215,13 @@ export type GuideLine = {
   url?: string;
   photoOf?: string;
   /** Set on an item line: the same words as `text`, in parts, for the page. */
-  item?: { product: string; variant?: string; price: string };
+  item?: { handle: string; product: string; variant?: string; price: string };
 };
 
 /** One product's lines, as the page lays them out. */
 export type GuideGroup = {
+  /** Unset until the group's first item: the photo line carries no handle. */
+  handle?: string;
   product: string;
   photo?: string;
   items: { variant?: string; price: string; url: string }[];
@@ -227,7 +229,9 @@ export type GuideGroup = {
 
 /**
  * Splits a step's lines into its notes and, for the item list, one group per
- * product. A group is a run of lines that name the same product.
+ * product. A photo line always starts a group; an item joins the group before
+ * it unless its handle says it is another product. Titles are not compared:
+ * two products can share one.
  */
 export function groupGuideLines(lines: GuideLine[]): {
   notes: GuideLine[];
@@ -236,25 +240,22 @@ export function groupGuideLines(lines: GuideLine[]): {
   const notes: GuideLine[] = [];
   const groups: GuideGroup[] = [];
   for (const line of lines) {
-    const product = line.photoOf ?? line.item?.product;
-    if (!(product && line.url)) {
+    const { url, photoOf, item } = line;
+    if (!(url && (photoOf || item))) {
       notes.push(line);
       continue;
     }
+    if (!item) {
+      groups.push({ product: photoOf as string, photo: url, items: [] });
+      continue;
+    }
     let group = groups.at(-1);
-    if (group?.product !== product) {
-      group = { product, items: [] };
+    if (!group || (group.handle ?? item.handle) !== item.handle) {
+      group = { product: item.product, items: [] };
       groups.push(group);
     }
-    if (line.item) {
-      group.items.push({
-        variant: line.item.variant,
-        price: line.item.price,
-        url: line.url,
-      });
-    } else {
-      group.photo = line.url;
-    }
+    group.handle = item.handle;
+    group.items.push({ variant: item.variant, price: item.price, url });
   }
   return { notes, groups };
 }
@@ -275,6 +276,7 @@ function itemLines(
           text: `${node.title === NO_OPTIONS ? title : `${title}, ${node.title}`}, ${money(node.price)}:`,
           url: cartLink(base, handle, node.id, 1),
           item: {
+            handle,
             product: title,
             variant: node.title === NO_OPTIONS ? undefined : node.title,
             price: money(node.price),

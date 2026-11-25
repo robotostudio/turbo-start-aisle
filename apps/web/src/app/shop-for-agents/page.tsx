@@ -71,8 +71,9 @@ function Product({ product, photo, items }: GuideGroup) {
           {photo ? (
             <p className="flex gap-2.5 text-[13px] text-muted-foreground">
               <span className="sr-only">{product}, </span>
-              <span className="shrink-0">
-                Photo<span className="sr-only">:</span>
+              {/* Lowercase in the text, as the .md twin has it; the capital is CSS. */}
+              <span className="shrink-0 capitalize">
+                photo<span className="sr-only">: </span>
               </span>
               <a
                 className={`${linkClass} min-w-0 truncate underline`}
@@ -106,9 +107,9 @@ function Product({ product, photo, items }: GuideGroup) {
               {price}
               <span className="sr-only">: </span>
             </span>
-            {/* The row is 43px tall, so the link has the height to press. */}
+            {/* The padding gives the link the row's height to press. */}
             <a
-              className={`${linkClass} min-w-0 basis-full truncate hover:underline sm:flex-1 sm:basis-0`}
+              className={`${linkClass} min-w-0 basis-full -my-2.5 truncate py-2.5 hover:underline sm:flex-1 sm:basis-0`}
               href={url}
               title={url}
             >
@@ -135,10 +136,6 @@ export default async function ShopForAgentsPage() {
         <p className="mt-4 max-w-3xl text-pretty text-lg text-muted-foreground leading-relaxed">
           {intro}
         </p>
-        {/* For a person who lands here: the guide itself is written to agents. */}
-        <aside aria-label="For shoppers" className="mt-6 lg:hidden">
-          <ShopPrompt />
-        </aside>
       </div>
       <div className="site-container grid grid-cols-1 gap-12 py-12 md:py-16 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-24">
         <div className="min-w-0 max-w-4xl space-y-14">
@@ -175,9 +172,10 @@ export default async function ShopForAgentsPage() {
             );
           })}
         </div>
-        <aside className="hidden lg:block">
+        {/* One chip, so a reader of the page's text meets it once: above the steps on a phone, beside them on a desktop. */}
+        <aside className="order-first lg:order-none">
           <div className="sticky top-24">
-            <nav aria-labelledby="on-this-page">
+            <nav aria-labelledby="on-this-page" className="hidden lg:block">
               <p className="pb-2 font-medium text-sm" id="on-this-page">
                 On this page
               </p>
@@ -195,7 +193,8 @@ export default async function ShopForAgentsPage() {
                 ))}
               </ul>
             </nav>
-            <div className="mt-4">
+            {/* For a person who lands here: the guide itself is written to agents. */}
+            <div className="lg:mt-4">
               <ShopPrompt />
             </div>
           </div>

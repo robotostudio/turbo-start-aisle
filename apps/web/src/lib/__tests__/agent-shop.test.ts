@@ -238,6 +238,7 @@ describe("shopGuideMarkdown", () => {
     const { notes, groups } = groupGuideLines(steps[1]?.lines ?? []);
     expect(groups).toEqual([
       {
+        handle: "tee",
         product: "Tee",
         photo: "https://cdn.test/tee.png",
         items: [
@@ -249,6 +250,7 @@ describe("shopGuideMarkdown", () => {
         ],
       },
       {
+        handle: "hat",
         product: "Hat",
         items: [
           {
@@ -262,6 +264,26 @@ describe("shopGuideMarkdown", () => {
     // The search link belongs to no product, so it stays a note.
     expect(notes.at(-1)?.url).toBe("https://shop.test/search");
     expect(notes.every((note) => !(note.item || note.photoOf))).toBe(true);
+  });
+
+  it("keeps two products with one title apart, each under its own photo", () => {
+    const twin = {
+      ...tee(),
+      handle: "tee-2",
+      featuredImage: { url: "https://cdn.test/tee-2.png" },
+    };
+    const bare = { ...tee(), handle: "tee-3", featuredImage: null };
+    const { steps } = shopGuide("https://shop.test", {
+      products: [tee(), twin, bare],
+      partial: false,
+    });
+    const { groups } = groupGuideLines(steps[1]?.lines ?? []);
+    expect(groups.map(({ handle, photo }) => [handle, photo])).toEqual([
+      ["tee", "https://cdn.test/tee.png"],
+      ["tee-2", "https://cdn.test/tee-2.png"],
+      ["tee-3", undefined],
+    ]);
+    expect(groups.every(({ items }) => items.length === 1)).toBe(true);
   });
 
   it("lists no photo for a sold-out product or one without a picture", () => {
