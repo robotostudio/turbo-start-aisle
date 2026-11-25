@@ -210,7 +210,54 @@ export type GuideCatalogue = { products: GuideProduct[]; partial: boolean };
  * One guide line. The link, when there is one, always ends the line. `photoOf`
  * marks the link as a picture and names the product in it.
  */
-export type GuideLine = { text: string; url?: string; photoOf?: string };
+export type GuideLine = {
+  text: string;
+  url?: string;
+  photoOf?: string;
+  /** Set on an item line: the same words as `text`, in parts, for the page. */
+  item?: { product: string; variant?: string; price: string };
+};
+
+/** One product's lines, as the page lays them out. */
+export type GuideGroup = {
+  product: string;
+  photo?: string;
+  items: { variant?: string; price: string; url: string }[];
+};
+
+/**
+ * Splits a step's lines into its notes and, for the item list, one group per
+ * product. A group is a run of lines that name the same product.
+ */
+export function groupGuideLines(lines: GuideLine[]): {
+  notes: GuideLine[];
+  groups: GuideGroup[];
+} {
+  const notes: GuideLine[] = [];
+  const groups: GuideGroup[] = [];
+  for (const line of lines) {
+    const product = line.photoOf ?? line.item?.product;
+    if (!(product && line.url)) {
+      notes.push(line);
+      continue;
+    }
+    let group = groups.at(-1);
+    if (group?.product !== product) {
+      group = { product, items: [] };
+      groups.push(group);
+    }
+    if (line.item) {
+      group.items.push({
+        variant: line.item.variant,
+        price: line.item.price,
+        url: line.url,
+      });
+    } else {
+      group.photo = line.url;
+    }
+  }
+  return { notes, groups };
+}
 
 /** Shopify's name for the only variant of a product that has no options. */
 const NO_OPTIONS = "Default Title";
@@ -227,6 +274,11 @@ function itemLines(
         .map(({ node }) => ({
           text: `${node.title === NO_OPTIONS ? title : `${title}, ${node.title}`}, ${money(node.price)}:`,
           url: cartLink(base, handle, node.id, 1),
+          item: {
+            product: title,
+            variant: node.title === NO_OPTIONS ? undefined : node.title,
+            price: money(node.price),
+          },
         }));
       // The photo leads its product's items; a sold-out product lists neither.
       return inStock.length > 0 && featuredImage
