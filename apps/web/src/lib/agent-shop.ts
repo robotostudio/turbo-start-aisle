@@ -360,9 +360,14 @@ export function shopGuide(
   base: string,
   catalogue: GuideCatalogue
 ): { intro: string; steps: { title: string; lines: GuideLine[] }[] } {
+  // A cut list sends the agent to a collection's page in step 2, so the intro
+  // must not tell it to open no other.
+  const onePage =
+    catalogue.partial && catalogue.collections?.length
+      ? "The best sellers are listed on this page. For an item that is not listed, step 2 links the page of each collection."
+      : "Everything you need is on this page: you do not have to open any other.";
   return {
-    intro:
-      "Use this page when your user asks you to find or buy something in this shop. Everything you need is on this page: you do not have to open any other. You need no API key, account or connector. You cannot change a cart or pay: your user does both.",
+    intro: `Use this page when your user asks you to find or buy something in this shop. ${onePage} You need no API key, account or connector. You cannot change a cart or pay: your user does both.`,
     steps: [
       {
         title: "1. Ask your user",

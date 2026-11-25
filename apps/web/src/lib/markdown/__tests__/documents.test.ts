@@ -109,4 +109,27 @@ describe("collectionToMarkdown", () => {
     expect(markdown).toContain("  - Size S, ");
     expect(markdown).not.toContain("variant=43");
   });
+
+  it("says when the list is cut, and gives the search", () => {
+    const node = {
+      handle: "tee",
+      title: "Tee",
+      priceRange: { minVariantPrice: price },
+    };
+    const collection = (hasNextPage: boolean) =>
+      ({
+        title: "Tees",
+        description: "",
+        products: { edges: [{ node }], pageInfo: { hasNextPage } },
+      }) as unknown as ShopifyCollection;
+    expect(collectionToMarkdown(collection(true), null)).toContain(
+      "first 1 products of the collection"
+    );
+    expect(collectionToMarkdown(collection(true), null)).toContain(
+      "<https://shop.test/search>"
+    );
+    expect(collectionToMarkdown(collection(false), null)).not.toContain(
+      "/search"
+    );
+  });
 });

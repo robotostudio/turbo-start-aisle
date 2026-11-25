@@ -363,6 +363,10 @@ export function collectionToMarkdown(
     hasItems
       ? 'Each item in stock has its own add-to-cart link. The link opens a page that shows the item, and nothing is added until the shopper presses "Add to cart". A product with no such line is sold out.'
       : null,
+    // A cut list must say so, or an agent calls a product it left out sold out.
+    shopify.products.pageInfo?.hasNextPage
+      ? `This page lists the first ${products.length} products of the collection. For a product that is not listed, give the shopper the shop's search: <${absolutizeUrl("/search")}>`
+      : null,
     bullets.length ? bullets.join("\n") : null,
   ]);
 }

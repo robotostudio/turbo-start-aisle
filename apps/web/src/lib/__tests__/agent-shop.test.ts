@@ -261,10 +261,13 @@ describe("shopGuideMarkdown", () => {
       featuredImage: null,
       variants: { edges: [variant(7, "Default Title", true)] },
     };
-    const { steps } = shopGuide("https://shop.test", {
+    const { intro, steps } = shopGuide("https://shop.test", {
       products: [tee(), hat],
       partial: true,
+      collections: [{ handle: "tees", title: "Tees" }],
     });
+    // A guide that sends the agent to another page must not say to open none.
+    expect(intro).not.toContain("you do not have to open any other");
     const { notes, groups } = groupGuideLines(steps[1]?.lines ?? []);
     expect(groups).toEqual([
       {
@@ -291,7 +294,9 @@ describe("shopGuideMarkdown", () => {
         ],
       },
     ]);
-    // The search link belongs to no product, so it stays a note.
+    // The collection and search links belong to no product, so they stay
+    // notes, the search last.
+    expect(notes.at(-2)?.url).toBe("https://shop.test/collections/tees.md");
     expect(notes.at(-1)?.url).toBe("https://shop.test/search");
     expect(notes.every((note) => !(note.item || note.photoOf))).toBe(true);
   });
