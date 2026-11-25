@@ -210,7 +210,55 @@ export type GuideCatalogue = { products: GuideProduct[]; partial: boolean };
  * One guide line. The link, when there is one, always ends the line. `photoOf`
  * marks the link as a picture and names the product in it.
  */
-export type GuideLine = { text: string; url?: string; photoOf?: string };
+export type GuideLine = {
+  text: string;
+  url?: string;
+  photoOf?: string;
+  /** Set on an item line: the same words as `text`, in parts, for the page. */
+  item?: { handle: string; product: string; variant?: string; price: string };
+};
+
+/** One product's lines, as the page lays them out. */
+export type GuideGroup = {
+  /** Unset until the group's first item: the photo line carries no handle. */
+  handle?: string;
+  product: string;
+  photo?: string;
+  items: { variant?: string; price: string; url: string }[];
+};
+
+/**
+ * Splits a step's lines into its notes and, for the item list, one group per
+ * product. A photo line always starts a group; an item joins the group before
+ * it unless its handle says it is another product. Titles are not compared:
+ * two products can share one.
+ */
+export function groupGuideLines(lines: GuideLine[]): {
+  notes: GuideLine[];
+  groups: GuideGroup[];
+} {
+  const notes: GuideLine[] = [];
+  const groups: GuideGroup[] = [];
+  for (const line of lines) {
+    const { url, photoOf, item } = line;
+    if (!(url && (photoOf || item))) {
+      notes.push(line);
+      continue;
+    }
+    if (!item) {
+      groups.push({ product: photoOf as string, photo: url, items: [] });
+      continue;
+    }
+    let group = groups.at(-1);
+    if (!group || (group.handle ?? item.handle) !== item.handle) {
+      group = { product: item.product, items: [] };
+      groups.push(group);
+    }
+    group.handle = item.handle;
+    group.items.push({ variant: item.variant, price: item.price, url });
+  }
+  return { notes, groups };
+}
 
 /** Shopify's name for the only variant of a product that has no options. */
 const NO_OPTIONS = "Default Title";
@@ -227,6 +275,12 @@ function itemLines(
         .map(({ node }) => ({
           text: `${node.title === NO_OPTIONS ? title : `${title}, ${node.title}`}, ${money(node.price)}:`,
           url: cartLink(base, handle, node.id, 1),
+          item: {
+            handle,
+            product: title,
+            variant: node.title === NO_OPTIONS ? undefined : node.title,
+            price: money(node.price),
+          },
         }));
       // The photo leads its product's items; a sold-out product lists neither.
       return inStock.length > 0 && featuredImage
